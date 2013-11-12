@@ -1,6 +1,6 @@
 import warnings
 
-from mr.video.image_sequence import ImageSequence
+from pims.image_sequence import ImageSequence
 
 def require_cv2_Video(*args, **kwargs):
     raise ImportError("""To import frames from video files, you must install 
@@ -20,13 +20,13 @@ except ImportError:
     circle = require_cv2_tools
     play = require_cv2_tools
 else:
-    from mr.video.opencv import Video
-    from mr.video.annotate import circle
-    from mr.video.playback import play
+    from pims.video import Video
+    from pims.annotate import circle
+    from pims.playback import play
 
 try:
     import libtiff
 except ImportError:
     TiffStack = require_libtiff
 else:
-    from mr.video.tiff_stack import TiffStack
+    from pims.tiff_stack import TiffStack

@@ -1,0 +1,10 @@
+*.pro
+*.log
+*.pyc
+*.so
+*~
+*.swp
+build/*
+dist/*
+pims.egg-info/*
+pims/version.py
