@@ -3,13 +3,15 @@ import numpy as np
 import cv2
 from pims.base_frames import BaseFrames
 
+
 def open_video(filename):
     """Thin convenience function for return an opencv2 Capture object."""
     # ffmpeg -i unreadable.avi -sameq -r 30 readable.avi
     if not os.path.isfile(filename):
-        raise ValueError, "%s is not a file." % filename
+        raise ValueError("%s is not a file." % filename)
     capture = cv2.VideoCapture(filename)
     return capture
+
 
 class Video(BaseFrames):
     """Iterable object that returns frames of video as numpy arrays.
@@ -28,13 +30,13 @@ class Video(BaseFrames):
 
     >>> for frame in video[:]:
     ...    # Do something with every frame.
- 
+
     >>> for frame in video[10:20]:
     ...    # Do something with frames 10-20.
 
     >>> for frame in video[[5, 7, 13]]:
     ...    # Do something with frames 5, 7, and 13.
- 
+
     >>> frame_count = video.count # Number of frames in video
     >>> frame_shape = video.shape # Pixel dimensions of video
     """
@@ -53,4 +55,4 @@ class Video(BaseFrames):
             frame = cv2.cvtColor(frame, cv2.cv.CV_RGB2GRAY)
         if self.invert:
             frame ^= np.iinfo(frame.dtype).max
-        return frame 
+        return frame

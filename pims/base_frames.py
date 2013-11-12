@@ -2,9 +2,10 @@ import os
 import numpy as np
 import collections
 
+
 class BaseFrames(object):
     "Base class for iterable objects that return images as numpy arrays."
-    
+
     def __init__(self, filename, gray=True, invert=True):
         self.filename = filename
         self.gray = gray
@@ -35,7 +36,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
     def seek_forward(self, val):
         for _ in range(val):
             self.next()
-        
+
     def rewind(self):
         """Reopen the video file to start at the beginning. ('Seeking'
         capabilities in the underlying OpenCV library are not reliable.)"""
@@ -58,12 +59,12 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         pure numpy implementation is general."""
         if self.gray:
             if len(frame.shape) == 2:
-                pass # already gray
-            elif len(frame.shape) == 3: 
+                pass  # already gray
+            elif len(frame.shape) == 3:
                 frame = np.mean(frame, axis=2).astype(frame.dtype)
             else:
-                raise ValueError, \
-                   "Frames are not 2- or 3-dimensional arrays. What now?"
+                raise ValueError("Frames are not 2- or 3-dimensional " +
+                                 "arrays. What now?")
         if self.invert:
             frame ^= np.iinfo(frame.dtype).max
         return frame
@@ -76,19 +77,18 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
             elif self.cursor == val:
                 return self.next()
             else:
-                video_copy = self.__class__(self.filename, 
+                video_copy = self.__class__(self.filename,
                                             self.gray, self.invert)
                 video_copy.seek_forward(val)
                 return video_copy.next()
         if isinstance(val, slice):
             start, stop, step = val.indices(self.count)
             if step != 1:
-                raise NotImplementedError, \
-                    "Step must be 1."
+                raise NotImplementedError("Step must be 1.")
         elif isinstance(val, collections.Iterable):
             return (self[i] for i in val)
             start = val
-            stop = None    
+            stop = None
         video_copy = self.__class__(self.filename, self.gray, self.invert)
         video_copy.seek_forward(start)
         video_copy.endpoint = stop

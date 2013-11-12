@@ -3,25 +3,29 @@ import numpy as np
 from scipy.ndimage import imread
 from pims.base_frames import BaseFrames
 
+
 class PseudoCapture(object):
     def __init__(self, directory):
-        self.filename = directory # used by BaseFrames 
-        self.files = [os.path.join(directory, f) \
+        self.filename = directory  # used by BaseFrames
+        self.files = [os.path.join(directory, f)
                       for f in os.listdir(directory)]
         self.files.sort()
         self.end = False
         self.generator = (imread(f) for f in self.files)
+
     def read(self):
         try:
             return True, self.generator.next()
         except StopIteration:
             return False, np.array([])
 
+
 def open_image_sequence(directory):
     if not os.path.isdir(directory):
-        raise ValueError, "%s is not a directory." % directory
+        raise ValueError("%s is not a directory." % directory)
     capture = PseudoCapture(directory)
     return capture
+
 
 class ImageSequence(BaseFrames):
     """Iterable object that returns frames of video as numpy arrays.
@@ -40,13 +44,13 @@ class ImageSequence(BaseFrames):
 
     >>> for frame in video[:]:
     ...    # Do something with every frame.
- 
+
     >>> for frame in video[10:20]:
     ...    # Do something with frames 10-20.
 
     >>> for frame in video[[5, 7, 13]]:
     ...    # Do something with frames 5, 7, and 13.
- 
+
     >>> frame_count = video.count # Number of frames in video
     >>> frame_shape = video.shape # Pixel dimensions of video
     """
