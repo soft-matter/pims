@@ -1,1 +1,1 @@
-from .api import *
+from pims.api import *
