@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from scipy.ndimage import imread
-from mr.video.base_frames import BaseFrames
+from pims.base_frames import BaseFrames
 
 class PseudoCapture(object):
     def __init__(self, directory):

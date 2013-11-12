@@ -10,7 +10,7 @@ def circle(features, frames, wait=1, high_contrast=True, write_file=None):
     ----------
     features : DataFrame including columns 'frame', 'x', and 'y'
     frames : iterable container of image arrays, like a list of images or a 
-        Video object (See mr.opencv.video.Video.)
+        Video object (See pims.video.Video.)
     wait : delay between frames, default 1
     high_contrast : Rescale brightness to use full gamut. Default True.
     write_file : Save the annotated movie to a file.

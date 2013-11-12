@@ -1,9 +1,9 @@
 import os
-import mr
 import unittest
 import nose
 import numpy as np
 from numpy.testing import (assert_equal)
+import pims
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -27,7 +27,7 @@ class TestVideo(unittest.TestCase):
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
-        self.v = mr.Video(self.filename)
+        self.v = pims.Video(self.filename)
 
     def test_shape(self):
         _skip_if_no_cv2()
@@ -70,7 +70,7 @@ class TestVideo(unittest.TestCase):
 
     def test_invert(self):
         inverted_frame0 = self.frame0 ^ np.iinfo(self.frame0.dtype).max
-        inverted_video = mr.Video(self.filename, invert=False)
+        inverted_video = pims.Video(self.filename, invert=False)
         assert_equal(inverted_video[0], inverted_frame0)
 
     def test_integer_attributes(self):
@@ -87,7 +87,7 @@ class TestTiffStack(unittest.TestCase):
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
-        self.v = mr.TiffStack(self.filename, invert=False)
+        self.v = pims.TiffStack(self.filename, invert=False)
 
     def test_shape(self):
         _skip_if_no_libtiff()
@@ -130,7 +130,7 @@ class TestTiffStack(unittest.TestCase):
 
     def test_invert(self):
         inverted_frame0 = self.frame0 ^ np.iinfo(self.frame0.dtype).max
-        inverted_tiff_stack = mr.TiffStack(self.filename, invert=True)
+        inverted_tiff_stack = pims.TiffStack(self.filename, invert=True)
         assert_equal(inverted_tiff_stack[0], inverted_frame0)
 
     def test_integer_attributes(self):
@@ -146,7 +146,7 @@ class TestImageSequence(unittest.TestCase):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
-        self.v = mr.ImageSequence(self.filename, invert=False)
+        self.v = pims.ImageSequence(self.filename, invert=False)
 
     def test_shape(self):
         assert_equal(self.v.shape, (424, 640))
@@ -181,7 +181,7 @@ class TestImageSequence(unittest.TestCase):
 
     def test_invert(self):
         inverted_frame0 = self.frame0 ^ np.iinfo(self.frame0.dtype).max
-        inverted_sequence = mr.ImageSequence(self.filename, invert=True)
+        inverted_sequence = pims.ImageSequence(self.filename, invert=True)
         assert_equal(inverted_sequence[0], inverted_frame0)
 
     def test_integer_attributes(self):

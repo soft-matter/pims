@@ -2,7 +2,7 @@ import os
 from libtiff import TIFF
 import PIL.ImageOps
 import numpy as np
-from mr.video.base_frames import BaseFrames
+from pims.base_frames import BaseFrames
 
 class PseudoCapture(object):
     def __init__(self, filename):

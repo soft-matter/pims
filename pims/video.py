@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import cv2
-from mr.video.base_frames import BaseFrames
+from pims.base_frames import BaseFrames
 
 def open_video(filename):
     """Thin convenience function for return an opencv2 Capture object."""
