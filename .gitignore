@@ -8,3 +8,4 @@ build/*
 dist/*
 pims.egg-info/*
 pims/version.py
+examples/.ipynb_checkpoints
