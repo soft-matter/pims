@@ -21,7 +21,6 @@ try:
     import cv2
 except ImportError:
     Video = require_cv2_Video
-    circle = require_cv2_tools
     play = require_cv2_tools
 else:
     from pims.video import Video
