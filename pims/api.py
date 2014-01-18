@@ -24,7 +24,6 @@ except ImportError:
     play = require_cv2_tools
 else:
     from pims.video import Video
-    from pims.annotate import circle
     from pims.playback import play
 
 try:
