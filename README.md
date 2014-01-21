@@ -83,7 +83,7 @@ Paste ``opencv_ffmpeg.dll`` here.
 
 Now run ``ipython``. If you can execute ``import cv`` without any errors, the
 installation is probably successful. If you can read video files using
-``mr.Video('path/to/video_file.avi')`` then the installation is definitely working
+``pims.Video('path/to/video_file.avi')`` then the installation is definitely working
 as expected.
 
 
@@ -92,7 +92,7 @@ as expected.
 The code is under active development. To update to the current development
 version, run this in the command prompt:
 
-    pip install --upgrade http://github.com/soft-matter/mr/zipball/master
+    pip install --upgrade http://github.com/soft-matter/pims/zipball/master
 
 Contributors
 ------------
