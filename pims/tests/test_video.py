@@ -8,17 +8,20 @@ import pims
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
+
 def _skip_if_no_cv2():
     try:
         import cv2
     except ImportError:
         raise nose.SkipTest('OpenCV not installed. Skipping.')
 
+
 def _skip_if_no_libtiff():
     try:
         import libtiff
     except ImportError:
         raise nose.SkipTest('libtiff not installed. Skipping.')
+
 
 class TestVideo(unittest.TestCase):
 
@@ -49,7 +52,9 @@ class TestVideo(unittest.TestCase):
 
     def test_getting_slice(self):
         _skip_if_no_cv2()
-        frame0, frame1 = list(self.v[0:1])
+        tmp = list(self.v[0:2])
+        print len(tmp)
+        frame0, frame1 = tmp
         assert_equal(frame0, self.frame0)
         assert_equal(frame1, self.frame1)
 
@@ -109,7 +114,7 @@ class TestTiffStack(unittest.TestCase):
 
     def test_getting_slice(self):
         _skip_if_no_libtiff()
-        frame0, frame1 = list(self.v[0:1])
+        frame0, frame1 = list(self.v[0:2])
         assert_equal(frame0, self.frame0)
         assert_equal(frame1, self.frame1)
 
@@ -163,7 +168,9 @@ class TestImageSequence(unittest.TestCase):
         assert_equal(self.v.next(), self.frame0)
 
     def test_getting_slice(self):
-        frame0, frame1 = list(self.v[0:1])
+        tmp = list(self.v[0:2])
+        print len(tmp)
+        frame0, frame1 = tmp
         assert_equal(frame0, self.frame0)
         assert_equal(frame1, self.frame1)
 

@@ -63,3 +63,6 @@ class ImageSequence(BaseFrames):
 
     def _open(self, filename):
         return open_image_sequence(filename)
+
+    def __len__(self):
+        return self.count

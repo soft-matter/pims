@@ -2,8 +2,85 @@ import os
 import numpy as np
 import collections
 
+from abc import ABCMeta, abstractmethod, abstractproperty
 
-class BaseFrames(object):
+
+class FramesStream:
+    """
+    A base class for wrapping input data which knows how to
+    advance to the next frame, but does not have random access.
+
+    The length does not need to be finite.
+
+    Does not support slicing.
+    """
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def __iter__(self):
+        pass
+
+    @abstractproperty
+    def pixel_type(self):
+        """Returns a numpy.dtype for the data type of the pixel values"""
+        pass
+
+    @abstractproperty
+    def frame_shape(self):
+        """Returns the shape of a single frame as a tuple ex (10, 12)"""
+        pass
+
+
+class FramesSequence(FramesStream):
+    """Baseclass for wrapping data buckets that have random access.
+
+    Support random access.
+
+    Supports standard slicing and fancy slicing, but returns a
+    generator.
+
+    Must be finite length.
+
+    """
+    def __getitem__(self, key):
+        """for data access"""
+        if isinstance(key, slice):
+            # if input is a slice, return a generator
+            return (self.get_frame(_k) for _k
+                    in xrange(*key.indices(len(self))))
+        elif isinstance(key, collections.Iterable):
+            # if the input is an iterable, doing 'fancy' indexing
+
+            if isinstance(key, np.ndarray) and key.dtype == np.bool:
+                # if we have a bool array, do the right thing
+                return (self.get_frame(_k) for _k in np.arange(len(self))[key])
+            # else, return a generator looping over the keys
+            return (self.get_frame(_k) for _k in key)
+        else:
+            # else, fall back to `get_frame`
+            return self.get_frame(key)
+
+    def __iter__(self):
+        return self[:]
+
+    @abstractmethod
+    def __len__(self):
+        """
+        It is obligatory that sub-classes define a length.
+        """
+        pass
+
+    @abstractmethod
+    def get_frame(self, ind):
+        """
+        Sub classes must over-ride this function for how to get a given
+        frame out of the file.  Any data-type specific internal-state
+        nonsense should be dealt with in this function.
+        """
+        pass
+
+
+class BaseFrames(FramesSequence):
     "Base class for iterable objects that return images as numpy arrays."
 
     def __init__(self, filename, gray=True, invert=True):
@@ -69,27 +146,20 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
             frame ^= np.iinfo(frame.dtype).max
         return frame
 
-    def __getitem__(self, val):
-        if isinstance(val, int):
-            if val > self.cursor:
-                self.seek_forward(val - self.cursor)
-                return self.next()
-            elif self.cursor == val:
-                return self.next()
-            else:
-                video_copy = self.__class__(self.filename,
-                                            self.gray, self.invert)
-                video_copy.seek_forward(val)
-                return video_copy.next()
-        if isinstance(val, slice):
-            start, stop, step = val.indices(self.count)
-            if step != 1:
-                raise NotImplementedError("Step must be 1.")
-        elif isinstance(val, collections.Iterable):
-            return (self[i] for i in val)
-            start = val
-            stop = None
-        video_copy = self.__class__(self.filename, self.gray, self.invert)
-        video_copy.seek_forward(start)
-        video_copy.endpoint = stop
-        return video_copy
+    def get_frame(self, val):
+        if val > self.cursor:
+            self.seek_forward(val - self.cursor)
+            return self.next()
+        elif self.cursor == val:
+            return self.next()
+        else:
+            self.rewind()
+            return self.get_frame(val)
+
+    @property
+    def pixel_type(self):
+        pass
+
+    @property
+    def frame_shape(self):
+        pass
