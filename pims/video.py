@@ -56,3 +56,6 @@ class Video(BaseFrames):
         if self.invert:
             frame ^= np.iinfo(frame.dtype).max
         return frame
+
+    def __len__(self):
+        return self.count

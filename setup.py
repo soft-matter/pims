@@ -71,4 +71,3 @@ setup(
     url = "https://github.com/soft-matter/pims",
     packages = ['pims'],
 )
-

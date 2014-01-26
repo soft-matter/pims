@@ -66,3 +66,6 @@ class TiffStack(BaseFrames):
 
     def _open(self, filename):
         return open_tiffstack(filename)
+
+    def __len__(self):
+        return self.count

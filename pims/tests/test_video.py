@@ -8,11 +8,13 @@ import pims
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
+
 def _skip_if_no_cv2():
     try:
         import cv2
     except ImportError:
         raise nose.SkipTest('OpenCV not installed. Skipping.')
+
 
 def _skip_if_no_libtiff():
     try:
@@ -20,7 +22,57 @@ def _skip_if_no_libtiff():
     except ImportError:
         raise nose.SkipTest('libtiff not installed. Skipping.')
 
-class TestVideo(unittest.TestCase):
+
+class _base_klass(unittest.TestCase):
+    def check_skip(self):
+        pass
+
+    def test_iterator(self):
+        self.check_skip()
+        assert_equal(self.v.next(), self.frame0)
+        assert_equal(self.v.next(), self.frame1)
+
+    def test_rewind(self):
+        self.v.rewind()
+        assert_equal(self.v.next(), self.frame0)
+
+    def test_getting_slice(self):
+        self.check_skip()
+        tmp = list(self.v[0:2])
+        print len(tmp)
+        frame0, frame1 = tmp
+        assert_equal(frame0, self.frame0)
+        assert_equal(frame1, self.frame1)
+
+    def test_getting_single_frame(self):
+        self.check_skip()
+        assert_equal(self.v[0], self.frame0)
+        assert_equal(self.v[0], self.frame0)
+        assert_equal(self.v[1], self.frame1)
+        assert_equal(self.v[1], self.frame1)
+
+    def test_getting_list(self):
+        self.check_skip()
+        actual = list(self.v[[1, 0, 0, 1, 1]])
+        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
+                    self.frame1]
+        [assert_equal(a, b) for a, b in zip(actual, expected)]
+
+    def test_bool(self):
+        self.check_skip()
+        pass
+
+    def test_integer_attributes(self):
+        self.check_skip()
+        assert_equal(len(self.v.shape), 2)
+        self.assertTrue(isinstance(self.v.shape[0], int))
+        self.assertTrue(isinstance(self.v.shape[1], int))
+        self.assertTrue(isinstance(self.v.count, int))
+
+
+class TestVideo(_base_klass):
+    def check_skip(self):
+        _skip_if_no_cv2()
 
     def setUp(self):
         _skip_if_no_cv2()
@@ -37,50 +89,10 @@ class TestVideo(unittest.TestCase):
         _skip_if_no_cv2()
         assert_equal(self.v.count, 480)
 
-    def test_iterator(self):
-        _skip_if_no_cv2()
-        assert_equal(self.v.next(), self.frame0)
-        assert_equal(self.v.next(), self.frame1)
 
-    def test_rewind(self):
-        _skip_if_no_cv2()
-        self.v.rewind()
-        assert_equal(self.v.next(), self.frame0)
-
-    def test_getting_slice(self):
-        _skip_if_no_cv2()
-        frame0, frame1 = list(self.v[0:1])
-        assert_equal(frame0, self.frame0)
-        assert_equal(frame1, self.frame1)
-
-    def test_getting_single_frame(self):
-        _skip_if_no_cv2()
-        assert_equal(self.v[1], self.frame1)
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[1], self.frame1)
-        assert_equal(self.v[1], self.frame1)
-
-    def test_getting_list(self):
-        _skip_if_no_cv2()
-        actual = list(self.v[[1, 0, 0, 1, 1]])
-        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
-                    self.frame1]
-        [assert_equal(a, b) for a, b in zip(actual, expected)]
-
-    def test_invert(self):
-        inverted_frame0 = self.frame0 ^ np.iinfo(self.frame0.dtype).max
-        inverted_video = pims.Video(self.filename, invert=False)
-        assert_equal(inverted_video[0], inverted_frame0)
-
-    def test_integer_attributes(self):
-        assert_equal(len(self.v.shape), 2)
-        self.assertTrue(isinstance(self.v.shape[0], int))
-        self.assertTrue(isinstance(self.v.shape[1], int))
-        self.assertTrue(isinstance(self.v.count, int))
-
-
-class TestTiffStack(unittest.TestCase):
+class TestTiffStack(_base_klass):
+    def check_skip(self):
+        _skip_if_no_libtiff()
 
     def setUp(self):
         _skip_if_no_libtiff()
@@ -97,51 +109,8 @@ class TestTiffStack(unittest.TestCase):
         _skip_if_no_libtiff()
         assert_equal(self.v.count, 5)
 
-    def test_iterator(self):
-        _skip_if_no_libtiff()
-        assert_equal(self.v.next(), self.frame0)
-        assert_equal(self.v.next(), self.frame1)
 
-    def test_rewind(self):
-        _skip_if_no_libtiff()
-        self.v.rewind()
-        assert_equal(self.v.next(), self.frame0)
-
-    def test_getting_slice(self):
-        _skip_if_no_libtiff()
-        frame0, frame1 = list(self.v[0:1])
-        assert_equal(frame0, self.frame0)
-        assert_equal(frame1, self.frame1)
-
-    def test_getting_single_frame(self):
-        _skip_if_no_libtiff()
-        assert_equal(self.v[1], self.frame1)
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[1], self.frame1)
-        assert_equal(self.v[1], self.frame1)
-
-    def test_getting_list(self):
-        _skip_if_no_libtiff()
-        actual = list(self.v[[1, 0, 0, 1, 1]])
-        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
-                    self.frame1]
-        [assert_equal(a, b) for a, b in zip(actual, expected)]
-
-    def test_invert(self):
-        inverted_frame0 = self.frame0 ^ np.iinfo(self.frame0.dtype).max
-        inverted_tiff_stack = pims.TiffStack(self.filename, invert=True)
-        assert_equal(inverted_tiff_stack[0], inverted_frame0)
-
-    def test_integer_attributes(self):
-        assert_equal(len(self.v.shape), 2)
-        self.assertTrue(isinstance(self.v.shape[0], int))
-        self.assertTrue(isinstance(self.v.shape[1], int))
-        self.assertTrue(isinstance(self.v.count, int))
-
-
-class TestImageSequence(unittest.TestCase):
-
+class TestImageSequence(_base_klass):
     def setUp(self):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
@@ -153,39 +122,3 @@ class TestImageSequence(unittest.TestCase):
 
     def test_count(self):
         assert_equal(self.v.count, 5)
-
-    def test_iterator(self):
-        assert_equal(self.v.next(), self.frame0)
-        assert_equal(self.v.next(), self.frame1)
-
-    def test_rewind(self):
-        self.v.rewind()
-        assert_equal(self.v.next(), self.frame0)
-
-    def test_getting_slice(self):
-        frame0, frame1 = list(self.v[0:1])
-        assert_equal(frame0, self.frame0)
-        assert_equal(frame1, self.frame1)
-
-    def test_getting_single_frame(self):
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[1], self.frame1)
-        assert_equal(self.v[1], self.frame1)
-
-    def test_getting_list(self):
-        actual = list(self.v[[1, 0, 0, 1, 1]])
-        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
-                    self.frame1]
-        [assert_equal(a, b) for a, b in zip(actual, expected)]
-
-    def test_invert(self):
-        inverted_frame0 = self.frame0 ^ np.iinfo(self.frame0.dtype).max
-        inverted_sequence = pims.ImageSequence(self.filename, invert=True)
-        assert_equal(inverted_sequence[0], inverted_frame0)
-
-    def test_integer_attributes(self):
-        assert_equal(len(self.v.shape), 2)
-        self.assertTrue(isinstance(self.v.shape[0], int))
-        self.assertTrue(isinstance(self.v.shape[1], int))
-        self.assertTrue(isinstance(self.v.count, int))
