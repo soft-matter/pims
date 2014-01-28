@@ -59,3 +59,7 @@ class Video(BaseFrames):
 
     def __len__(self):
         return self.count
+
+    @property
+    def frame_shape(self):
+        return self.shape

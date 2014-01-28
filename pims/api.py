@@ -31,4 +31,12 @@ try:
 except ImportError:
     TiffStack = require_libtiff
 else:
-    from pims.tiff_stack import TiffStack
+    from pims.tiff_stack import TiffStack_libtiff
+
+
+try:
+    from PIL import Image
+except ImportError:
+    print 'yarg?'
+else:
+    from pims.tiff_stack import TiffStack_pil
