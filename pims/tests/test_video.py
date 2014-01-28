@@ -28,15 +28,6 @@ class _base_klass(unittest.TestCase):
     def check_skip(self):
         pass
 
-    def test_iterator(self):
-        self.check_skip()
-        assert_equal(self.v.next(), self.frame0)
-        assert_equal(self.v.next(), self.frame1)
-
-    def test_rewind(self):
-        self.v.rewind()
-        assert_equal(self.v.next(), self.frame0)
-
     def test_getting_slice(self):
         self.check_skip()
         tmp = list(self.v[0:2])
@@ -70,8 +61,18 @@ class _base_klass(unittest.TestCase):
         self.assertTrue(isinstance(len(self.v), int))
 
 
+class _frame_base_klass(_base_klass):
+    def test_iterator(self):
+        self.check_skip()
+        assert_equal(self.v.next(), self.frame0)
+        assert_equal(self.v.next(), self.frame1)
 
-class TestVideo(_base_klass):
+    def test_rewind(self):
+        self.v.rewind()
+        assert_equal(self.v.next(), self.frame0)
+
+
+class TestVideo(_frame_base_klass):
     def check_skip(self):
         _skip_if_no_cv2()
 
@@ -91,7 +92,7 @@ class TestVideo(_base_klass):
         assert_equal(len(self.v), 480)
 
 
-class TestTiffStack(_base_klass):
+class TestTiffStack_libtiff(_base_klass):
     def check_skip(self):
         _skip_if_no_libtiff()
 
@@ -100,7 +101,7 @@ class TestTiffStack(_base_klass):
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
-        self.v = pims.TiffStack(self.filename, invert=False)
+        self.v = pims.TiffStack_libtiff(self.filename)
 
     def test_shape(self):
         _skip_if_no_libtiff()
@@ -111,7 +112,7 @@ class TestTiffStack(_base_klass):
         assert_equal(len(self.v), 5)
 
 
-class TestImageSequence(_base_klass):
+class TestImageSequence(_frame_base_klass):
     def setUp(self):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
@@ -120,6 +121,24 @@ class TestImageSequence(_base_klass):
 
     def test_shape(self):
         assert_equal(self.v.frame_shape, (424, 640))
+
+    def test_count(self):
+        assert_equal(len(self.v), 5)
+
+
+class TestTiffStack_pil(_base_klass):
+    def check_skip(self):
+        pass
+
+    def setUp(self):
+        _skip_if_no_libtiff()
+        self.filename = os.path.join(path, 'stuck.tif')
+        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy')).T[::-1]
+        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy')).T[::-1]
+        self.v = pims.TiffStack_pil(self.filename)
+
+    def test_shape(self):
+        assert_equal(self.v.frame_shape, (512, 512))
 
     def test_count(self):
         assert_equal(len(self.v), 5)
