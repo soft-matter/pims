@@ -131,7 +131,6 @@ class TestTiffStack_pil(_base_klass):
         pass
 
     def setUp(self):
-        _skip_if_no_libtiff()
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy')).T[::-1]
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy')).T[::-1]
