@@ -12,6 +12,7 @@ path = os.path.join(path, 'data')
 def _skip_if_no_cv2():
     try:
         import cv2
+        from cv2 import cv
     except ImportError:
         raise nose.SkipTest('OpenCV not installed. Skipping.')
 
@@ -39,7 +40,6 @@ class _base_klass(unittest.TestCase):
     def test_getting_slice(self):
         self.check_skip()
         tmp = list(self.v[0:2])
-        print len(tmp)
         frame0, frame1 = tmp
         assert_equal(frame0, self.frame0)
         assert_equal(frame1, self.frame1)
@@ -64,10 +64,11 @@ class _base_klass(unittest.TestCase):
 
     def test_integer_attributes(self):
         self.check_skip()
-        assert_equal(len(self.v.shape), 2)
-        self.assertTrue(isinstance(self.v.shape[0], int))
-        self.assertTrue(isinstance(self.v.shape[1], int))
-        self.assertTrue(isinstance(self.v.count, int))
+        assert_equal(len(self.v.frame_shape), 2)
+        self.assertTrue(isinstance(self.v.frame_shape[0], int))
+        self.assertTrue(isinstance(self.v.frame_shape[1], int))
+        self.assertTrue(isinstance(len(self.v), int))
+
 
 
 class TestVideo(_base_klass):
@@ -83,11 +84,11 @@ class TestVideo(_base_klass):
 
     def test_shape(self):
         _skip_if_no_cv2()
-        assert_equal(self.v.shape, (640, 424))
+        assert_equal(self.v.frame_shape, (640, 424))
 
     def test_count(self):
         _skip_if_no_cv2()
-        assert_equal(self.v.count, 480)
+        assert_equal(len(self.v), 480)
 
 
 class TestTiffStack(_base_klass):
@@ -103,11 +104,11 @@ class TestTiffStack(_base_klass):
 
     def test_shape(self):
         _skip_if_no_libtiff()
-        assert_equal(self.v.shape, (512, 512))
+        assert_equal(self.v.frame_shape, (512, 512))
 
     def test_count(self):
         _skip_if_no_libtiff()
-        assert_equal(self.v.count, 5)
+        assert_equal(len(self.v), 5)
 
 
 class TestImageSequence(_base_klass):
@@ -118,7 +119,7 @@ class TestImageSequence(_base_klass):
         self.v = pims.ImageSequence(self.filename, invert=False)
 
     def test_shape(self):
-        assert_equal(self.v.shape, (424, 640))
+        assert_equal(self.v.frame_shape, (424, 640))
 
     def test_count(self):
-        assert_equal(self.v.count, 5)
+        assert_equal(len(self.v), 5)
