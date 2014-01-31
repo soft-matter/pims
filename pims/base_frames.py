@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import collections
+from .frame import Frame
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
@@ -124,6 +125,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         if self.endpoint is not None and self.cursor > self.endpoint:
             raise StopIteration
         return_code, frame = self.capture.read()
+	frame = Frame(frame, frame_no=self.cursor)
         if not return_code:
             # A failsafe: the frame count is not always accurate.
             raise StopIteration
