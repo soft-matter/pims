@@ -1,9 +1,16 @@
 import os
 import itertools
-
-from PIL import Image  # should work with PIL or PILLOW
-from libtiff import TIFF
 import numpy as np
+
+try:
+    from PIL import Image  # should work with PIL or PILLOW
+except ImportError:
+    pass  # api.py will handle
+
+try:
+    from libtiff import TIFF
+except ImportError:
+    pass  # api.py will handle
 
 from pims.base_frames import FramesSequence
 
