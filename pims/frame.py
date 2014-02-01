@@ -16,6 +16,10 @@ class Frame(ndarray):
         self.metadata = getattr(obj, 'metadata', None)
 
     def __array_wrap__(self, out_arr, context=None):
+        # Handle scalars so as not to break ndimage.
+        # See http://stackoverflow.com/a/794812/1221924
+        if out_arr.size == 1:
+            return out_arr[()]  
         return ndarray.__array_wrap__(self, out_arr, context)
 
     def __reduce__(self):
