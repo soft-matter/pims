@@ -1,33 +1,9 @@
 import os
-import numpy as np
 from scipy.ndimage import imread
-from pims.base_frames import BaseFrames
+from pims.base_frames import FramesSequence
 
 
-class PseudoCapture(object):
-    def __init__(self, directory):
-        self.filename = directory  # used by BaseFrames
-        self.files = [os.path.join(directory, f)
-                      for f in os.listdir(directory)]
-        self.files.sort()
-        self.end = False
-        self.generator = (imread(f) for f in self.files)
-
-    def read(self):
-        try:
-            return True, self.generator.next()
-        except StopIteration:
-            return False, np.array([])
-
-
-def open_image_sequence(directory):
-    if not os.path.isdir(directory):
-        raise ValueError("%s is not a directory." % directory)
-    capture = PseudoCapture(directory)
-    return capture
-
-
-class ImageSequence(BaseFrames):
+class ImageSequence(FramesSequence):
     """Iterable object that returns frames of video as numpy arrays.
 
     Parameters
@@ -51,22 +27,49 @@ class ImageSequence(BaseFrames):
     >>> for frame in video[[5, 7, 13]]:
     ...    # Do something with frames 5, 7, and 13.
 
-    >>> frame_count = video.count # Number of frames in video
-    >>> frame_shape = video.shape # Pixel dimensions of video
+    >>> frame_count = len(video) # Number of frames in video
+    >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
 
-    def __init__(self, directory, gray=True, invert=True):
-        BaseFrames.__init__(self, directory, gray, invert)
-        dummy_instance = self._open(directory)
-        self.count = len(dummy_instance.files)
-        self.shape = imread(dummy_instance.files[0]).shape
+    def __init__(self, directory, process_func=None, dtype=None):
+        if not os.path.isdir(directory):
+            raise ValueError("%s is not a directory." % directory)
+        filenames = os.listdir(directory)
+        filenames.sort()  # listdir returns arbitrary order
+        make_full_path = lambda filename: os.path.join(directory, filename)
+        self._filepaths = map(make_full_path, filenames)
+        self._count = len(self._filepaths)
 
-    def _open(self, filename):
-        return open_image_sequence(filename)
+        if process_func is None:
+            process_func = lambda x: x
+        if not callable(process_func):
+            raise ValueError("process_func must be a function, or None")
+        self.process_func = process_func
+
+        tmp = imread(self._filepaths[0])
+        self._first_frame_shape = tmp.shape
+
+        if dtype is None:
+            self._dtype = tmp.dtype
+        else:
+            self._dtype = dtype
+
+    def get_frame(self, j):
+        if j > self._count:
+            raise ValueError("File does not contain this many frames")
+        res = imread(self._filepaths[j])
+        if res.dtype != self._dtype:
+            res = res.astype(self._dtype)
+        res = self.process_func(res)
+        return res
 
     def __len__(self):
-        return self.count
+        return self._count
 
     @property
     def frame_shape(self):
-        return self.shape
+        return self._first_frame_shape
+
+    @property
+    def pixel_type(self):
+        return self._dtype
