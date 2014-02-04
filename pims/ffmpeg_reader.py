@@ -45,23 +45,18 @@ import re
 import numpy as np
 import subprocess as sp
 
+from pims.base_frames import FrameRewindableStream
 
 FFMPEG_BINARY = None
 
+from subprocess import Popen, PIPE, STDOUT
 
-def cvsecs(*args):
-    """ converts a time to second. Either cvsecs(min,secs) or
-    cvsecs(hours,mins,secs).
-    >>> cvsecs(5.5) # -> 5.5 seconds
-    >>> cvsecs(10, 4.5) # -> 604.5 seconds
-    >>> cvsecs(1, 0, 5) # -> 3605 seconds
-    """
-    if len(args) == 1:
-        return args[0]
-    elif len(args) == 2:
-        return 60*args[0]+args[1]
-    elif len(args) == 3:
-        return 3600*args[0]+60*args[1]+args[2]
+
+try:
+    from subprocess import DEVNULL  # py3k
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
 
 
 def tryffmpeg(FFMPEG_BINARY):
@@ -70,10 +65,10 @@ def tryffmpeg(FFMPEG_BINARY):
                         stdout=sp.PIPE,
                         stderr=sp.PIPE)
         proc.wait()
-        except:
-            return False
-        else:
-            return True
+    except:
+        return False
+    else:
+        return True
 
 
 if FFMPEG_BINARY is None:
@@ -84,20 +79,24 @@ if FFMPEG_BINARY is None:
     else:
         raise IOError("FFMPEG binary not found.")
 
+_pix_fmt_dict = {'rgb24': 3,
+                 'rgba': 4}
 
-class FFMPEG_VideoReader:
 
-    def __init__(self, filename, print_infos=False, pix_fmt="rgb24"):
+class FFMPEG_VideoReader(FrameRewindableStream):
+
+    def __init__(self, filename, pix_fmt="rgb24"):
 
         self.filename = filename
         self.pix_fmt = pix_fmt
-        self.initialize()
-        self.depth = 4 if pix_fmt == "rgba" else 3
-        self.load_infos(print_infos)
-        self.pos = 1
-        self.lastread = self.read_frame()
+        self._initialize()
+        try:
+            self.depth = _pix_fmt_dict[pix_fmt]
+        except KeyError:
+            raise ValueError("invalid pixel format")
+        self._load_infos(print_infos=False)
 
-    def initialize(self):
+    def _initialize(self):
         """ Opens the file, creates the pipe. """
 
         cmd = [FFMPEG_BINARY, '-i', self.filename,
@@ -107,17 +106,19 @@ class FFMPEG_VideoReader:
         self.proc = sp.Popen(cmd, stdin=sp.PIPE,
                                    stdout=sp.PIPE,
                                    stderr=sp.PIPE)
+        self.pos = 0
 
-    def load_infos(self, print_infos=False):
+    def _load_infos(self, print_infos=False):
         """ reads the FFMPEG info on the file and sets self.size
             and self.fps """
         # open the file in a pipe, provoke an error, read output
-        proc = sp.Popen([FFMPEG_BINARY, "-i", self.filename, "-"],
+        proc = sp.Popen([FFMPEG_BINARY, "-i", self.filename,
+                         "-f", "null", "-"],
                 stdin=sp.PIPE,
-                stdout=sp.PIPE,
+                stdout=DEVNULL,
                 stderr=sp.PIPE)
-        proc.stdout.readline()
-        proc.terminate()
+        # let it fully play the movie to null so we can get a frame count
+        proc.wait()
         infos = proc.stderr.read()
         if print_infos:
             # print the whole info text returned by FFMPEG
@@ -129,21 +130,20 @@ class FFMPEG_VideoReader:
 
         # get the output line that speaks about video
         line = [l for l in lines if ' Video: ' in l][0]
+        # logic to parse all of the MD goes here
 
         # get the size, of the form 460x320 (w x h)
         match = re.search(" [0-9]*x[0-9]*(,| )", line)
-        self.size = map(int, line[match.start():match.end()-1].split('x'))
+        self._size = map(int, line[match.start():match.end()-1].split('x'))
+        # this needs to be more robust
+        self._len = int(lines[-2].split()[1])
 
-        # get the frame rate
-        match = re.search("( [0-9]*.| )[0-9]* (tbr|fps)", line)
-        self.fps = float(line[match.start():match.end()].split(' ')[1])
+    def __len__(self):
+        return self._len
 
-        # get duration (in seconds)
-        line = [l for l in lines if 'Duration: ' in l][0]
-        match = re.search(" [0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9]", line)
-        hms = map(float, line[match.start()+1:match.end()].split(':'))
-        self.duration = cvsecs(*hms)
-        self.nframes = int(self.duration*self.fps)
+    @property
+    def frame_shape(self):
+        return self._size
 
     def close(self):
         self.proc.terminate()
@@ -151,16 +151,16 @@ class FFMPEG_VideoReader:
             std.close()
         del self.proc
 
-    def skip_frames(self, n=1):
+    def skip_forward(self, n=1):
         """ Reads and throws away n frames """
-        w, h = self.size
+        w, h = self._size
         for i in range(n):
             self.proc.stdout.read(self.depth*w*h)
             self.proc.stdout.flush()
-        self.pos += n
+            self.pos += 1
 
-    def read_frame(self):
-        w, h = self.size
+    def next(self):
+        w, h = self._size
         try:
             # Normally, the readr should not read after the last frame...
             # if it does, raise an error.
@@ -171,58 +171,28 @@ class FFMPEG_VideoReader:
         except:
             self.proc.terminate()
             serr = self.proc.stderr.read()
-            print "error: string: %s, stderr: %s"%(s, serr)
+            print "error: string: %s, stderr: %s" % (s, serr)
             raise
 
-        self.lastread = result
+        self.pos += 1
 
         return result
 
-    def reinitialize(self, starttime=0):
+    def rewind(self, start_frame=0):
         """ Restarts the reading, starts at an arbitrary
             location (!! SLOW !!) """
         self.close()
-        if starttime == 0:
-            self.initialize()
-        else:
-            offset = min(1, starttime)
-            cmd = [FFMPEG_BINARY, '-ss', "%.03f" % (starttime - offset),
-                    '-i', self.filename,
-                    '-ss', "%.03f" % offset,
-                    '-f', 'image2pipe',
-                    "-pix_fmt", self.pix_fmt,
-                    '-vcodec', 'rawvideo', '-']
-            self.proc = sp.Popen(cmd, stdin=sp.PIPE,
-                                       stdout=sp.PIPE,
-                                      stderr=sp.PIPE)
+        self._initialize()
+        if start_frame != 0:
+            self.skip_forward(start_frame)
 
-    def get_frame(self, t):
-        """ Reads a frame at time t. Note for coders:
-            getting an arbitrary frame in the video with ffmpeg can be
-            painfully slow if some decoding has to be done. This
-            function tries to avoid fectching arbitrary frames whenever
-            possible, by moving between adjacent frames.
-            """
-        if t < 0:
-            t = 0
-        elif t > self.duration:
-            t = self.duration
+    @property
+    def current(self):
+        return self.pos
 
-        pos = int(self.fps*t)+1
-        if pos == self.pos:
-            return self.lastread
-        else:
-            if (pos < self.pos) or (pos> self.pos + 100):
-                self.reinitialize(t)
-            else:
-                self.skip_frames(pos-self.pos-1)
-            result = self.read_frame()
-            self.pos = pos
-            return result
+    @property
+    def pixel_type(self):
+        raise NotImplemented()
 
-
-def read_image(filename, with_mask=True):
-    pix_fmt = 'rgba' if with_mask else "rgb24"
-    vf = FFMPEG_VideoReader(filename, pix_fmt=pix_fmt)
-    vf.close()
-    return vf.lastread
+    def __del__(self):
+        self.close()
