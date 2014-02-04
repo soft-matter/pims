@@ -19,7 +19,7 @@ class FramesStream(object):
 
     @abstractmethod
     def __iter__(self):
-        return self[:]
+        pass
 
     @abstractproperty
     def pixel_type(self):
