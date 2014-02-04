@@ -81,7 +81,7 @@ class FramesSequence(FramesStream):
         pass
 
 
-class FrameRewindableStream(FrameStream):
+class FrameRewindableStream(FramesStream):
     """
     A base class for holding the common code for
     wrapping data sources that do not rewind easily.
