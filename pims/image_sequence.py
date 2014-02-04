@@ -1,4 +1,5 @@
 import os
+import subprocess as sp
 from scipy.ndimage import imread
 from pims.base_frames import FramesSequence
 
@@ -34,9 +35,11 @@ class ImageSequence(FramesSequence):
     def __init__(self, directory, process_func=None, dtype=None):
         if not os.path.isdir(directory):
             raise ValueError("%s is not a directory." % directory)
+        self.directory = os.path.abspath(directory)
         filenames = os.listdir(directory)
         filenames.sort()  # listdir returns arbitrary order
-        make_full_path = lambda filename: os.path.join(directory, filename)
+        make_full_path = lambda filename: (
+            os.path.abspath(os.path.join(directory, filename)))
         self._filepaths = map(make_full_path, filenames)
         self._count = len(self._filepaths)
 
@@ -73,3 +76,20 @@ class ImageSequence(FramesSequence):
     @property
     def pixel_type(self):
         return self._dtype
+
+    def play(self):
+        try:
+            from IPython.core.display import HTML
+        except ImportError:
+            raise ImportError("This function requires IPython and should "
+                              "be run in an IPython notebook.")
+        cmd = ("cat {0}/* | ffmpeg -r 24 -y -f image2pipe -c:v png -i - "
+               "-c:v libx264 -preset ultrafast -qp 0 -movflags +faststart "
+               "-pix_fmt yuv420p -f matroska  -".format(self.directory))
+        process = sp.Popen(cmd, shell=True, 
+                           stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
+        video_binary = process.stdout.read()
+        video_base64 = video_binary.encode("base64")
+        source = 'data:video/x-m4v;base64,{0}'.format(video_base64)
+        video_tag = '<video controls alt="test" src="{0}">'.format(source)
+        return HTML(data=video_tag)
