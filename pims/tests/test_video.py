@@ -64,12 +64,9 @@ class _base_klass(unittest.TestCase):
 class _frame_base_klass(_base_klass):
     def test_iterator(self):
         self.check_skip()
-        assert_equal(self.v.next(), self.frame0)
-        assert_equal(self.v.next(), self.frame1)
-
-    def test_rewind(self):
-        self.v.rewind()
-        assert_equal(self.v.next(), self.frame0)
+        i = iter(self.v)
+        assert_equal(i.next(), self.frame0)
+        assert_equal(i.next(), self.frame1)
 
 
 class TestVideo(_frame_base_klass):
@@ -117,7 +114,7 @@ class TestImageSequence(_frame_base_klass):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
-        self.v = pims.ImageSequence(self.filename, invert=False)
+        self.v = pims.ImageSequence(self.filename)
 
     def test_shape(self):
         assert_equal(self.v.frame_shape, (424, 640))

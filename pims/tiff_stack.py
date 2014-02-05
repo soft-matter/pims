@@ -44,7 +44,7 @@ class TiffStack_libtiff(FramesSequence):
     ...    # Do something with frames 5, 7, and 13.
 
     >>> frame_count = video.count # Number of frames in video
-    >>> frame_shape = video.shape # Pixel dimensions of video
+    >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
     def __init__(self, filename, dtype=None):
         self._filename = filename
