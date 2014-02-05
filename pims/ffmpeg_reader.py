@@ -83,9 +83,9 @@ _pix_fmt_dict = {'rgb24': 3,
                  'rgba': 4}
 
 
-class FFMPEG_VideoReader(FrameRewindableStream):
+class FFmpegVideoReader(FrameRewindableStream):
 
-    def __init__(self, filename, pix_fmt="rgb24"):
+    def __init__(self, filename, pix_fmt="rgb24", process_func=None):
 
         self.filename = filename
         self.pix_fmt = pix_fmt
@@ -95,6 +95,13 @@ class FFMPEG_VideoReader(FrameRewindableStream):
         except KeyError:
             raise ValueError("invalid pixel format")
         self._load_infos(print_infos=False)
+
+        if process_func is None:
+            process_func = lambda x: x
+        if not callable(process_func):
+            raise ValueError("process_func must be a function, or None")
+        self.process_func = process_func
+
 
     def _initialize(self):
         """ Opens the file, creates the pipe. """
@@ -176,7 +183,7 @@ class FFMPEG_VideoReader(FrameRewindableStream):
 
         self.pos += 1
 
-        return result
+        return self.process_func(result)
 
     def rewind(self, start_frame=0):
         """ Restarts the reading, starts at an arbitrary
