@@ -42,6 +42,7 @@
 
 import re
 import subprocess as sp
+import tempfile
 
 import numpy as np
 
@@ -105,13 +106,31 @@ class FFmpegVideoReader(FrameRewindableStream):
     def _initialize(self):
         """ Opens the file, creates the pipe. """
 
+        self.data_buffer = tempfile.TemporaryFile()
         cmd = [FFMPEG_BINARY, '-i', self.filename,
                 '-f', 'image2pipe',
                 "-pix_fmt", self.pix_fmt,
                 '-vcodec', 'rawvideo', '-']
-        self.proc = sp.Popen(cmd, stdin=sp.PIPE,
-                                   stdout=sp.PIPE,
-                                   stderr=sp.PIPE)
+        proc = sp.Popen(cmd, stdin=sp.PIPE,
+                             stdout=sp.PIPE,
+                             stderr=sp.PIPE)
+
+        print "Decoding video file..."
+        CHUNKSIZE = 2**14  # utterly arbitrary
+        while True:
+            try:
+                chunk = proc.stdout.read(CHUNKSIZE)
+                if len(chunk) == 0:
+                    break
+                self.data_buffer.write(chunk)
+            except EOFError:
+                break
+        self.data_buffer.seek(0)
+
+        proc.terminate()
+        for std in proc.stdin, proc.stdout, proc.stderr:
+            std.close()
+        #del self.proc
         self.pos = 0
 
     def _load_infos(self, print_infos=False):
@@ -143,6 +162,8 @@ class FFmpegVideoReader(FrameRewindableStream):
         self._size = map(int, line[match.start():match.end()-1].split('x'))
         # this needs to be more robust
         self._len = int(lines[-2].split()[1])
+        w, h = self._size
+        self._stride = self.depth*w*h
 
     def __len__(self):
         return self._len
@@ -152,33 +173,22 @@ class FFmpegVideoReader(FrameRewindableStream):
         return self._size
 
     def close(self):
-        self.proc.terminate()
-        for std in self.proc.stdin, self.proc.stdout, self.proc.stderr:
-            std.close()
-        del self.proc
+        del self.data_buffer
 
     def skip_forward(self, n=1):
         """ Reads and throws away n frames """
         w, h = self._size
         for i in range(n):
-            self.proc.stdout.read(self.depth*w*h)
-            self.proc.stdout.flush()
+            self.data_buffer.read(self._stride)
             self.pos += 1
 
     def next(self):
         w, h = self._size
-        try:
-            # Normally, the readr should not read after the last frame...
-            # if it does, raise an error.
-            s = self.proc.stdout.read(self.depth*w*h)
-            result = np.fromstring(s,
-                             dtype='uint8').reshape((h, w, len(s)/(w*h)))
-            self.proc.stdout.flush()
-        except:
-            self.proc.terminate()
-            serr = self.proc.stderr.read()
-            print "error: string: %s, stderr: %s" % (s, serr)
-            raise
+        # Normally, the readr should not read after the last frame...
+        # if it does, raise an error.
+        s = self.data_buffer.read(self._stride)
+        result = np.fromstring(s,
+            dtype='uint8').reshape((h, w, self.depth))
 
         self.pos += 1
 
