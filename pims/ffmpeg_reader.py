@@ -41,15 +41,11 @@
 ## path to the ffmpeg binary (FFMPEG_BINARY)
 
 import re
-
-import numpy as np
 import subprocess as sp
 
+import numpy as np
+
 from pims.base_frames import FrameRewindableStream
-
-FFMPEG_BINARY = None
-
-from subprocess import Popen, PIPE, STDOUT
 
 
 try:
@@ -59,7 +55,7 @@ except ImportError:
     DEVNULL = open(os.devnull, 'wb')
 
 
-def tryffmpeg(FFMPEG_BINARY):
+def try_ffmpeg(FFMPEG_BINARY):
     try:
         proc = sp.Popen([FFMPEG_BINARY],
                         stdout=sp.PIPE,
@@ -71,13 +67,16 @@ def tryffmpeg(FFMPEG_BINARY):
         return True
 
 
-if FFMPEG_BINARY is None:
-    if tryffmpeg('ffmpeg'):
-        FFMPEG_BINARY = 'ffmpeg'
-    elif tryffmpeg('ffmpeg.exe'):
-        FFMPEG_BINARY = 'ffmpeg.exe'
-    else:
-        raise IOError("FFMPEG binary not found.")
+FFMPEG_BINARY_SUGGESTIONS = ['ffmpeg', 'ffmpeg.exe']
+
+FFMPEG_BINARY = None
+for name in FFMPEG_BINARY_SUGGESTIONS:
+    if try_ffmpeg(name):
+        FFMPEG_BINARY = name
+        break
+
+def available():
+    return FFMPEG_BINARY is not None
 
 _pix_fmt_dict = {'rgb24': 3,
                  'rgba': 4}

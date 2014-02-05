@@ -1,7 +1,10 @@
 from pims.image_sequence import ImageSequence
 
 def not_available(requirement):
-    raise ImportError("This reader requires {0}.".format(requirement))
+    def raiser():
+        raise ImportError(
+            "This reader requires {0}.".format(requirement))
+    return raiser
 
 try:
     import pims.ffmpeg_reader
@@ -9,5 +12,7 @@ try:
         Video = pims.ffmpeg_reader.FFmpegVideoReader
     else:
         raise ImportError()
-except ImportError:
+except (ImportError, IOError):
     Video = not_available("ffmpeg")
+
+from pims.tiff_stack import TiffStack_pil, TiffStack_libtiff
