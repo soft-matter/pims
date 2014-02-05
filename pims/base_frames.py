@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import collections
+import itertools
 from .frame import Frame
 
 from abc import ABCMeta, abstractmethod, abstractproperty
@@ -81,7 +82,7 @@ class FramesSequence(FramesStream):
         pass
 
 
-class FrameRewindableStream(FrameStream):
+class FrameRewindableStream(FramesStream):
     """
     A base class for holding the common code for
     wrapping data sources that do not rewind easily.
@@ -151,24 +152,15 @@ class FrameRewindableStream(FrameStream):
             if start > self.current:
                 self.skip_forward(start - self.current)
 
-            # we want to run to the end in steps of 1
-            if stop is None:
-                while True:
-                    if step > 1:
-                        self.skip_forward(step - 1)
-                    yield self.next()
-
-            # do sanity check on stop and start
-            if stop < start:
+            # sanity check
+            if stop is not None and stop < start:
                 raise ValueError("start must be less than stop")
+            # special case, we can't just return self, because __iter__ rewinds
+            if step == 1 and stop is None:
+                # keep going until exhausted
+                return (self.next() for _ in itertools.repeat(True))
 
-            # loop to get frames
-            while self.current < stop:
-                if step > 1:
-                    self.skip_forward(step - 1)
-                yield self.next()
-            else:
-                raise StopIteration
+            return self._step_gen(step, stop)
 
         elif isinstance(arg, int):
             self.rewind(arg)
@@ -176,6 +168,16 @@ class FrameRewindableStream(FrameStream):
         else:
             raise ValueError("Invalid arguement, use either a `slice` or " +
                              "or an `int`. not {t}".format(t=str(type(arg))))
+
+    def _step_gen(self, step, stop):
+        """
+        Wraps up the logic of stepping forward by step > 1
+        """
+        while stop is None or self.current < stop:
+            yield self.next()
+            self.skip_forward(step - 1)
+        else:
+            raise StopIteration
 
 
 class BaseFrames(FramesSequence):
@@ -222,7 +224,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         if self.endpoint is not None and self.cursor > self.endpoint:
             raise StopIteration
         return_code, frame = self.capture.read()
-	frame = Frame(frame, frame_no=self.cursor)
+        frame = Frame(frame, frame_no=self.cursor)
         if not return_code:
             # A failsafe: the frame count is not always accurate.
             raise StopIteration
