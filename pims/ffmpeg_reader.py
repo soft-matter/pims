@@ -42,11 +42,13 @@
 
 import re
 import subprocess as sp
+import sys
 import tempfile
 
 import numpy as np
 
-from pims.base_frames import FrameRewindableStream
+from pims.base_frames import FramesSequence
+from pims.frame import Frame
 
 
 try:
@@ -83,7 +85,7 @@ _pix_fmt_dict = {'rgb24': 3,
                  'rgba': 4}
 
 
-class FFmpegVideoReader(FrameRewindableStream):
+class FFmpegVideoReader(FramesSequence):
 
     def __init__(self, filename, pix_fmt="rgb24", process_func=None):
 
@@ -94,7 +96,8 @@ class FFmpegVideoReader(FrameRewindableStream):
             self.depth = _pix_fmt_dict[pix_fmt]
         except KeyError:
             raise ValueError("invalid pixel format")
-        self._load_infos(print_infos=False)
+        w, h = self._size
+        self._stride = self.depth*w*h
 
         if process_func is None:
             process_func = lambda x: x
@@ -106,7 +109,7 @@ class FFmpegVideoReader(FrameRewindableStream):
     def _initialize(self):
         """ Opens the file, creates the pipe. """
 
-        self.data_buffer = tempfile.TemporaryFile()
+        self.data_buffer = tempfile.TemporaryFile()  # TODO could be Spooled
         cmd = [FFMPEG_BINARY, '-i', self.filename,
                 '-f', 'image2pipe',
                 "-pix_fmt", self.pix_fmt,
@@ -116,6 +119,7 @@ class FFmpegVideoReader(FrameRewindableStream):
                              stderr=sp.PIPE)
 
         print "Decoding video file..."
+        sys.stdout.flush()
         CHUNKSIZE = 2**14  # utterly arbitrary
         while True:
             try:
@@ -127,33 +131,21 @@ class FFmpegVideoReader(FrameRewindableStream):
                 break
         self.data_buffer.seek(0)
 
+        self._process_ffmpeg_stderr(proc.stderr.read())
+
         proc.terminate()
         for std in proc.stdin, proc.stdout, proc.stderr:
             std.close()
-        #del self.proc
-        self.pos = 0
 
-    def _load_infos(self, print_infos=False):
-        """ reads the FFMPEG info on the file and sets self.size
-            and self.fps """
-        # open the file in a pipe, provoke an error, read output
-        proc = sp.Popen([FFMPEG_BINARY, "-i", self.filename,
-                         "-f", "null", "-"],
-                stdin=sp.PIPE,
-                stdout=DEVNULL,
-                stderr=sp.PIPE)
-        # let it fully play the movie to null so we can get a frame count
-        proc.wait()
-        infos = proc.stderr.read()
-        if print_infos:
-            # print the whole info text returned by FFMPEG
-            print infos
+    def _process_ffmpeg_stderr(self, stderr, verbose=False):
+        if verbose:
+            print stderr
 
-        lines = infos.splitlines()
+        lines = stderr.splitlines()
         if "No such file or directory" in lines[-1]:
             raise IOError("%s not found ! Wrong path ?" % self.filename)
 
-        # get the output line that speaks about video
+        # get the output lines that describe the video
         line = [l for l in lines if ' Video: ' in l][0]
         # logic to parse all of the MD goes here
 
@@ -162,8 +154,6 @@ class FFmpegVideoReader(FrameRewindableStream):
         self._size = map(int, line[match.start():match.end()-1].split('x'))
         # this needs to be more robust
         self._len = int(lines[-2].split()[1])
-        w, h = self._size
-        self._stride = self.depth*w*h
 
     def __len__(self):
         return self._len
@@ -172,43 +162,14 @@ class FFmpegVideoReader(FrameRewindableStream):
     def frame_shape(self):
         return self._size
 
-    def close(self):
-        del self.data_buffer
-
-    def skip_forward(self, n=1):
-        """ Reads and throws away n frames """
-        w, h = self._size
-        for i in range(n):
-            self.data_buffer.read(self._stride)
-            self.pos += 1
-
-    def next(self):
-        w, h = self._size
-        # Normally, the readr should not read after the last frame...
-        # if it does, raise an error.
+    def get_frame(self, j):
+        self.data_buffer.seek(self._stride*j)
         s = self.data_buffer.read(self._stride)
+        w, h = self._size
         result = np.fromstring(s,
             dtype='uint8').reshape((h, w, self.depth))
-
-        self.pos += 1
-
-        return self.process_func(result)
-
-    def rewind(self, start_frame=0):
-        """ Restarts the reading, starts at an arbitrary
-            location (!! SLOW !!) """
-        self.close()
-        self._initialize()
-        if start_frame != 0:
-            self.skip_forward(start_frame)
-
-    @property
-    def current(self):
-        return self.pos
+        return Frame(self.process_func(result))
 
     @property
     def pixel_type(self):
         raise NotImplemented()
-
-    def __del__(self):
-        self.close()
