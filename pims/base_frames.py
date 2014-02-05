@@ -6,7 +6,7 @@ from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
-class FramesStream:
+class FramesStream(object):
     """
     A base class for wrapping input data which knows how to
     advance to the next frame, but does not have random access.
@@ -81,6 +81,104 @@ class FramesSequence(FramesStream):
         pass
 
 
+class FrameRewindableStream(FramesStream):
+    """
+    A base class for holding the common code for
+    wrapping data sources that do not rewind easily.
+    """
+    @abstractmethod
+    def rewind(self, j=0):
+        """
+        Resets the stream to frame j
+
+        j : int
+            Frame to rewind the stream to
+        """
+        pass
+
+    @abstractmethod
+    def skip_forward(self, j):
+        """
+        Skip the stream forward by j frames.
+
+        j : int
+           Number of frames to skip
+        """
+        pass
+
+    @abstractmethod
+    def next(self):
+        """
+        return the next frame in the stream
+        """
+        pass
+
+    @abstractmethod
+    def __len__(self):
+        pass
+
+    @abstractproperty
+    def current(self):
+        """
+        The current location in the stream.
+
+        Can be an int if in stream or None if out the end.
+
+        """
+        pass
+
+    def __iter__(self):
+        self.rewind(0)
+        return self
+
+    def __getitem__(self, arg):
+        """
+        Returns a generator which yields frames
+        """
+        if isinstance(arg, slice):
+            # get value from slice
+            start, stop, step = arg.start, arg.stop, arg.step
+            # sanitize step
+            if step is None:
+                step = 1
+            if step < 1:
+                raise ValueError("step must be positive")
+            # make sure the stream is in the right place to start
+            if start is None:
+                start = 0
+            if start < self.current:
+                self.rewind(start)
+            if start > self.current:
+                self.skip_forward(start - self.current)
+
+            # we want to run to the end in steps of 1
+            if stop is None:
+                while True:
+                    if step > 1:
+                        self.skip_forward(step - 1)
+                    yield self.next()
+
+            # do sanity check on stop and start
+            if stop < start:
+                raise ValueError("start must be less than stop")
+
+            # loop to get frames
+            while self.current < stop:
+                if step > 1:
+                    self.skip_forward(step - 1)
+                yield self.next()
+            else:
+                raise StopIteration
+
+        elif isinstance(arg, int):
+            self.rewind(arg)
+            yield self.next()
+            raise StopIteration
+        else:
+            raise ValueError("Invalid arguement, use either a `slice` or " +
+                             "or an `int`. not {t}".format(t=str(type(arg))))
+
+
 class BaseFrames(FramesSequence):
     "Base class for iterable objects that return images as numpy arrays."
 
@@ -125,7 +223,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         if self.endpoint is not None and self.cursor > self.endpoint:
             raise StopIteration
         return_code, frame = self.capture.read()
-	frame = Frame(frame, frame_no=self.cursor)
+        frame = Frame(frame, frame_no=self.cursor)
         if not return_code:
             # A failsafe: the frame count is not always accurate.
             raise StopIteration
