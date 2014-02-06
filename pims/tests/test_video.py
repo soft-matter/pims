@@ -58,6 +58,10 @@ class _base_klass(unittest.TestCase):
         self.assertTrue(isinstance(self.v.frame_shape[1], int))
         self.assertTrue(isinstance(len(self.v), int))
 
+    def test_simple_negative_index(self):
+        self.v[-1]
+        list(self.v[[0, -1]])
+
 
 class _frame_base_klass(_base_klass):
     def test_iterator(self):
