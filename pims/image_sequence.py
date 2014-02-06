@@ -1,6 +1,7 @@
 import os
 import subprocess as sp
-from matplotlib.pyplot import imread
+from scipy.ndimage import imread as scipy_imread
+from matplotlib.pyplot import imread as mpl_imread
 from pims.base_frames import FramesSequence
 
 
@@ -49,7 +50,15 @@ class ImageSequence(FramesSequence):
             raise ValueError("process_func must be a function, or None")
         self.process_func = process_func
 
-        tmp = imread(self._filepaths[0])
+        tmp = scipy_imread(self._filepaths[0])
+
+        # hacky solution to PIL problem
+        if tmp.ndim == 0:  # obviously bad
+            tmp = mpl_imread(self._filepaths[0])
+            self.imread = mpl_imread
+        else:
+            self.imread = scipy_imread
+        
         self._first_frame_shape = tmp.shape
 
         if dtype is None:
@@ -60,7 +69,7 @@ class ImageSequence(FramesSequence):
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
-        res = imread(self._filepaths[j])
+        res = self.imread(self._filepaths[j])
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
         res = self.process_func(res)
