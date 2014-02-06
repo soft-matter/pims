@@ -5,12 +5,21 @@ import numpy as np
 try:
     from PIL import Image  # should work with PIL or PILLOW
 except ImportError:
-    pass  # api.py will handle
+    Image = None
 
 try:
     from libtiff import TIFF
 except ImportError:
-    pass  # api.py will handle
+    TIFF = None
+
+
+def libtiff_available():
+    return TIFF is not None
+
+
+def PIL_available():
+    return Image is not None
+
 
 from pims.base_frames import FramesSequence
 
