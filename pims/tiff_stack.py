@@ -121,7 +121,6 @@ class TiffStack_pil(FramesSequence):
         # this will need some work to deal with color
         if dtype is None:
             res = self.im.tag[0x102][0]
-            print res
             self._dtype = _dtype_map.get(res, np.int16)
         else:
             self._dtype = dtype
