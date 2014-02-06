@@ -9,11 +9,9 @@ path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
 
-def _skip_if_no_cv2():
-    try:
-        import cv2
-        from cv2 import cv
-    except ImportError:
+def _skip_if_no_ffmpeg():
+    import pims.ffmpeg_reader
+    if not pims.ffmpeg_reader.available():
         raise nose.SkipTest('OpenCV not installed. Skipping.')
 
 
@@ -60,6 +58,10 @@ class _base_klass(unittest.TestCase):
         self.assertTrue(isinstance(self.v.frame_shape[1], int))
         self.assertTrue(isinstance(len(self.v), int))
 
+    def test_simple_negative_index(self):
+        self.v[-1]
+        list(self.v[[0, -1]])
+
 
 class _frame_base_klass(_base_klass):
     def test_iterator(self):
@@ -71,21 +73,21 @@ class _frame_base_klass(_base_klass):
 
 class TestVideo(_frame_base_klass):
     def check_skip(self):
-        _skip_if_no_cv2()
+        _skip_if_no_ffmpeg()
 
     def setUp(self):
-        _skip_if_no_cv2()
+        _skip_if_no_ffmpeg()
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
         self.v = pims.Video(self.filename)
 
     def test_shape(self):
-        _skip_if_no_cv2()
+        _skip_if_no_ffmpeg()
         assert_equal(self.v.frame_shape, (640, 424))
 
     def test_count(self):
-        _skip_if_no_cv2()
+        _skip_if_no_ffmpeg()
         assert_equal(len(self.v), 480)
 
 

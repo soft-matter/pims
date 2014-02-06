@@ -1,12 +1,13 @@
 import os
 import numpy as np
 import collections
+import itertools
 from .frame import Frame
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
-class FramesStream:
+class FramesStream(object):
     """
     A base class for wrapping input data which knows how to
     advance to the next frame, but does not have random access.
@@ -45,21 +46,29 @@ class FramesSequence(FramesStream):
     """
     def __getitem__(self, key):
         """for data access"""
+        _len = len(self)
+
         if isinstance(key, slice):
             # if input is a slice, return a generator
             return (self.get_frame(_k) for _k
-                    in xrange(*key.indices(len(self))))
+                    in xrange(*key.indices(_len)))
         elif isinstance(key, collections.Iterable):
             # if the input is an iterable, doing 'fancy' indexing
 
             if isinstance(key, np.ndarray) and key.dtype == np.bool:
                 # if we have a bool array, do the right thing
                 return (self.get_frame(_k) for _k in np.arange(len(self))[key])
+            if any(_k < -_len or _k >= _len for _k in key):
+                raise IndexError("Keys out of range")
             # else, return a generator looping over the keys
-            return (self.get_frame(_k) for _k in key)
+            return (self.get_frame(_k if _k >= 0 else _len + _k)
+                    for _k in key)
         else:
+            if key < -_len or key >= _len:
+                raise IndexError("Key out of range")
+
             # else, fall back to `get_frame`
-            return self.get_frame(key)
+            return self.get_frame(key if key >= 0 else _len + key)
 
     def __iter__(self):
         return self[:]
@@ -79,6 +88,104 @@ class FramesSequence(FramesStream):
         nonsense should be dealt with in this function.
         """
         pass
+
+
+class FrameRewindableStream(FramesStream):
+    """
+    A base class for holding the common code for
+    wrapping data sources that do not rewind easily.
+    """
+    @abstractmethod
+    def rewind(self, j=0):
+        """
+        Resets the stream to frame j
+
+        j : int
+            Frame to rewind the stream to
+        """
+        pass
+
+    @abstractmethod
+    def skip_forward(self, j):
+        """
+        Skip the stream forward by j frames.
+
+        j : int
+           Number of frames to skip
+        """
+        pass
+
+    @abstractmethod
+    def next(self):
+        """
+        return the next frame in the stream
+        """
+        pass
+
+    @abstractmethod
+    def __len__(self):
+        pass
+
+    @abstractproperty
+    def current(self):
+        """
+        The current location in the stream.
+
+        Can be an int if in stream or None if out the end.
+
+        """
+        pass
+
+    def __iter__(self):
+        self.rewind(0)
+        return self
+
+    def __getitem__(self, arg):
+        """
+        Returns a generator which yields frames
+        """
+        if isinstance(arg, slice):
+            # get value from slice
+            start, stop, step = arg.start, arg.stop, arg.step
+            # sanitize step
+            if step is None:
+                step = 1
+            if step < 1:
+                raise ValueError("step must be positive")
+            # make sure the stream is in the right place to start
+            if start is None:
+                start = 0
+            if start < self.current:
+                self.rewind(start)
+            if start > self.current:
+                self.skip_forward(start - self.current)
+
+            # sanity check
+            if stop is not None and stop < start:
+                raise ValueError("start must be less than stop")
+            # special case, we can't just return self, because __iter__ rewinds
+            if step == 1 and stop is None:
+                # keep going until exhausted
+                return (self.next() for _ in itertools.repeat(True))
+
+            return self._step_gen(step, stop)
+
+        elif isinstance(arg, int):
+            self.rewind(arg)
+            return self.next()
+        else:
+            raise ValueError("Invalid arguement, use either a `slice` or " +
+                             "or an `int`. not {t}".format(t=str(type(arg))))
+
+    def _step_gen(self, step, stop):
+        """
+        Wraps up the logic of stepping forward by step > 1
+        """
+        while stop is None or self.current < stop:
+            yield self.next()
+            self.skip_forward(step - 1)
+        else:
+            raise StopIteration
 
 
 class BaseFrames(FramesSequence):
@@ -125,7 +232,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
         if self.endpoint is not None and self.cursor > self.endpoint:
             raise StopIteration
         return_code, frame = self.capture.read()
-	frame = Frame(frame, frame_no=self.cursor)
+        frame = Frame(frame, frame_no=self.cursor)
         if not return_code:
             # A failsafe: the frame count is not always accurate.
             raise StopIteration
