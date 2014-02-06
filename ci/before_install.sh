@@ -6,4 +6,4 @@ echo "Using SITE_PKG_DIR: $SITE_PKG_DIR"
 rm -f $VIRTUAL_ENV/lib/python$TRAVIS_PYTHON_VERSION/no-global-site-packages.txt
 
 sudo apt-get install libatlas-base-dev liblapack-dev
-sudo apt-get install python-numpy python-scipy python-nose
+sudo apt-get install python-numpy python-scipy python-nose python-matplotlib
