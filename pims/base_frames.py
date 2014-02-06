@@ -46,21 +46,29 @@ class FramesSequence(FramesStream):
     """
     def __getitem__(self, key):
         """for data access"""
+        _len = len(self)
+
         if isinstance(key, slice):
             # if input is a slice, return a generator
             return (self.get_frame(_k) for _k
-                    in xrange(*key.indices(len(self))))
+                    in xrange(*key.indices(_len)))
         elif isinstance(key, collections.Iterable):
             # if the input is an iterable, doing 'fancy' indexing
 
             if isinstance(key, np.ndarray) and key.dtype == np.bool:
                 # if we have a bool array, do the right thing
                 return (self.get_frame(_k) for _k in np.arange(len(self))[key])
+            if any(_k < -_len or _k >= _len for _k in key):
+                raise IndexError("Keys out of range")
             # else, return a generator looping over the keys
-            return (self.get_frame(_k) for _k in key)
+            return (self.get_frame(_k if _k >= 0 else _len + _k)
+                    for _k in key)
         else:
+            if key < -_len or key >= _len:
+                raise IndexError("Key out of range")
+
             # else, fall back to `get_frame`
-            return self.get_frame(key)
+            return self.get_frame(key if key >= 0 else _len + key)
 
     def __iter__(self):
         return self[:]
