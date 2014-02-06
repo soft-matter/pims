@@ -1,6 +1,6 @@
 import os
 import subprocess as sp
-from scipy.ndimage import imread
+from matplotlib.pyplot import imread
 from pims.base_frames import FramesSequence
 
 
