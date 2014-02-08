@@ -1,6 +1,7 @@
 import os
 import itertools
 import numpy as np
+from pims.frame import Frame
 
 try:
     from PIL import Image  # should work with PIL or PILLOW
@@ -85,7 +86,7 @@ class TiffStack_libtiff(FramesSequence):
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
 
-        return res
+        return Frame(res, frame_no=j)
 
     @property
     def pixel_type(self):
@@ -155,8 +156,9 @@ class TiffStack_pil(FramesSequence):
         except EOFError:
             return None
         self.cur = self.im.tell()
-        return np.reshape(self.im.getdata(),
-                          self._im_sz).astype(self._dtype).T[::-1]
+        res = np.reshape(self.im.getdata(),
+                         self._im_sz).astype(self._dtype).T[::-1]
+        return Frame(res, frame_no=j)
 
     @property
     def pixel_type(self):
