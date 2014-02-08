@@ -3,6 +3,7 @@ import subprocess as sp
 from scipy.ndimage import imread as scipy_imread
 from matplotlib.pyplot import imread as mpl_imread
 from pims.base_frames import FramesSequence
+from pims.frame import Frame
 
 
 class ImageSequence(FramesSequence):
@@ -72,7 +73,7 @@ class ImageSequence(FramesSequence):
         res = self.imread(self._filepaths[j])
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
-        res = self.process_func(res)
+        res = Frame(self.process_func(res), frame_no=j)
         return res
 
     def __len__(self):

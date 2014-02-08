@@ -263,7 +263,7 @@ Cursor at Frame %d of %d""" % (self.filename, self.shape[0], self.shape[1],
             return self.next()
         else:
             self.rewind()
-            return self.get_frame(val)
+            return Frame(self.get_frame(val))
 
     @property
     def pixel_type(self):
