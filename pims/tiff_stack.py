@@ -45,18 +45,20 @@ class TiffStack_libtiff(FramesSequence):
 
     Examples
     --------
+    >>> from pims.tiff_stack import TiffStack_libtiff as TiffStack
+    >>> import matplotlib.pyplot as plt
     >>> video = TiffStack('filename')
-    >>> imshow(video[0]) # Show the first frame.
-    >>> imshow(video[1][0:10][0:10]) # Show one corner of the second frame.
+    >>> plt.imshow(video[0]) # Show the first frame.
+    >>> plt.imshow(video[1][0:10][0:10]) # Show one corner of the second frame.
 
     >>> for frame in video[:]:
-    ...    # Do something with every frame.
+    ...    pass # Do something with every frame.
 
     >>> for frame in video[10:20]:
-    ...    # Do something with frames 10-20.
+    ...    pass # Do something with frames 10-20.
 
     >>> for frame in video[[5, 7, 13]]:
-    ...    # Do something with frames 5, 7, and 13.
+    ...    pass # Do something with frames 5, 7, and 13.
 
     >>> frame_count = video.count # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
