@@ -3,7 +3,6 @@ import numpy as np
 import collections
 import itertools
 from .frame import Frame
-
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
@@ -31,6 +30,28 @@ class FramesStream(object):
     def frame_shape(self):
         """Returns the shape of a single frame as a tuple ex (10, 12)"""
         pass
+
+    @classmethod
+    def class_exts(cls):
+        """
+        Return a set of the file extensions that this reader can deal with.
+
+        Sub-classes should over-ride this function to list what extensions
+        they deal with.
+
+        The default interpretation of the returned set is 'file
+        extensions including but not exclusively'.
+        """
+        return {}
+
+    @property
+    def exts(self):
+        """
+        Property to get the extensions of a FramesStream class.
+
+        Calls relevant classmethod.
+        """
+        return type(self).class_ext()
 
 
 class FramesSequence(FramesStream):
