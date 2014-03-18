@@ -1,3 +1,9 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six import with_metaclass
+from six.moves import xrange
 import os
 import numpy as np
 import collections
@@ -6,7 +12,7 @@ from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
-class FramesStream(object):
+class FramesStream(with_metaclass(ABCMeta, object)):
     """
     A base class for wrapping input data which knows how to
     advance to the next frame, but does not have random access.

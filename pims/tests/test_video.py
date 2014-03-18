@@ -1,3 +1,8 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 import os
 import unittest
 import nose
@@ -67,8 +72,8 @@ class _frame_base_klass(_base_klass):
     def test_iterator(self):
         self.check_skip()
         i = iter(self.v)
-        assert_equal(i.next(), self.frame0)
-        assert_equal(i.next(), self.frame1)
+        assert_equal(next(i), self.frame0)
+        assert_equal(next(i), self.frame1)
 
 
 class TestVideo(_frame_base_klass):

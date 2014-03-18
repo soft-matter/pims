@@ -1,3 +1,8 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 # has to be here for API stuff
 from pims.image_sequence import ImageSequence  # noqa
 
