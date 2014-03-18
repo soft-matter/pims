@@ -1,3 +1,8 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import map
 import os
 import glob
 from warnings import warn
@@ -46,7 +51,7 @@ class ImageSequence(FramesSequence):
             filenames = os.listdir(directory)
             make_full_path = lambda filename: (
                 os.path.abspath(os.path.join(directory, filename)))
-            filepaths = map(make_full_path, filenames)
+            filepaths = list(map(make_full_path, filenames))
         else:
             filepaths = glob.glob(pathname)
         filepaths.sort()  # listdir returns arbitrary order
@@ -67,7 +72,7 @@ class ImageSequence(FramesSequence):
             self.imread = mpl_imread
         else:
             self.imread = scipy_imread
-        
+
         self._first_frame_shape = tmp.shape
 
         if dtype is None:

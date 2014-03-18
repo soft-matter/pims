@@ -39,6 +39,10 @@
 ## automatically each time you launch moviepy.
 ## If you run this script file it will check that the
 ## path to the ffmpeg binary (FFMPEG_BINARY)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
 
 import re
 import subprocess as sp
@@ -78,6 +82,7 @@ for name in FFMPEG_BINARY_SUGGESTIONS:
         FFMPEG_BINARY = name
         break
 
+
 def available():
     return FFMPEG_BINARY is not None
 
@@ -105,7 +110,6 @@ class FFmpegVideoReader(FramesSequence):
             raise ValueError("process_func must be a function, or None")
         self.process_func = process_func
 
-
     def _initialize(self):
         """ Opens the file, creates the pipe. """
 
@@ -118,7 +122,7 @@ class FFmpegVideoReader(FramesSequence):
                              stdout=sp.PIPE,
                              stderr=sp.PIPE)
 
-        print "Decoding video file..."
+        print("Decoding video file...")
         sys.stdout.flush()
         CHUNKSIZE = 2**14  # utterly arbitrary
         while True:
@@ -139,7 +143,7 @@ class FFmpegVideoReader(FramesSequence):
 
     def _process_ffmpeg_stderr(self, stderr, verbose=False):
         if verbose:
-            print stderr
+            print(stderr)
 
         lines = stderr.splitlines()
         if "No such file or directory" in lines[-1]:

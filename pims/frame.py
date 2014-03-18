@@ -1,4 +1,10 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 from numpy import ndarray, asarray
+
 
 class Frame(ndarray):
     "Extends a numpy array with meta information"
@@ -7,7 +13,7 @@ class Frame(ndarray):
     def __new__(cls, input_array, frame_no=None, metadata=None):
         obj = asarray(input_array).view(cls)
         obj.frame_no = frame_no
-        obj.metadata = {} 
+        obj.metadata = {}
         return obj
 
     def __array_finalize__(self, obj):
@@ -19,7 +25,7 @@ class Frame(ndarray):
         # Handle scalars so as not to break ndimage.
         # See http://stackoverflow.com/a/794812/1221924
         if out_arr.size == 1:
-            return out_arr[()]  
+            return out_arr[()]
         return ndarray.__array_wrap__(self, out_arr, context)
 
     def __reduce__(self):

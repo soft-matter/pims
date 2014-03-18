@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 # This downloads and install setuptools if it is not installed.
 from ez_setup import use_setuptools
 use_setuptools()
@@ -15,7 +17,7 @@ VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
 FULLVERSION = VERSION
-print FULLVERSION
+print(FULLVERSION)
 
 if not ISRELEASED:
     FULLVERSION += '.dev'
@@ -42,6 +44,7 @@ if not ISRELEASED:
 else:
     FULLVERSION += QUALIFIER
 
+
 def write_version_py(filename=None):
     cnt = """\
 version = '%s'
@@ -59,15 +62,16 @@ short_version = '%s'
 
 write_version_py()
 
+
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name = "pims",
-    version = FULLVERSION,
-    description = "Python Image Sequence",
-    author = "Daniel Allan",
-    author_email = "dallan@pha.jhu.edu",
-    url = "https://github.com/soft-matter/pims",
-    packages = ['pims'],
+    name="pims",
+    version=FULLVERSION,
+    description="Python Image Sequence",
+    author="Daniel Allan",
+    author_email="dallan@pha.jhu.edu",
+    url="https://github.com/soft-matter/pims",
+    packages=['pims'],
 )

@@ -1,15 +1,23 @@
 language: python
 python:
   - 2.7
-
-virtualenv:
-  system_site_packages: true
-
-before_install:
-  - ci/before_install.sh
+  - 3.3
 
 install:
-  - pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/
+  - conda update conda --yes
+  - conda create -n testenv --yes pip python=$TRAVIS_PYTHON_VERSION
+  - conda update conda --yes
+  - source activate testenv
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then conda install --yes imaging; else pip install pillow; fi
+  - conda install --yes numpy scipy nose matplotlib
   - python setup.py build_ext install
+
+
+before_install:
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-2.2.2-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-2.2.2-Linux-x86_64.sh -O miniconda.sh; fi
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/anaconda/bin:$PATH
+
 
 script: nosetests -a '!slow'

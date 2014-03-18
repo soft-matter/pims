@@ -1,13 +1,18 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six import with_metaclass
+from six.moves import xrange
 import os
 import numpy as np
 import collections
 import itertools
 from .frame import Frame
-
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
-class FramesStream(object):
+class FramesStream(with_metaclass(ABCMeta, object)):
     """
     A base class for wrapping input data which knows how to
     advance to the next frame, but does not have random access.
@@ -31,6 +36,28 @@ class FramesStream(object):
     def frame_shape(self):
         """Returns the shape of a single frame as a tuple ex (10, 12)"""
         pass
+
+    @classmethod
+    def class_exts(cls):
+        """
+        Return a set of the file extensions that this reader can deal with.
+
+        Sub-classes should over-ride this function to list what extensions
+        they deal with.
+
+        The default interpretation of the returned set is 'file
+        extensions including but not exclusively'.
+        """
+        return {}
+
+    @property
+    def exts(self):
+        """
+        Property to get the extensions of a FramesStream class.
+
+        Calls relevant classmethod.
+        """
+        return type(self).class_ext()
 
 
 class FramesSequence(FramesStream):
@@ -192,6 +219,8 @@ class BaseFrames(FramesSequence):
     "Base class for iterable objects that return images as numpy arrays."
 
     def __init__(self, filename, gray=True, invert=True):
+        raise DeprecationWarning("`BaseFrames` will be removed " +
+                                 "in the near future")
         self.filename = filename
         self.gray = gray
         self.invert = invert
