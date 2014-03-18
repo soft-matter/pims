@@ -47,7 +47,6 @@ import six
 import re
 import subprocess as sp
 import sys
-import tempfile
 
 import numpy as np
 
@@ -113,7 +112,9 @@ class FFmpegVideoReader(FramesSequence):
     def _initialize(self):
         """ Opens the file, creates the pipe. """
 
-        self.data_buffer = tempfile.TemporaryFile()  # TODO could be Spooled
+        buffer_filename = '{0}.trackpy_buffer'.format(self.filename)
+        meta_filename = '{0}.trackpy_meta'.format(self.filename)
+
         cmd = [FFMPEG_BINARY, '-i', self.filename,
                 '-f', 'image2pipe',
                 "-pix_fmt", self.pix_fmt,
@@ -123,6 +124,20 @@ class FFmpegVideoReader(FramesSequence):
                              stderr=sp.PIPE)
 
         print("Decoding video file...")
+
+        if os.path.isfile(buffer_filename) and os.path.isfile(meta_filename):
+            print("Reusing buffer from previous opening of this video.")
+            self.data_buffer = open(buffer_filename, 'rb')
+            self.metafile = open(meta_filename, 'r')
+            self._len = int(self.metafile.readline())
+            w = int(self.metafile.readline())
+            h = int(self.metafile.readline())
+            self._size = [w, h]
+            return
+
+        self.data_buffer = open(buffer_filename, 'wb')
+        self.metafile = open(meta_filename, 'w')
+        print ("Decoding video file. This is slow, but only the first time.")
         sys.stdout.flush()
         CHUNKSIZE = 2**14  # utterly arbitrary
         while True:
@@ -133,7 +148,8 @@ class FFmpegVideoReader(FramesSequence):
                 self.data_buffer.write(chunk)
             except EOFError:
                 break
-        self.data_buffer.seek(0)
+        self.data_buffer.close()
+        self.data_buffer = open(buffer_filename, 'rb')
 
         self._process_ffmpeg_stderr(proc.stderr.read())
 
@@ -158,6 +174,10 @@ class FFmpegVideoReader(FramesSequence):
         self._size = map(int, line[match.start():match.end()-1].split('x'))
         # this needs to be more robust
         self._len = int(lines[-2].split()[1])
+        self.metafile.write('{0}\n'.format(self._len))
+        self.metafile.write('{0}\n'.format(self._size[0]))
+        self.metafile.write('{0}\n'.format(self._size[1]))
+        self.metafile.close()
 
     def __len__(self):
         return self._len
