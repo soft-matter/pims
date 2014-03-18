@@ -192,6 +192,8 @@ class BaseFrames(FramesSequence):
     "Base class for iterable objects that return images as numpy arrays."
 
     def __init__(self, filename, gray=True, invert=True):
+        raise DeprecationWarning("`BaseFrames` will be removed " +
+                                 "in the near future")
         self.filename = filename
         self.gray = gray
         self.invert = invert
