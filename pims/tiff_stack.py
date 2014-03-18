@@ -240,6 +240,7 @@ class TiffSeries(FramesSequence):
         except:
             pass
 
+        j = 0
         # sort out how many there are
         while os.path.isfile(name_template.format(j + offset)):
             j += 1
