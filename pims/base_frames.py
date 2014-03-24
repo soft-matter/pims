@@ -59,6 +59,22 @@ class FramesStream(with_metaclass(ABCMeta, object)):
         """
         return type(self).class_ext()
 
+    def close(self):
+        """
+        A method to clean up anything that need to be cleaned up.
+
+        Sub-classes should use super to call up the MRO stack and then
+        do any class-specific clean up
+        """
+        pass
+
+    # magic functions to make all sub-classes usable as context managers
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
 
 class FramesSequence(FramesStream):
     """Baseclass for wrapping data buckets that have random access.
