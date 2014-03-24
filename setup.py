@@ -1,10 +1,12 @@
+from __future__ import print_function
 # This downloads and install setuptools if it is not installed.
 from ez_setup import use_setuptools
 use_setuptools()
 
 import os
-from distutils.core import setup, Extension
 import numpy
+from numpy.distutils.core import setup, Extension
+
 import warnings
 
 MAJOR = 0
@@ -15,7 +17,7 @@ VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
 FULLVERSION = VERSION
-print FULLVERSION
+print(FULLVERSION)
 
 if not ISRELEASED:
     FULLVERSION += '.dev'
