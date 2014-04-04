@@ -1,12 +1,12 @@
 from __future__ import print_function
-
 # This downloads and install setuptools if it is not installed.
 from ez_setup import use_setuptools
 use_setuptools()
 
 import os
-import setuptools
-from numpy.distutils.core import setup
+import numpy
+from numpy.distutils.core import setup, Extension
+
 import warnings
 
 MAJOR = 0
@@ -70,6 +70,8 @@ setup(
     name="pims",
     version=FULLVERSION,
     description="Python Image Sequence",
+    ext_modules=[Extension('_tifffile', ['pims/extern/tifffile.c'],
+                    include_dirs=[numpy.get_include()])],
     author="Daniel Allan",
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",

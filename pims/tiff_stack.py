@@ -18,6 +18,11 @@ try:
 except ImportError:
     TIFF = None
 
+try:
+    from .extern import tifffile
+except ImportError:
+    tifffile = None
+
 
 def libtiff_available():
     return TIFF is not None
@@ -27,11 +32,58 @@ def PIL_available():
     return Image is not None
 
 
+def tifffile_available():
+    return tifffile is not None
+
+
 from pims.base_frames import FramesSequence
 
 _dtype_map = {4: np.uint8,
               8: np.uint8,
               16: np.uint16}
+
+
+class TiffStack_tifffile(FramesSequence):
+    """
+    Wraps tifffile.py.  This should deal with a range of
+    tiff files and sun-dry microscope related tiff derivatives.
+    The obvious thing to do here is to extend tifffile.TiffFile,
+    however that would over-ride our nice slicing sematics.  The
+    way that TiffFile deals with __getitem__ is to just pass it
+    through to an underlying list.  Further, it return TiffPages,
+    not arrays as we desire.
+    """
+    @classmethod
+    def class_exts(cls):
+        # TODO extend this set to match reality
+        return {'tif', 'tiff',
+                'stk'} | super(TiffStack_tifffile, cls).class_exts()
+
+    def __init__(self, filename, dtype=None):
+        self._filename = filename
+        self._tiff = tifffile.TiffFile(filename)
+
+        tmp = self._tiff[0]
+        if dtype is None:
+            self._dtype = tmp.dtype
+        else:
+            self._dtype = dtype
+
+        self._im_sz = tmp.shape
+
+    def get_frame(self, j):
+        return self._tiff[j]
+
+    @property
+    def pixel_type(self):
+        return self._dtype
+
+    @property
+    def frame_shape(self):
+        return self._im_sz
+
+    def __len__(self):
+        return len(self._tiff)
 
 
 class TiffStack_libtiff(FramesSequence):
@@ -177,6 +229,9 @@ class TiffStack_pil(FramesSequence):
 
     def __len__(self):
         return self._count
+
+    def close(self):
+        self._tiff.close()
 
 
 class MM_TiffStack(TiffStack_pil):
