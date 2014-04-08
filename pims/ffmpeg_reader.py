@@ -112,8 +112,8 @@ class FFmpegVideoReader(FramesSequence):
     def _initialize(self):
         """ Opens the file, creates the pipe. """
 
-        buffer_filename = '{0}.trackpy_buffer'.format(self.filename)
-        meta_filename = '{0}.trackpy_meta'.format(self.filename)
+        buffer_filename = '{0}.pims_buffer'.format(self.filename)
+        meta_filename = '{0}.pims_meat'.format(self.filename)
 
         cmd = [FFMPEG_BINARY, '-i', self.filename,
                 '-f', 'image2pipe',
