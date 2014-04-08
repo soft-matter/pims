@@ -172,8 +172,8 @@ class FFmpegVideoReader(FramesSequence):
         # get the size, of the form 460x320 (w x h)
         match = re.search(" [0-9]*x[0-9]*(,| )", line)
         self._size = map(int, line[match.start():match.end()-1].split('x'))
-        # this needs to be more robust
-        self._len = int(lines[-2].split()[1])
+        pat = 'frame=\s*(\d+)'
+        self._len = int(re.search(pat, lines[-2]).group(1))
         self.metafile.write('{0}\n'.format(self._len))
         self.metafile.write('{0}\n'.format(self._size[0]))
         self.metafile.write('{0}\n'.format(self._size[1]))
