@@ -44,6 +44,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 
+import os
 import re
 import subprocess as sp
 import sys
@@ -95,7 +96,11 @@ class FFmpegVideoReader(FramesSequence):
 
         self.filename = filename
         self.pix_fmt = pix_fmt
+        self.buffer_filename = '{0}.pims_buffer'.format(
+            self.filename)
+        self.meta_filename = '{0}.pims_meta'.format(self.filename)
         self._initialize()
+
         try:
             self.depth = _pix_fmt_dict[pix_fmt]
         except KeyError:
@@ -112,9 +117,6 @@ class FFmpegVideoReader(FramesSequence):
     def _initialize(self):
         """ Opens the file, creates the pipe. """
 
-        buffer_filename = '{0}.pims_buffer'.format(self.filename)
-        meta_filename = '{0}.pims_meat'.format(self.filename)
-
         cmd = [FFMPEG_BINARY, '-i', self.filename,
                 '-f', 'image2pipe',
                 "-pix_fmt", self.pix_fmt,
@@ -125,18 +127,19 @@ class FFmpegVideoReader(FramesSequence):
 
         print("Decoding video file...")
 
-        if os.path.isfile(buffer_filename) and os.path.isfile(meta_filename):
+        if (os.path.isfile(self.buffer_filename)
+            and os.path.isfile(self.meta_filename)):
             print("Reusing buffer from previous opening of this video.")
-            self.data_buffer = open(buffer_filename, 'rb')
-            self.metafile = open(meta_filename, 'r')
+            self.data_buffer = open(self.buffer_filename, 'rb')
+            self.metafile = open(self.meta_filename, 'r')
             self._len = int(self.metafile.readline())
             w = int(self.metafile.readline())
             h = int(self.metafile.readline())
             self._size = [w, h]
             return
 
-        self.data_buffer = open(buffer_filename, 'wb')
-        self.metafile = open(meta_filename, 'w')
+        self.data_buffer = open(self.buffer_filename, 'wb')
+        self.metafile = open(self.meta_filename, 'w')
         print ("Decoding video file. This is slow, but only the first time.")
         sys.stdout.flush()
         CHUNKSIZE = 2**14  # utterly arbitrary
@@ -149,7 +152,7 @@ class FFmpegVideoReader(FramesSequence):
             except EOFError:
                 break
         self.data_buffer.close()
-        self.data_buffer = open(buffer_filename, 'rb')
+        self.data_buffer = open(self.buffer_filename, 'rb')
 
         self._process_ffmpeg_stderr(proc.stderr.read())
 
@@ -197,3 +200,7 @@ class FFmpegVideoReader(FramesSequence):
     @property
     def pixel_type(self):
         raise NotImplemented()
+
+    def close(self):
+        os.remove(self.meta_filename)
+        os.remove(self.buffer_filename)
