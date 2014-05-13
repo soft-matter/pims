@@ -24,7 +24,7 @@ class Frame(ndarray):
     def __array_wrap__(self, out_arr, context=None):
         # Handle scalars so as not to break ndimage.
         # See http://stackoverflow.com/a/794812/1221924
-        if out_arr.size == 1:
+        if out_arr.ndim == 0:
             return out_arr[()]
         return ndarray.__array_wrap__(self, out_arr, context)
 
