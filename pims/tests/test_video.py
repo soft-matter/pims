@@ -81,6 +81,11 @@ class _base_klass(unittest.TestCase):
         for frame_no in [0, 1, 2, 1]:
             self.assertEqual(self.v[frame_no].frame_no, frame_no)
 
+    def test_process_func(self):
+        # Use a trivial identity function to verify the process_func exists.
+        f = lambda x: x
+        self.klass(self.filename, process_func=f, **self.kwargs)
+
 
 class _frame_base_klass(_base_klass):
     def test_iterator(self):
@@ -99,7 +104,9 @@ class TestVideo(_frame_base_klass):
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
-        self.v = pims.Video(self.filename, use_cache=False)
+        self.klass = pims.Video
+        self.kwargs = dict(use_cache=False)
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         _skip_if_no_ffmpeg()
@@ -123,7 +130,9 @@ class TestTiffStack_libtiff(_base_klass):
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
-        self.v = pims.TiffStack_libtiff(self.filename)
+        self.klass = pims.TiffStack_libtiff
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         _skip_if_no_libtiff()
@@ -139,7 +148,9 @@ class TestImageSequence(_frame_base_klass):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
-        self.v = pims.ImageSequence(self.filename)
+        self.klass = pims.ImageSequence
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         assert_equal(self.v.frame_shape, (424, 640))
@@ -156,7 +167,9 @@ class TestTiffStack_pil(_base_klass):
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy')).T[::-1]
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy')).T[::-1]
-        self.v = pims.TiffStack_pil(self.filename)
+        self.klass = pims.TiffStack_pil
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         assert_equal(self.v.frame_shape, (512, 512))
