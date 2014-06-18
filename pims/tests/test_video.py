@@ -85,6 +85,33 @@ class _base_klass(unittest.TestCase):
         # Use a trivial identity function to verify the process_func exists.
         f = lambda x: x
         self.klass(self.filename, process_func=f, **self.kwargs)
+        
+        # Also, it should be the second positional arg for each class.
+        # This is verified more directly in later tests, too.
+        self.klass(self.filename, f, **self.kwargs)
+
+    def test_inversion_process_func(self):
+        def invert(image):
+            max_value = np.iinfo(image.dtype).max
+            image = image ^ max_value
+            return image
+
+        v_raw = self.klass(self.filename, **self.kwargs)
+        v = self.klass(self.filename, invert, **self.kwargs)
+        assert_equal(v[0], invert(v_raw[0]))
+
+    def test_grayscale_process_func(self):
+        # Note: Some, but not all, of the files are already grayscale
+        # so in some cases this function does nothing.
+        def grayscale(image):
+            if image.ndim == 3:
+                image = image[:, :, 0]
+                assert image.ndim == 2
+            return image
+
+        v_raw = self.klass(self.filename, **self.kwargs)
+        v = self.klass(self.filename, grayscale, **self.kwargs)
+        assert_equal(v[0], grayscale(v_raw[0]))
 
 
 class _frame_base_klass(_base_klass):
