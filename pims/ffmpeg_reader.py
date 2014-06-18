@@ -192,7 +192,7 @@ class FFmpegVideoReader(FramesSequence):
         w, h = self._size
         result = np.fromstring(s,
             dtype='uint8').reshape((h, w, self.depth))
-        return Frame(self.process_func(result))
+        return Frame(self.process_func(result), frame_no=j)
 
     @property
     def pixel_type(self):
