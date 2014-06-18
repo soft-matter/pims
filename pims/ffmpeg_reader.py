@@ -91,7 +91,7 @@ _pix_fmt_dict = {'rgb24': 3,
 
 class FFmpegVideoReader(FramesSequence):
 
-    def __init__(self, filename, pix_fmt="rgb24", process_func=None,
+    def __init__(self, filename, process_func=None, pix_fmt="rgb24",
                  use_cache=True):
 
         self.filename = filename
@@ -104,11 +104,7 @@ class FFmpegVideoReader(FramesSequence):
         w, h = self._size
         self._stride = self.depth*w*h
 
-        if process_func is None:
-            process_func = lambda x: x
-        if not callable(process_func):
-            raise ValueError("process_func must be a function, or None")
-        self.process_func = process_func
+        self._validate_process_func(process_func)
 
     def _initialize(self, use_cache):
         """ Opens the file, creates the pipe. """

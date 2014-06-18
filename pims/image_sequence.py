@@ -59,11 +59,7 @@ class ImageSequence(FramesSequence):
         self._filepaths = filepaths
         self._count = len(self._filepaths)
 
-        if process_func is None:
-            process_func = lambda x: x
-        if not callable(process_func):
-            raise ValueError("process_func must be a function, or None")
-        self.process_func = process_func
+        self._validate_process_func(process_func)
 
         tmp = scipy_imread(self._filepaths[0])
 
