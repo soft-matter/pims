@@ -75,6 +75,14 @@ class FramesStream(with_metaclass(ABCMeta, object)):
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  dtype=self.pixel_type)
+
 
 class FramesSequence(FramesStream):
     """Baseclass for wrapping data buckets that have random access.
@@ -131,6 +139,16 @@ class FramesSequence(FramesStream):
         nonsense should be dealt with in this function.
         """
         pass
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count = len(self),
+                                  dtype=self.pixel_type)
 
 
 class FrameRewindableStream(FramesStream):
@@ -229,6 +247,16 @@ class FrameRewindableStream(FramesStream):
             self.skip_forward(step - 1)
         else:
             raise StopIteration
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count = len(self),
+                                  dtype=self.pixel_type)
 
 
 class BaseFrames(FramesSequence):

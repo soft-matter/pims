@@ -85,6 +85,18 @@ class TiffStack_tifffile(FramesSequence):
     def __len__(self):
         return len(self._tiff)
 
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Source: {filename}
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count=len(self),
+                                  filename=self._filename,
+                                  dtype=self.pixel_type)
+
 
 class TiffStack_libtiff(FramesSequence):
     """Iterable object that returns frames of video as numpy arrays.
@@ -158,6 +170,18 @@ class TiffStack_libtiff(FramesSequence):
     def __len__(self):
         return self._count
 
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Source: {filename}
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count=len(self),
+                                  filename=self._filename,
+                                  dtype=self.pixel_type)
+
 
 class TiffStack_pil(FramesSequence):
     '''
@@ -176,6 +200,7 @@ class TiffStack_pil(FramesSequence):
     def __init__(self, fname, dtype=None):
 
         self.im = Image.open(fname)
+        self._filename = fname  # used by __repr__
 
         self.im.seek(0)
         # this will need some work to deal with color
@@ -232,6 +257,19 @@ class TiffStack_pil(FramesSequence):
 
     def close(self):
         self._tiff.close()
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Source: {filename}
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count=len(self),
+                                  filename=self._filename,
+                                  dtype=self.pixel_type)
+
 
 
 class MM_TiffStack(TiffStack_pil):
@@ -323,6 +361,20 @@ class TiffSeries(FramesSequence):
 
     def __len__(self):
         return self._count
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Source: {name_template}
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count=len(self),
+                                  name_template=self._name_template,
+                                  dtype=self.pixel_type)
+
+
 
 
 # needed for the wrapper classes
