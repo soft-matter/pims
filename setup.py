@@ -85,4 +85,4 @@ except SystemExit:
 skip the components that need a C compiler.""")
     # Try again without ext_modules.
     del setup_parameters['ext_modules']
-    setup(**setup_parameters))
+    setup(**setup_parameters)
