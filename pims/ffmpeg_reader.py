@@ -91,11 +91,12 @@ _pix_fmt_dict = {'rgb24': 3,
 
 class FFmpegVideoReader(FramesSequence):
 
-    def __init__(self, filename, pix_fmt="rgb24", process_func=None):
+    def __init__(self, filename, process_func=None, pix_fmt="rgb24",
+                 use_cache=True):
 
         self.filename = filename
         self.pix_fmt = pix_fmt
-        self._initialize()
+        self._initialize(use_cache)
         try:
             self.depth = _pix_fmt_dict[pix_fmt]
         except KeyError:
@@ -103,17 +104,13 @@ class FFmpegVideoReader(FramesSequence):
         w, h = self._size
         self._stride = self.depth*w*h
 
-        if process_func is None:
-            process_func = lambda x: x
-        if not callable(process_func):
-            raise ValueError("process_func must be a function, or None")
-        self.process_func = process_func
+        self._validate_process_func(process_func)
 
-    def _initialize(self):
+    def _initialize(self, use_cache):
         """ Opens the file, creates the pipe. """
 
-        buffer_filename = '{0}.trackpy_buffer'.format(self.filename)
-        meta_filename = '{0}.trackpy_meta'.format(self.filename)
+        buffer_filename = '{0}.pims_buffer'.format(self.filename)
+        meta_filename = '{0}.pims_meta'.format(self.filename)
 
         cmd = [FFMPEG_BINARY, '-i', self.filename,
                 '-f', 'image2pipe',
@@ -125,7 +122,8 @@ class FFmpegVideoReader(FramesSequence):
 
         print("Decoding video file...")
 
-        if os.path.isfile(buffer_filename) and os.path.isfile(meta_filename):
+        if (os.path.isfile(buffer_filename) and os.path.isfile(meta_filename)
+            and use_cache):
             print("Reusing buffer from previous opening of this video.")
             self.data_buffer = open(buffer_filename, 'rb')
             self.metafile = open(meta_filename, 'r')
@@ -192,7 +190,7 @@ class FFmpegVideoReader(FramesSequence):
         w, h = self._size
         result = np.fromstring(s,
             dtype='uint8').reshape((h, w, self.depth))
-        return Frame(self.process_func(result))
+        return Frame(self.process_func(result), frame_no=j)
 
     @property
     def pixel_type(self):

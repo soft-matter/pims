@@ -59,7 +59,7 @@ class TiffStack_tifffile(FramesSequence):
         return {'tif', 'tiff',
                 'stk'} | super(TiffStack_tifffile, cls).class_exts()
 
-    def __init__(self, filename, dtype=None):
+    def __init__(self, filename, process_func=None, dtype=None):
         self._filename = filename
         self._tiff = tifffile.TiffFile(filename)
 
@@ -71,8 +71,10 @@ class TiffStack_tifffile(FramesSequence):
 
         self._im_sz = tmp.shape
 
+        self._validate_process_func(process_func)
+
     def get_frame(self, j):
-        return self._tiff[j]
+        return Frame(self.process_func(self._tiff[j]), frame_no=j)
 
     @property
     def pixel_type(self):
@@ -127,7 +129,7 @@ class TiffStack_libtiff(FramesSequence):
     >>> frame_count = video.count # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    def __init__(self, filename, dtype=None):
+    def __init__(self, filename, process_func=None, dtype=None):
         self._filename = filename
         self._tiff = TIFF.open(filename)
 
@@ -149,6 +151,8 @@ class TiffStack_libtiff(FramesSequence):
 
         self._byte_swap = bool(self._tiff.IsByteSwapped())
 
+        self._validate_process_func(process_func)
+
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
@@ -157,7 +161,7 @@ class TiffStack_libtiff(FramesSequence):
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
 
-        return Frame(res, frame_no=j)
+        return Frame(self.process_func(res), frame_no=j)
 
     @property
     def pixel_type(self):
@@ -197,7 +201,7 @@ class TiffStack_pil(FramesSequence):
         If `None`, use the native type of the image,
         other wise coerce into the specified dtype.
     '''
-    def __init__(self, fname, dtype=None):
+    def __init__(self, fname, process_func=None, dtype=None):
 
         self.im = Image.open(fname)
         self._filename = fname  # used by __repr__
@@ -231,6 +235,7 @@ class TiffStack_pil(FramesSequence):
 
         self._count = j
         self.im.seek(0)
+        self._validate_process_func(process_func)
 
     def get_frame(self, j):
         '''Extracts the jth frame from the image sequence.
@@ -242,7 +247,7 @@ class TiffStack_pil(FramesSequence):
         self.cur = self.im.tell()
         res = np.reshape(self.im.getdata(),
                          self._im_sz).astype(self._dtype).T[::-1]
-        return Frame(res, frame_no=j)
+        return Frame(self.process_func(res), frame_no=j)
 
     @property
     def pixel_type(self):

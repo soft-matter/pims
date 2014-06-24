@@ -68,6 +68,13 @@ class FramesStream(with_metaclass(ABCMeta, object)):
         """
         pass
 
+    def _validate_process_func(self, process_func):
+        if process_func is None:
+            process_func = lambda x: x
+        if not callable(process_func):
+            raise ValueError("process_func must be a function, or None")
+        self.process_func = process_func
+
     # magic functions to make all sub-classes usable as context managers
     def __enter__(self):
         return self

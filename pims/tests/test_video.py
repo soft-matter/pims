@@ -17,7 +17,7 @@ path = os.path.join(path, 'data')
 def _skip_if_no_ffmpeg():
     import pims.ffmpeg_reader
     if not pims.ffmpeg_reader.available():
-        raise nose.SkipTest('OpenCV not installed. Skipping.')
+        raise nose.SkipTest('FFmpeg not found. Skipping.')
 
 
 def _skip_if_no_libtiff():
@@ -71,6 +71,48 @@ class _base_klass(unittest.TestCase):
         # simple smoke test, values not checked
         repr(self.v)
 
+    def test_frame_number_present(self):
+        for frame_no in [0, 1, 2, 1]:
+            self.assertTrue(hasattr(self.v[frame_no], 'frame_no'))
+            not_none = self.v[frame_no].frame_no is not None
+            self.assertTrue(not_none)
+
+    def test_frame_number_accurate(self):
+        for frame_no in [0, 1, 2, 1]:
+            self.assertEqual(self.v[frame_no].frame_no, frame_no)
+
+    def test_process_func(self):
+        # Use a trivial identity function to verify the process_func exists.
+        f = lambda x: x
+        self.klass(self.filename, process_func=f, **self.kwargs)
+        
+        # Also, it should be the second positional arg for each class.
+        # This is verified more directly in later tests, too.
+        self.klass(self.filename, f, **self.kwargs)
+
+    def test_inversion_process_func(self):
+        def invert(image):
+            max_value = np.iinfo(image.dtype).max
+            image = image ^ max_value
+            return image
+
+        v_raw = self.klass(self.filename, **self.kwargs)
+        v = self.klass(self.filename, invert, **self.kwargs)
+        assert_equal(v[0], invert(v_raw[0]))
+
+    def test_grayscale_process_func(self):
+        # Note: Some, but not all, of the files are already grayscale
+        # so in some cases this function does nothing.
+        def grayscale(image):
+            if image.ndim == 3:
+                image = image[:, :, 0]
+                assert image.ndim == 2
+            return image
+
+        v_raw = self.klass(self.filename, **self.kwargs)
+        v = self.klass(self.filename, grayscale, **self.kwargs)
+        assert_equal(v[0], grayscale(v_raw[0]))
+
 
 class _frame_base_klass(_base_klass):
     def test_iterator(self):
@@ -89,7 +131,9 @@ class TestVideo(_frame_base_klass):
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
-        self.v = pims.Video(self.filename)
+        self.klass = pims.Video
+        self.kwargs = dict(use_cache=False)
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         _skip_if_no_ffmpeg()
@@ -98,6 +142,10 @@ class TestVideo(_frame_base_klass):
     def test_count(self):
         _skip_if_no_ffmpeg()
         assert_equal(len(self.v), 480)
+
+    def tearDown(self):
+        os.remove(self.filename + '.pims_buffer')
+        os.remove(self.filename + '.pims_meta')
 
 
 class TestTiffStack_libtiff(_base_klass):
@@ -109,7 +157,9 @@ class TestTiffStack_libtiff(_base_klass):
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
-        self.v = pims.TiffStack_libtiff(self.filename)
+        self.klass = pims.TiffStack_libtiff
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         _skip_if_no_libtiff()
@@ -125,7 +175,9 @@ class TestImageSequence(_frame_base_klass):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
-        self.v = pims.ImageSequence(self.filename)
+        self.klass = pims.ImageSequence
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         assert_equal(self.v.frame_shape, (424, 640))
@@ -142,7 +194,9 @@ class TestTiffStack_pil(_base_klass):
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy')).T[::-1]
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy')).T[::-1]
-        self.v = pims.TiffStack_pil(self.filename)
+        self.klass = pims.TiffStack_pil
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
         assert_equal(self.v.frame_shape, (512, 512))
