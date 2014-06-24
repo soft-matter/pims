@@ -197,3 +197,15 @@ class FFmpegVideoReader(FramesSequence):
     @property
     def pixel_type(self):
         raise NotImplemented()
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Source: {filename}
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Format: {pix_fmt}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count=len(self),
+                                  filename=self.filename,
+                                  pix_fmt=self.pix_fmt)

@@ -67,6 +67,10 @@ class _base_klass(unittest.TestCase):
         self.v[-1]
         list(self.v[[0, -1]])
 
+    def test_repr(self):
+        # simple smoke test, values not checked
+        repr(self.v)
+
 
 class _frame_base_klass(_base_klass):
     def test_iterator(self):

@@ -43,6 +43,7 @@ class ImageSequence(FramesSequence):
     """
 
     def __init__(self, pathname, process_func=None, dtype=None):
+        self.pathname = os.path.abspath(pathname)  # used by __repr__
         if os.path.isdir(pathname):
             warn("Loading ALL files in this directory. To ignore extraneous "
                  "files, use a pattern like 'path/to/images/*.png'",
@@ -99,3 +100,15 @@ class ImageSequence(FramesSequence):
     @property
     def pixel_type(self):
         return self._dtype
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Source: {pathname}
+Length: {count} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count=len(self),
+                                  pathname=self.pathname,
+                                  dtype=self.pixel_type)
