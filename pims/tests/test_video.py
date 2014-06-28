@@ -64,24 +64,29 @@ class _base_klass(unittest.TestCase):
         self.assertTrue(isinstance(len(self.v), int))
 
     def test_simple_negative_index(self):
+        self.check_skip()
         self.v[-1]
         list(self.v[[0, -1]])
 
     def test_repr(self):
+        self.check_skip()
         # simple smoke test, values not checked
         repr(self.v)
 
     def test_frame_number_present(self):
+        self.check_skip()
         for frame_no in [0, 1, 2, 1]:
             self.assertTrue(hasattr(self.v[frame_no], 'frame_no'))
             not_none = self.v[frame_no].frame_no is not None
             self.assertTrue(not_none)
 
     def test_frame_number_accurate(self):
+        self.check_skip()
         for frame_no in [0, 1, 2, 1]:
             self.assertEqual(self.v[frame_no].frame_no, frame_no)
 
     def test_process_func(self):
+        self.check_skip()
         # Use a trivial identity function to verify the process_func exists.
         f = lambda x: x
         self.klass(self.filename, process_func=f, **self.kwargs)
@@ -91,6 +96,7 @@ class _base_klass(unittest.TestCase):
         self.klass(self.filename, f, **self.kwargs)
 
     def test_inversion_process_func(self):
+        self.check_skip()
         def invert(image):
             max_value = np.iinfo(image.dtype).max
             image = image ^ max_value
@@ -100,19 +106,25 @@ class _base_klass(unittest.TestCase):
         v = self.klass(self.filename, invert, **self.kwargs)
         assert_equal(v[0], invert(v_raw[0]))
 
-    def test_grayscale_process_func(self):
-        # Note: Some, but not all, of the files are already grayscale
+    def test_greyscale_process_func(self):
+        self.check_skip()
+        # Note: Some, but not all, of the files are already greyscale
         # so in some cases this function does nothing.
-        def grayscale(image):
+        def greyscale(image):
             if image.ndim == 3:
                 image = image[:, :, 0]
                 assert image.ndim == 2
             return image
 
         v_raw = self.klass(self.filename, **self.kwargs)
-        v = self.klass(self.filename, grayscale, **self.kwargs)
-        assert_equal(v[0], grayscale(v_raw[0]))
+        v = self.klass(self.filename, greyscale, **self.kwargs)
+        assert_equal(v[0], greyscale(v_raw[0]))
 
+    def test_as_grey(self):
+        self.check_skip()
+        v = self.klass(self.filename, as_grey=True, **self.kwargs)
+        ndim = v[0].ndim
+        self.assertEqual(ndim, 2)
 
 class _frame_base_klass(_base_klass):
     def test_iterator(self):

@@ -90,9 +90,45 @@ _pix_fmt_dict = {'rgb24': 3,
 
 
 class FFmpegVideoReader(FramesSequence):
+    """Read images from the frames of a standard video file into an
+    iterable object that returns images as numpy arrays.
 
+    This reader, based on tiffile.py, should read standard TIFF 
+    files and sundry derivatives of the format used in microscopy.
+
+    Parameters
+    ----------
+    filename : string
+    process_func : function, optional
+        callable with signalture `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjection with process_func.
+
+    Examples
+    --------
+    >>> video = FFmpegVideoReader('video.avi')  # or .mov, etc.
+    >>> imshow(video[0]) # Show the first frame.
+    >>> imshow(video[-1]) # Show the last frame.
+    >>> imshow(video[1][0:10, 0:10]) # Show one corner of the second frame.
+
+    >>> for frame in video[:]:
+    ...    # Do something with every frame.
+
+    >>> for frame in video[10:20]:
+    ...    # Do something with frames 10-20.
+
+    >>> for frame in video[[5, 7, 13]]:
+    ...    # Do something with frames 5, 7, and 13.
+
+    >>> frame_count = len(video) # Number of frames in video
+    >>> frame_shape = video.frame_shape # Pixel dimensions of video
+    """
     def __init__(self, filename, process_func=None, pix_fmt="rgb24",
-                 use_cache=True):
+                 use_cache=True, as_grey=False):
 
         self.filename = filename
         self.pix_fmt = pix_fmt
@@ -105,6 +141,7 @@ class FFmpegVideoReader(FramesSequence):
         self._stride = self.depth*w*h
 
         self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
 
     def _initialize(self, use_cache):
         """ Opens the file, creates the pipe. """
