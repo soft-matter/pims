@@ -75,6 +75,31 @@ class FramesStream(with_metaclass(ABCMeta, object)):
             raise ValueError("process_func must be a function, or None")
         self.process_func = process_func
 
+    def _as_grey(self, as_grey, process_func):
+        def maybe_convert_to_grey(img):
+            """See skimage.color.colorconv in the scikit-image project.
+            
+            As noted there, the weights used in this conversion are calibrated
+            for contemporary CRT phosphors. Any alpha channel is ignored."""
+            if getattr(img, 'ndim', 0) >= 3:
+                return ([0.2125, 0.7154, 0.0721] * img[:, :, :3]).sum(axis=2)
+            else:
+                # The image is already greyscale.
+                return img
+
+        if as_grey:
+            try:
+                # Update frame_shape if it has already been set.
+                self.frame_shape = self.frame_shape[:2]
+            except AttributeError:
+                pass
+            if process_func is not None:
+                raise ValueError("The as_grey option cannot be used when "
+                                 "process_func is specified. Incorpate "
+                                 "greyscale conversion in the function "
+                                 "passed to process_func.")
+            self.process_func = maybe_convert_to_grey
+
     # magic functions to make all sub-classes usable as context managers
     def __enter__(self):
         return self

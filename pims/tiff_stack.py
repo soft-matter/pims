@@ -44,14 +44,56 @@ _dtype_map = {4: np.uint8,
 
 
 class TiffStack_tifffile(FramesSequence):
-    """
-    Wraps tifffile.py.  This should deal with a range of
-    tiff files and sun-dry microscope related tiff derivatives.
-    The obvious thing to do here is to extend tifffile.TiffFile,
-    however that would over-ride our nice slicing sematics.  The
+    """Read TIFF stacks (single files containing many images) into an
+    iterable object that returns images as numpy arrays.
+
+    This reader, based on tiffile.py, should read standard TIFF 
+    files and sundry derivatives of the format used in microscopy.
+
+    Parameters
+    ----------
+    filename : string
+    process_func : function, optional
+        callable with signalture `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjection with process_func.
+
+    Examples
+    --------
+    >>> video = TiffStack('many_images.tif')  # or .tiff
+    >>> imshow(video[0]) # Show the first frame.
+    >>> imshow(video[-1]) # Show the last frame.
+    >>> imshow(video[1][0:10, 0:10]) # Show one corner of the second frame.
+
+    >>> for frame in video[:]:
+    ...    # Do something with every frame.
+
+    >>> for frame in video[10:20]:
+    ...    # Do something with frames 10-20.
+
+    >>> for frame in video[[5, 7, 13]]:
+    ...    # Do something with frames 5, 7, and 13.
+
+    >>> frame_count = len(video) # Number of frames in video
+    >>> frame_shape = video.frame_shape # Pixel dimensions of video
+
+    Note
+    ----
+    This wraps tifffile.py. It should deal with a range of
+    tiff files and sundry microscope related tiff derivatives.
+    The obvious thing to do here is to extend tifffile.TiffFile;
+    however that would over-ride our nice slicing sematics. The
     way that TiffFile deals with __getitem__ is to just pass it
     through to an underlying list.  Further, it return TiffPages,
     not arrays as we desire.
+
+    See Also
+    --------
+    TiffStack_pil, TiffStack_libtiff, ImageSequence
     """
     @classmethod
     def class_exts(cls):
@@ -59,7 +101,8 @@ class TiffStack_tifffile(FramesSequence):
         return {'tif', 'tiff',
                 'stk'} | super(TiffStack_tifffile, cls).class_exts()
 
-    def __init__(self, filename, process_func=None, dtype=None):
+    def __init__(self, filename, process_func=None, dtype=None,
+                 as_grey=False):
         self._filename = filename
         self._tiff = tifffile.TiffFile(filename)
 
@@ -72,6 +115,7 @@ class TiffStack_tifffile(FramesSequence):
         self._im_sz = tmp.shape
 
         self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
         return Frame(self.process_func(self._tiff[j]), frame_no=j)
@@ -101,35 +145,48 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 
 
 class TiffStack_libtiff(FramesSequence):
-    """Iterable object that returns frames of video as numpy arrays.
+    """Read TIFF stacks (single files containing many images) into an
+    iterable object that returns images as numpy arrays.
+
+    This reader, based on libtiff, should read standard TIFF files.
 
     Parameters
     ----------
     filename : string
-    gray : Convert color image to grayscale. True by default.
-    invert : Invert black and white. True by default.
+    process_func : function, optional
+        callable with signalture `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjection with process_func.
 
     Examples
     --------
-    >>> from pims.tiff_stack import TiffStack_libtiff as TiffStack
-    >>> import matplotlib.pyplot as plt
-    >>> video = TiffStack('filename')
-    >>> plt.imshow(video[0]) # Show the first frame.
-    >>> plt.imshow(video[1][0:10][0:10]) # Show one corner of the second frame.
+    >>> video = TiffStack('many_images.tif')  # or .tiff
+    >>> imshow(video[0]) # Show the first frame.
+    >>> imshow(video[-1]) # Show the last frame.
+    >>> imshow(video[1][0:10, 0:10]) # Show one corner of the second frame.
 
     >>> for frame in video[:]:
-    ...    pass # Do something with every frame.
+    ...    # Do something with every frame.
 
     >>> for frame in video[10:20]:
-    ...    pass # Do something with frames 10-20.
+    ...    # Do something with frames 10-20.
 
     >>> for frame in video[[5, 7, 13]]:
-    ...    pass # Do something with frames 5, 7, and 13.
+    ...    # Do something with frames 5, 7, and 13.
 
-    >>> frame_count = video.count # Number of frames in video
+    >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
-    """
-    def __init__(self, filename, process_func=None, dtype=None):
+
+    See Also
+    --------
+    TiffStack_pil, TiffStack_tiffile, ImageSequence
+    """ 
+    def __init__(self, filename, process_func=None, dtype=None,
+                 as_grey=False):
         self._filename = filename
         self._tiff = TIFF.open(filename)
 
@@ -152,6 +209,7 @@ class TiffStack_libtiff(FramesSequence):
         self._byte_swap = bool(self._tiff.IsByteSwapped())
 
         self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
         if j > self._count:
@@ -188,20 +246,48 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 
 
 class TiffStack_pil(FramesSequence):
-    '''
-    Class for wrapping tiff stacks (that is single file with
-    many frames) that depends on PIL/PILLOW
+    """Read TIFF stacks (single files containing many images) into an
+    iterable object that returns images as numpy arrays.
+
+    This reader, based on PIL/Pillow, should read standard TIFF stacks.
 
     Parameters
     ----------
-    fname : str
-        Fully qualified file name
+    filename : string
+    process_func : function, optional
+        callable with signalture `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjection with process_func.
 
-    dtype : `None` or `numpy.dtype`
-        If `None`, use the native type of the image,
-        other wise coerce into the specified dtype.
-    '''
-    def __init__(self, fname, process_func=None, dtype=None):
+    Examples
+    --------
+    >>> video = TiffStack('many_images.tif')  # or .tiff
+    >>> imshow(video[0]) # Show the first frame.
+    >>> imshow(video[-1]) # Show the last frame.
+    >>> imshow(video[1][0:10, 0:10]) # Show one corner of the second frame.
+
+    >>> for frame in video[:]:
+    ...    # Do something with every frame.
+
+    >>> for frame in video[10:20]:
+    ...    # Do something with frames 10-20.
+
+    >>> for frame in video[[5, 7, 13]]:
+    ...    # Do something with frames 5, 7, and 13.
+
+    >>> frame_count = len(video) # Number of frames in video
+    >>> frame_shape = video.frame_shape # Pixel dimensions of video
+
+    See Also
+    --------
+    TiffStack_libtiff, TiffStack_tiffile, ImageSequence
+    """
+    def __init__(self, fname, process_func=None, dtype=None,
+                 as_grey=None):
 
         self.im = Image.open(fname)
         self._filename = fname  # used by __repr__
@@ -236,6 +322,7 @@ class TiffStack_pil(FramesSequence):
         self._count = j
         self.im.seek(0)
         self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
         '''Extracts the jth frame from the image sequence.

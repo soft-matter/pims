@@ -13,21 +13,29 @@ from pims.frame import Frame
 
 
 class ImageSequence(FramesSequence):
-    """Iterable object that returns frames of video as numpy arrays.
+    """Read a directory of sequentially numbered image files into an
+    iterable that returns images as numpy arrays.
 
     Parameters
     ----------
     pathname : string
        a directory or, safer, a pattern like path/to/images/*.png
        which will ignore extraneous files
-    gray : Convert color image to grayscale. True by default.
-    invert : Invert black and white. True by default.
+    process_func : function, optional
+        callable with signalture `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjection with process_func.
 
     Examples
     --------
     >>> video = ImageSequence('path/to/images/*.png')  # or *.tif, or *.jpg
     >>> imshow(video[0]) # Show the first frame.
-    >>> imshow(video[1][0:10][0:10]) # Show one corner of the second frame.
+    >>> imshow(video[-1]) # Show the last frame.
+    >>> imshow(video[1][0:10, 0:10]) # Show one corner of the second frame.
 
     >>> for frame in video[:]:
     ...    # Do something with every frame.
@@ -42,7 +50,8 @@ class ImageSequence(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
 
-    def __init__(self, pathname, process_func=None, dtype=None):
+    def __init__(self, pathname, process_func=None, dtype=None,
+                 as_grey=False):
         self.pathname = os.path.abspath(pathname)  # used by __repr__
         if os.path.isdir(pathname):
             warn("Loading ALL files in this directory. To ignore extraneous "
@@ -60,6 +69,7 @@ class ImageSequence(FramesSequence):
         self._count = len(self._filepaths)
 
         self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
 
         tmp = scipy_imread(self._filepaths[0])
 
