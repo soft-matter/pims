@@ -82,7 +82,8 @@ class FramesStream(with_metaclass(ABCMeta, object)):
             As noted there, the weights used in this conversion are calibrated
             for contemporary CRT phosphors. Any alpha channel is ignored."""
             if getattr(img, 'ndim', 0) >= 3:
-                return ([0.2125, 0.7154, 0.0721] * img[:, :, :3]).sum(axis=2)
+                grey = ([0.2125, 0.7154, 0.0721] * img[:, :, :3]).sum(axis=2)
+                return grey.astype(img.dtype)  # coerce to original dtype
             else:
                 # The image is already greyscale.
                 return img
