@@ -10,6 +10,7 @@ from warnings import warn
 
 # has to be here for API stuff
 from pims.image_sequence import ImageSequence  # noqa
+from .cine import Cine  # noqa
 
 
 def not_available(requirement):
