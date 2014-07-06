@@ -48,7 +48,7 @@ class FramesStream(with_metaclass(ABCMeta, object)):
         The default interpretation of the returned set is 'file
         extensions including but not exclusively'.
         """
-        return {}
+        return set()
 
     @property
     def exts(self):
