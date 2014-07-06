@@ -47,7 +47,9 @@ class Frame(ndarray):
 
     def _repr_png_(self):
         from PIL import Image
-        x = asarray(Image.fromarray(self).resize((500, 500)))
+        w = 500
+        h = self.shape[0] * w // self.shape[1] 
+        x = asarray(Image.fromarray(self).resize((w, h)))
         x = (x - x.min()) / (x.max() - x.min())
         img = Image.fromarray((x*256).astype('uint8'))
         img_buffer = BytesIO()
