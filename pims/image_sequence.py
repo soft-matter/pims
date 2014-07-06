@@ -7,9 +7,10 @@ import os
 import glob
 from warnings import warn
 from scipy.ndimage import imread as scipy_imread
-from matplotlib.pyplot import imread as mpl_imread
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
+# Inside the __init__ function, we import imread from matplotlib,
+# which provides a more robust imread than scipy.
 
 
 class ImageSequence(FramesSequence):
@@ -49,6 +50,7 @@ class ImageSequence(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
+    from matplotlib.pyplot import imread as mpl_imread
 
     def __init__(self, pathname, process_func=None, dtype=None,
                  as_grey=False):
