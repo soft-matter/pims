@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import six
+from io import BytesIO
 
 from numpy import ndarray, asarray
 
@@ -43,3 +44,12 @@ class Frame(ndarray):
 
         for attr, val in own_state.items():
             setattr(self, attr, val)
+
+    def _repr_png_(self):
+        from PIL import Image
+        x = asarray(Image.fromarray(self).resize((500, 500)))
+        x = (x - x.min()) / (x.max() - x.min())
+        img = Image.fromarray((x*256).astype('uint8'))
+        img_buffer = BytesIO()
+        img.save(img_buffer, format='png')
+        return img_buffer.getvalue()
