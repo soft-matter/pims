@@ -7,7 +7,7 @@ import os
 import unittest
 import nose
 import numpy as np
-from numpy.testing import (assert_equal)
+from numpy.testing import (assert_equal, assert_allclose)
 import pims
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -27,6 +27,14 @@ def _skip_if_no_libtiff():
         raise nose.SkipTest('libtiff not installed. Skipping.')
 
 
+def assert_image_equal(actual, expected):
+    if np.issubdtype(actual.dtype, np.integer):
+        assert_equal(actual, expected)
+    else:
+        expected = expected/256.
+        assert_allclose(actual, expected, atol=1/256.)
+
+
 class _base_klass(unittest.TestCase):
     def check_skip(self):
         pass
@@ -35,22 +43,22 @@ class _base_klass(unittest.TestCase):
         self.check_skip()
         tmp = list(self.v[0:2])
         frame0, frame1 = tmp
-        assert_equal(frame0, self.frame0)
-        assert_equal(frame1, self.frame1)
+        assert_image_equal(frame0, self.frame0)
+        assert_image_equal(frame1, self.frame1)
 
     def test_getting_single_frame(self):
         self.check_skip()
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[0], self.frame0)
-        assert_equal(self.v[1], self.frame1)
-        assert_equal(self.v[1], self.frame1)
+        assert_image_equal(self.v[0], self.frame0)
+        assert_image_equal(self.v[0], self.frame0)
+        assert_image_equal(self.v[1], self.frame1)
+        assert_image_equal(self.v[1], self.frame1)
 
     def test_getting_list(self):
         self.check_skip()
         actual = list(self.v[[1, 0, 0, 1, 1]])
         expected = [self.frame1, self.frame0, self.frame0, self.frame1,
                     self.frame1]
-        [assert_equal(a, b) for a, b in zip(actual, expected)]
+        [assert_image_equal(a, b) for a, b in zip(actual, expected)]
 
     def test_bool(self):
         self.check_skip()
@@ -104,7 +112,7 @@ class _base_klass(unittest.TestCase):
 
         v_raw = self.klass(self.filename, **self.kwargs)
         v = self.klass(self.filename, invert, **self.kwargs)
-        assert_equal(v[0], invert(v_raw[0]))
+        assert_image_equal(v[0], invert(v_raw[0]))
 
     def test_greyscale_process_func(self):
         self.check_skip()
@@ -118,7 +126,7 @@ class _base_klass(unittest.TestCase):
 
         v_raw = self.klass(self.filename, **self.kwargs)
         v = self.klass(self.filename, greyscale, **self.kwargs)
-        assert_equal(v[0], greyscale(v_raw[0]))
+        assert_image_equal(v[0], greyscale(v_raw[0]))
 
     def test_as_grey(self):
         self.check_skip()
@@ -130,8 +138,8 @@ class _frame_base_klass(_base_klass):
     def test_iterator(self):
         self.check_skip()
         i = iter(self.v)
-        assert_equal(next(i), self.frame0)
-        assert_equal(next(i), self.frame1)
+        assert_image_equal(next(i), self.frame0)
+        assert_image_equal(next(i), self.frame1)
 
 
 class TestVideo(_frame_base_klass):
@@ -187,8 +195,8 @@ class TestImageSequence(_frame_base_klass):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
-        self.klass = pims.ImageSequence
         self.kwargs = dict()
+        self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):

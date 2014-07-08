@@ -6,11 +6,18 @@ from six.moves import map
 import os
 import glob
 from warnings import warn
-from scipy.ndimage import imread as scipy_imread
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
-# Inside the __init__ function, we import imread from matplotlib,
-# which provides a more robust imread than scipy.
+
+# skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
+# If skimage is not available, go down our own hard-coded hierarchy.
+try:
+    from skimage.io import imread
+except ImportError:
+    try:
+        from matplotlib.pyplot import imread
+    except ImportError:
+        from scipy.ndimage import imread
 
 
 class ImageSequence(FramesSequence):
@@ -50,8 +57,6 @@ class ImageSequence(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    from matplotlib.pyplot import imread as mpl_imread
-
     def __init__(self, pathname, process_func=None, dtype=None,
                  as_grey=False):
         self.pathname = os.path.abspath(pathname)  # used by __repr__
@@ -73,14 +78,7 @@ class ImageSequence(FramesSequence):
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
-        tmp = scipy_imread(self._filepaths[0])
-
-        # hacky solution to PIL problem
-        if tmp.ndim == 0:  # obviously bad
-            tmp = mpl_imread(self._filepaths[0])
-            self.imread = mpl_imread
-        else:
-            self.imread = scipy_imread
+        tmp = imread(self._filepaths[0])
 
         self._first_frame_shape = tmp.shape
 
@@ -92,7 +90,7 @@ class ImageSequence(FramesSequence):
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
-        res = self.imread(self._filepaths[j])
+        res = imread(self._filepaths[j])
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
         res = Frame(self.process_func(res), frame_no=j)
