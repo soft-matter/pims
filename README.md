@@ -16,6 +16,18 @@ Everything is demonstrated in [this IPython notebook](http://nbviewer.ipython.or
 Dependencies
 ------------
 
+One of the following is required:
+
+* [scikit-image]
+* [matplotlib]
+* [scipy]
+
+Depending on what file formats you want to read, you will also need:
+
+* [ffmpeg](https://www.ffmpeg.org/) (video formats such as AVI, MOV)
+* [Pillow](http://pillow.readthedocs.org/en/latest/) (improved TIFF support)
+* [libtiff](https://code.google.com/p/pylibtiff/) (alternative TIFF support)
+* Tifffile, which is included in PIMS
 
 Basic Installation
 ------------------
@@ -51,41 +63,10 @@ in a command prompt:
 
 ### Reading Video Files (AVI, MOV, etc.)
 
-To load video files directly, you need OpenCV. You can work around this
+To load video files directly, you need FFmpeg. You can work around this
 requirement by converting any video files to folders full of images
 using a utility like [ImageJ](http://rsb.info.nih.gov/ij/). Reading folders
 of images is supported out of the box, without OpenCV.
-
-* Linux: OpenCV is included with Anaconda
-* OSX: OpenCV is easy to install on OSX using [homebrew](http://brew.sh/).
-* Windows: OpenCV can be installed on Windows in a few steps, outlined below.
-It is not as simple as the steps above, so beginners are encouraged
-to experiment with a folder full of images first.
-
-#### Installing OpenCV on Windows
-
-1. Install the video software FFmepg using this [Windows installer](http://www.arachneweb.co.uk/software/windows/avchdview/FFmpegSetup.exe)
-Make note of the directory where it is installed. It can be anywhere but, whatever it is,
-you will need to know that location in the next step.
-2. Right click on Computer (or perhaps "My Computer"), and click Properties. 
-Click "Advanced System Settings", then "Properties". With "Path" highlighted,
-click "Edit." This is a list of file paths separated by semicolons, you must 
-type in an additional entry. ";C:\Program Files (x86)\ffmpeg" or wherever
-FFmpeg was installed in Step 1.
-3. Install the Windows 32 (Python 2.7) version of OpenCV available on [this page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#opencv).
-4. Download [OpenCV for Windows](http://opencv.org/).
-5. You will now have a folder called ``opencv``. We just need one file 
-from this to make everything work.
-6. Copy the file ``opencv\3rdparty\ffmpeg\opencv_ffmpeg.dll``.
-7. Navigate to the directory where ffmpeg was installed, which you noted 
-in Step 1. From this directory, navigate into ``win32-static\bin``.
-Paste ``opencv_ffmpeg.dll`` here.
-
-Now run ``ipython``. If you can execute ``import cv`` without any errors, the
-installation is probably successful. If you can read video files using
-``pims.Video('path/to/video_file.avi')`` then the installation is definitely working
-as expected.
-
 
 ### Updating Your Instllation
 
@@ -106,4 +87,4 @@ of his
 PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
 University in Baltimore, MD. The work was supported by the National Science Foundation under grant number CBET-1033985.
 
-Dan can be reached at dallan@pha.jhu.edu.
+Dan can be reached at daniel.b.allan@jhu.edu.
