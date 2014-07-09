@@ -27,7 +27,7 @@ except ImportError:
 MAJOR = 0
 MINOR = 2
 MICRO = 0
-ISRELEASED = False
+ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
@@ -82,7 +82,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup_parameters = dict(
-    name="pims",
+    name="PIMS",
     version=FULLVERSION,
     description="Python Image Sequence",
     ext_modules=[Extension('_tifffile', ['pims/extern/tifffile.c'],
