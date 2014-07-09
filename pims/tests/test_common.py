@@ -31,7 +31,8 @@ def assert_image_equal(actual, expected):
     if np.issubdtype(actual.dtype, np.integer):
         assert_equal(actual, expected)
     else:
-        expected = expected/256.
+        if np.issubdtype(expected.dtype, np.integer):
+            expected = expected/float(np.iinfo(expected.dtype).max)
         assert_allclose(actual, expected, atol=1/256.)
 
 
@@ -106,8 +107,11 @@ class _base_klass(unittest.TestCase):
     def test_inversion_process_func(self):
         self.check_skip()
         def invert(image):
-            max_value = np.iinfo(image.dtype).max
-            image = image ^ max_value
+            if np.issubdtype(image.dtype, np.integer):
+                max_value = np.iinfo(image.dtype).max
+                image = image ^ max_value
+            else:
+                image = 1 - image
             return image
 
         v_raw = self.klass(self.filename, **self.kwargs)
@@ -190,12 +194,28 @@ class TestTiffStack_libtiff(_base_klass):
         assert_equal(len(self.v), 5)
 
 
-class TestImageSequence(_frame_base_klass):
+class TestImageSequenceWithPIL(_frame_base_klass):
     def setUp(self):
         self.filename = os.path.join(path, 'image_sequence')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
-        self.kwargs = dict()
+        self.kwargs = dict(plugin='pil')
+        self.klass = pims.ImageSequence
+        self.v = self.klass(self.filename, **self.kwargs)
+
+    def test_shape(self):
+        assert_equal(self.v.frame_shape, (424, 640))
+
+    def test_count(self):
+        assert_equal(len(self.v), 5)
+
+
+class TestImageSequenceWithMPL(_frame_base_klass):
+    def setUp(self):
+        self.filename = os.path.join(path, 'image_sequence')
+        self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
+        self.kwargs = dict(plugin='matplotlib')
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
 

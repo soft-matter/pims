@@ -37,6 +37,10 @@ class ImageSequence(FramesSequence):
     as_grey : boolean, optional
         Convert color images to greyscale. False by default.
         May not be used in conjection with process_func.
+    plugin : string
+        Passed on to skimage.io.imread if scikit-image is available.
+        If scikit-image is not available, this will be ignored and a warning
+        will be issued.
 
     Examples
     --------
@@ -58,7 +62,18 @@ class ImageSequence(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
     def __init__(self, pathname, process_func=None, dtype=None,
-                 as_grey=False):
+                 as_grey=False, plugin=None):
+        try:
+            import skimage
+        except ImportError:
+            if plugin is not None:
+                warn("A plugin was specified but ignored. Plugins can only "
+                     "be specified if scikit-image is available. Instead, "
+                     "ImageSequence will try using matplotlib and scipy "
+                     "in that order.")
+            self.kwargs = dict()
+        else:
+            self.kwargs = dict(plugin=plugin)
         self.pathname = os.path.abspath(pathname)  # used by __repr__
         if os.path.isdir(pathname):
             warn("Loading ALL files in this directory. To ignore extraneous "
@@ -78,7 +93,7 @@ class ImageSequence(FramesSequence):
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
-        tmp = imread(self._filepaths[0])
+        tmp = imread(self._filepaths[0], **self.kwargs)
 
         self._first_frame_shape = tmp.shape
 
@@ -90,7 +105,7 @@ class ImageSequence(FramesSequence):
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
-        res = imread(self._filepaths[j])
+        res = imread(self._filepaths[j], **self.kwargs)
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
         res = Frame(self.process_func(res), frame_no=j)
