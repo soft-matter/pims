@@ -47,7 +47,7 @@ class TiffStack_tifffile(FramesSequence):
     """Read TIFF stacks (single files containing many images) into an
     iterable object that returns images as numpy arrays.
 
-    This reader, based on tiffile.py, should read standard TIFF 
+    This reader, based on tiffile.py, should read standard TIFF
     files and sundry derivatives of the format used in microscopy.
 
     Parameters
@@ -184,7 +184,7 @@ class TiffStack_libtiff(FramesSequence):
     See Also
     --------
     TiffStack_pil, TiffStack_tiffile, ImageSequence
-    """ 
+    """
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
         self._filename = filename
