@@ -88,6 +88,7 @@ setup_parameters = dict(
     ext_modules=[Extension('_tifffile', ['pims/extern/tifffile.c'],
                     include_dirs=[numpy.get_include()])],
     author="Daniel Allan",
+    install_requires=['numpy'],
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",
     packages=['pims', 'pims.extern'])
