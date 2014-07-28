@@ -78,13 +78,23 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    files = glob.glob(sequence)
+    file = glob.glob(sequence)
     if len(sequence) > 1:
         return ImageSequence(files, process_func, dtype, as_gray, plugin)
     if plugin is not None:
         warn("scikit-image plugin specification ignored because such plugins"
              "only apply when loading a sequence of image files. ")
-    tok = os.path.splitext(sequence)
-    if tok[1].lower() in ['.tif', '.tiff']:
+    _, ext = os.path.splitext(sequence)
+    ext = ext[1:].lower()
+    if ext in TiffStack.class_exts()
         return TiffStack(sequence, process_func, dtype, as_gray)
-    return Video(sequence, process_func, dtype, as_array)
+    if ext in Video.class_exts():
+        return Video(sequence, process_func, dtype, as_array)
+
+    raise UnknownFormatError("Could not autodetect how to load a file of type {0}. Try manually specifying a loader class, ie Video({1})".format(ext, sequence))
+
+class UnknownFormatError(Error):
+    def __init__(self, message = ""):
+        self.msg = message
+    def __str__(self):
+        return self.message
