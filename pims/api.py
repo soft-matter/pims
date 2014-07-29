@@ -86,14 +86,16 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
              "only apply when loading a sequence of image files. ")
     _, ext = os.path.splitext(sequence)
     ext = ext[1:].lower()
-    if ext in TiffStack.class_exts()
+    if ext in TiffStack.class_exts():
         return TiffStack(sequence, process_func, dtype, as_gray)
     if ext in Video.class_exts():
         return Video(sequence, process_func, dtype, as_array)
 
-    raise UnknownFormatError("Could not autodetect how to load a file of type {0}. Try manually specifying a loader class, ie Video({1})".format(ext, sequence))
+    raise UnknownFormatError(
+        "Could not autodetect how to load a file of type {0}. Try manually "
+        "specifying a loader class, e.g. Video({1})".format(ext, sequence))
 
-class UnknownFormatError(Error):
+class UnknownFormatError(Exception):
     def __init__(self, message = ""):
         self.msg = message
     def __str__(self):
