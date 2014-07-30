@@ -231,16 +231,18 @@ class Cine(FramesSequence):
         self.f = open(fn, 'rb')
         self.fn = fn
 
-        self.read_header(HEADER_FIELDS)
-        self.read_header(BITMAP_INFO_FIELDS, self.off_image_header)
-        self.read_header(SETUP_FIELDS, self.off_setup)
+        self.header_dict = self.read_header(HEADER_FIELDS)
+        self.bitmapinfo_dict = self.read_header(BITMAP_INFO_FIELDS,
+                                                self.off_image_header)
+        self.setup_fields_dict = self.read_header(SETUP_FIELDS, self.off_setup)
         self.image_locations = self.unpack('%dQ' % self.image_count,
                                            self.off_image_offsets)
         if type(self.image_locations) not in (list, tuple):
             self.image_locations = [self.image_locations]
 
-        self.width = self.bi_width
-        self.height = self.bi_height
+        self._width = self.bitmapinfo_dict['bi_width']
+        self._height = self.bitmapinfo_dict['bi_height']
+        self._pixel_count = self._width * self._height
 
         # Allows Cine object to be accessed from multiple threads!
         self.file_lock = Lock()
@@ -251,26 +253,95 @@ class Cine(FramesSequence):
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
-        # sort out data type
-        tmp = self._get_frame(0)
-        # strip to len 2 to deal with color
-        self._im_sz = tmp.shape[:2]
+        self._im_sz = (self._width, self._height)
+
+        # sort out the data type by reading the meta-data
+        if self.bitmapinfo_dict['bi_bit_count'] in (8, 24):
+            self._data_type = 'u1'
+        else:
+            self._data_type = 'u2'
+
+        # sort out what type to return data as
         if dtype is None:
-            self._dtype = tmp.dtype
+            self._dtype = np.dtype(self._data_type)
         else:
             self._dtype = dtype
+        self.tagged_blocks = self.read_tagged_blocks()
+        self.frame_time_stamps = self.tagged_blocks['image_time_only']
+        self.all_exposures = self.tagged_blocks['exposure_only']
+        self.stack_meta_data = dict()
+        self.stack_meta_data.update(self.bitmapinfo_dict)
+        self.stack_meta_data.update({k: self.setup_fields_dict[k]
+                                     for k in set(('trig_frame',
+                                                   'gamma',
+                                                   'frame_rate',
+                                                   'shutter_ns'
+                                                   )
+                                                   )
+                                                   })
+        self.stack_meta_data.update({k: self.header_dict[k]
+                                     for k in set(('first_image_no',
+                                                   'image_count',
+                                                   'total_image_count',
+                                                   'first_movie_image'
+                                                   )
+                                                   )
+                                                   })
+        self.stack_meta_data['trigger_time'] = self.trigger_time
+
+    @property
+    def frame_rate(self):
+        return self.setup_fields_dict['frame_rate']
+
+    # use properties for things that should not be changeable
+    @property
+    def cfa(self):
+        return self.setup_fields_dict['cfa']
+
+    @property
+    def compression(self):
+        return self.header_dict['compression']
 
     @property
     def pixel_type(self):
         return self._dtype
 
     @property
+    def off_set(self):
+        return self.header_dict['offset']
+
+    @property
+    def setup_length(self):
+        return self.setup_fields_dict['length']
+
+    @property
+    def off_image_offsets(self):
+        return self.header_dict['off_image_offsets']
+
+    @property
+    def off_image_header(self):
+        return self.header_dict['off_image_header']
+
+    @property
+    def off_setup(self):
+        return self.header_dict['off_setup']
+
+    @property
+    def image_count(self):
+        return self.header_dict['image_count']
+
+    @property
     def frame_shape(self):
         return self._im_sz
 
     def get_frame(self, j):
+        md = dict()
+        md['exposure'] = self.all_exposures[j]
+        ts, sec_frac = self.frame_time_stamps[j]
+        md['frame_time'] = {'datetime': ts,
+                            'second_fraction': sec_frac}
         return Frame(self.process_func(self._get_frame(j)),
-                     frame_no=j)
+                     frame_no=j, metadata=md)
 
     def unpack(self, fs, offset=None):
         if offset is not None:
@@ -286,69 +357,74 @@ class Cine(FramesSequence):
         '''
         Reads the tagged block meta-data from the header
         '''
-
-        if not self.off_setup + self.length < self.off_image_offsets:
+        tmp_dict = dict()
+        if not self.off_setup + self.setup_length < self.off_image_offsets:
             return
         next_tag_exists = True
         next_tag_offset = 0
         while next_tag_exists:
-            block_size, next_tag_exists = self._read_tag_block(next_tag_offset)
+            block_size, next_tag_exists = self._read_tag_block(next_tag_offset,
+                                                               tmp_dict)
             next_tag_offset += block_size
+        return tmp_dict
 
-    def _read_tag_block(self, off_set):
+    def _read_tag_block(self, off_set, accum_dict):
         '''
         Internal helper-function for reading the tagged blocks.
         '''
-        self.file_lock.acquire()
-        self.f.seek(self.off_setup + self.length + off_set)
-        block_size = self.unpack(DWORD)
-        b_type = self.unpack(WORD)
-        more_tags = self.unpack(WORD)
+        with file_locker(self.file_lock):
+            self.f.seek(self.off_setup + self.setup_length + off_set)
+            block_size = self.unpack(DWORD)
+            b_type = self.unpack(WORD)
+            more_tags = self.unpack(WORD)
 
-        if b_type == 1004:
-            # docs say to ignore range data
-            # it seems to be a poison flag, if see this, give up tag parsing
-            return block_size, 0
+            if b_type == 1004:
+                # docs say to ignore range data it seems to be a poison flag,
+                # if see this, give up tag parsing
+                return block_size, 0
 
-        try:
-            d_name, d_type = TAGGED_FIELDS[b_type]
+            try:
+                d_name, d_type = TAGGED_FIELDS[b_type]
 
-        except KeyError:
-            return block_size, more_tags
+            except KeyError:
+                return block_size, more_tags
 
-        if d_type == '':
-            #            print "can't deal with  <" + d_name + "> tagged data"
-            return block_size, more_tags
+            if d_type == '':
+                # print "can't deal with  <" + d_name + "> tagged data"
+                return block_size, more_tags
 
-        s_tmp = struct.Struct('<' + d_type)
-        if (block_size-8) % s_tmp.size != 0:
-            #            print 'something is wrong with your data types'
-            return block_size, more_tags
+            s_tmp = struct.Struct('<' + d_type)
+            if (block_size-8) % s_tmp.size != 0:
+                #            print 'something is wrong with your data types'
+                return block_size, more_tags
 
-        d_count = (block_size-8)//(s_tmp.size)
+            d_count = (block_size-8)//(s_tmp.size)
 
-        data = self.unpack('%d' % d_count + d_type)
-        if not isinstance(data, tuple):
-            # fix up data due to design choice in self.unpack
-            data = (data, )
+            data = self.unpack('%d' % d_count + d_type)
+            if not isinstance(data, tuple):
+                # fix up data due to design choice in self.unpack
+                data = (data, )
 
-        # parse time
-        if b_type == 1002 or b_type == 1001:
-            data = [(datetime.datetime.fromtimestamp(d >> 32),
-                     float((FRACTION_MASK & d))/MAX_INT) for d in data]
-        # convert exposure to seconds
-        if b_type == 1003:
-            data = [float(d)/(MAX_INT) for d in data]
+            # parse time
+            if b_type == 1002 or b_type == 1001:
+                data = [(datetime.datetime.fromtimestamp(d >> 32),
+                         (FRACTION_MASK & d)/MAX_INT) for d in data]
+            # convert exposure to seconds
+            if b_type == 1003:
+                data = [d/(MAX_INT) for d in data]
 
-        setattr(self, d_name, data)
+            accum_dict[d_name] = data
 
-        self.file_lock.release()
         return block_size, more_tags
 
     def read_header(self, fields, offset=0):
         self.f.seek(offset)
+        tmp = dict()
         for name, format in fields:
-            setattr(self, name, self.unpack(format))
+            val = self.unpack(format)
+            tmp[name] = val
+
+        return tmp
 
     def _get_frame(self, number):
         with file_locker(self.file_lock):
@@ -361,10 +437,11 @@ class Cine(FramesSequence):
             cfa = self.cfa
             compression = self.compression
 
-            data_type = 'u1' if self.bi_bit_count in (8, 24) else 'u2'
+            # sort out data type looking at the cached version
+            data_type = self._data_type
 
             # actual bit per pixel
-            actual_bits = image_size * 8 // (self.width * self.height)
+            actual_bits = image_size * 8 // (self._pixel_count)
 
             # so this seem wrong as 10 or 12 bits won't fit in 'u1'
             # but I (TAC) may not understand and don't have a packed file
@@ -397,7 +474,11 @@ class Cine(FramesSequence):
                          'or 10 or 12 bit packed (appears to be' +
                         ' %dbits/pixel?!)' % actual_bits)
 
-                frame = frame.reshape(self.height, self.width)[::-1]
+                # re-shape to an array
+                # flip the rows
+                # and the cast to proper type
+                frame = frame.reshape(self._height,
+                                      self._width)[::-1].astype(self._dtype)
 
                 if actual_bits in (10, 12):
                     frame = frame[::-1, :]
@@ -406,8 +487,9 @@ class Cine(FramesSequence):
             else:
                 if compression == 0:
                     # and re-order so color is RGB (naively saves as BGR)
-                    frame = frame.reshape(self.height,
-                                          self.width, 3)[::-1, :, ::-1]
+                    frame = frame.reshape(self._height,
+                                          self._width,
+                                          3)[::-1, :, ::-1].astype(self._dtype)
                 elif compression == 2:
                     raise ValueError("Can not process un-interpolated movies")
                 else:
@@ -458,11 +540,14 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type)
 
     @property
-    def trigger_time_p(self):
+    def trigger_time(self):
         '''Returns the time of the trigger, tuple of (datatime_object,
         fraction_in_ns)'''
-        return (datetime.datetime.fromtimestamp(self.trigger_time >> 32),
-                float(FRACTION_MASK & self.trigger_time)/(MAX_INT))
+        trigger_time = self.header_dict['trigger_time']
+        ts, sf = (datetime.datetime.fromtimestamp(trigger_time >> 32),
+                   float(FRACTION_MASK & trigger_time)/(MAX_INT))
+
+        return {'datetime': ts, 'second_fraction': sf}
 
     @property
     def hash(self):
