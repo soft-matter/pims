@@ -14,3 +14,11 @@ def test_scalar_casting():
     sum2 = tt.sum(keepdims=True)
     assert_equal(sum2.ndim, 2)
     assert_equal(sum2.frame_no, tt.frame_no)
+
+
+def test_creation_md():
+    md_dict = {'a': 1}
+    frame_no = 42
+    tt = Frame(np.ones((5, 3)), frame_no=frame_no, metadata=md_dict)
+    assert_equal(tt.metadata, md_dict)
+    assert_equal(tt.frame_no, frame_no)
