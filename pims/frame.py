@@ -14,11 +14,14 @@ class Frame(ndarray):
     def __new__(cls, input_array, frame_no=None, metadata=None):
         obj = asarray(input_array).view(cls)
         obj.frame_no = frame_no
-        obj.metadata = {}
+        if metadata is None:
+            metadata = {}
+        obj.metadata = metadata
         return obj
 
     def __array_finalize__(self, obj):
-        if obj is None: return
+        if obj is None:
+            return
         self.frame_no = getattr(obj, 'frame_no', None)
         self.metadata = getattr(obj, 'metadata', None)
 
@@ -48,7 +51,7 @@ class Frame(ndarray):
     def _repr_png_(self):
         from PIL import Image
         w = 500
-        h = self.shape[0] * w // self.shape[1] 
+        h = self.shape[0] * w // self.shape[1]
         x = asarray(Image.fromarray(self).resize((w, h)))
         x = (x - x.min()) / (x.max() - x.min())
         img = Image.fromarray((x*256).astype('uint8'))
