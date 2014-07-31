@@ -93,8 +93,8 @@ class FFmpegVideoReader(FramesSequence):
     """Read images from the frames of a standard video file into an
     iterable object that returns images as numpy arrays.
 
-    This reader, based on tiffile.py, should read standard TIFF 
-    files and sundry derivatives of the format used in microscopy.
+    This reader, based on ffmpeg, should be able to read most video
+    files
 
     Parameters
     ----------
@@ -126,6 +126,7 @@ class FFmpegVideoReader(FramesSequence):
 
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
+
     """
     def __init__(self, filename, process_func=None, pix_fmt="rgb24",
                  use_cache=True, as_grey=False):
@@ -232,6 +233,10 @@ class FFmpegVideoReader(FramesSequence):
     @property
     def pixel_type(self):
         raise NotImplemented()
+
+    @classmethod
+    def class_exts(cls):
+        return set(['mov', 'avi', 'webm'])
 
     def __repr__(self):
         # May be overwritten by subclasses

@@ -1,6 +1,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from pims.base_frames import FramesSequence
+
 import six
 import glob
 import os
@@ -78,18 +80,32 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    file = glob.glob(sequence)
-    if len(sequence) > 1:
-        return ImageSequence(files, process_func, dtype, as_gray, plugin)
+    files = glob.glob(sequence)
+    if len(files) > 1:
+        # todo: test if ImageSequence can read the image type, delegate to subclasses as needed
+        return ImageSequence(sequence, process_func, dtype, as_gray, plugin)
+
+    # We are now not in an image sequence, so warn if plugin is specified, since we will not be able to use it
     if plugin is not None:
         warn("scikit-image plugin specification ignored because such plugins"
              "only apply when loading a sequence of image files. ")
     _, ext = os.path.splitext(sequence)
-    ext = ext[1:].lower()
-    if ext in TiffStack.class_exts():
-        return TiffStack(sequence, process_func, dtype, as_gray)
-    if ext in Video.class_exts():
-        return Video(sequence, process_func, dtype, as_array)
+    ext = ext.lower()[1:]
+
+    all_handlers = FramesSequence.__subclasses__()
+    # TODO: recursively check subclasses
+    eligible_handlers = [h for h in all_handlers if ext and ext in h.class_exts()]
+    def sort_on_priority(handlers):
+        #TODO make this use optional information from subclasses
+        # give any user-defined (non-build-in) subclasses priority
+        return handlers
+    handler = sort_on_priority(eligible_handlers)[0]
+
+
+    # TODO maybe we should wrap this in a try and loop to try all the
+    # handlers if early ones throw exceptions
+    return handler(sequence, process_func, dtype, as_gray)
+
 
     raise UnknownFormatError(
         "Could not autodetect how to load a file of type {0}. Try manually "
