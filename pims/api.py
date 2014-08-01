@@ -87,32 +87,35 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
 
     # We are now not in an image sequence, so warn if plugin is specified, since we will not be able to use it
     if plugin is not None:
-        warn("scikit-image plugin specification ignored because such plugins"
+        warn("scikit-image plugin specification ignored because such plugins "
              "only apply when loading a sequence of image files. ")
     _, ext = os.path.splitext(sequence)
+    if ext is None or len(ext) < 2:
+        raise UnknownFormatError(
+            "Could not detect your file type because it did not have an "
+            "extension. Try specifying a loader class, e.g. "
+            "Video({1})".format(sequence))
     ext = ext.lower()[1:]
 
     all_handlers = FramesSequence.__subclasses__()
     # TODO: recursively check subclasses
     eligible_handlers = [h for h in all_handlers if ext and ext in h.class_exts()]
+    if len(eligible_handlers) < 1:
+        raise UnknownFormatError(
+            "Could not autodetect how to load a file of type {0}. Try manually "
+            "specifying a loader class, e.g. Video({1})".format(ext, sequence))
+
     def sort_on_priority(handlers):
         #TODO make this use optional information from subclasses
         # give any user-defined (non-build-in) subclasses priority
         return handlers
     handler = sort_on_priority(eligible_handlers)[0]
 
-
     # TODO maybe we should wrap this in a try and loop to try all the
     # handlers if early ones throw exceptions
     return handler(sequence, process_func, dtype, as_gray)
 
 
-    raise UnknownFormatError(
-        "Could not autodetect how to load a file of type {0}. Try manually "
-        "specifying a loader class, e.g. Video({1})".format(ext, sequence))
 
 class UnknownFormatError(Exception):
-    def __init__(self, message = ""):
-        self.msg = message
-    def __str__(self):
-        return self.message
+    pass

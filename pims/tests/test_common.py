@@ -248,6 +248,7 @@ def test_open_pngs():
     pims.open(os.path.join(path, 'image_sequence', '*.png'))
 
 def test_open_mov():
+    _skip_if_no_ffmpeg()
     pims.open(os.path.join(path, 'bulk-water.mov'))
 
 def test_open_tiff():
