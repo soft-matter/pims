@@ -1,4 +1,4 @@
-pims: Python Image Sequence 
+pims: Python Image Sequence
 =========================
 
 [![build status](https://travis-ci.org/soft-matter/pims.png?branch=master)](https://travis-ci.org/soft-matter/pims)
@@ -38,10 +38,10 @@ To get started with Python on any platform, download and install
 [Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with the
 common scientific Python packages built in.
 
-If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit. 
+If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
 (One of the optional dependencies is not yet compatible with 64-bit Python.)
 
-Open a command prompt. That's "Terminal" on a Mac, and 
+Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
 
@@ -77,14 +77,14 @@ version, run this in the command prompt:
 
 Contributors
 ------------
-* Daniel B. Allan
-* Thomas A. Caswell (major refacotring, additional formats)
+* Daniel B. Allan (daniel.b.allan@jhu.edu)
+* Thomas A. Caswell (tcaswell@bnl.gov)
 
 Supporting Grant
 ----------------
-This package was originally developed and maintained by Daniel Allan, as part 
-of his
-PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
-University in Baltimore, MD. The work was supported by the National Science Foundation under grant number CBET-1033985.
 
-Dan can be reached at daniel.b.allan@jhu.edu.
+This package was originally developed and maintained by Daniel Allan,
+as part of his PhD thesis work on microrheology in Robert L. Leheny's
+group at Johns Hopkins University in Baltimore, MD. The work was
+supported by the National Science Foundation under grant number
+CBET-1033985.
