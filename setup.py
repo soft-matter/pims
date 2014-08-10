@@ -90,7 +90,7 @@ setup_parameters = dict(
     author="Daniel Allan",
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",
-    packages=['pims'])
+    packages=['pims', 'pims.extern'])
 
 try:
     setup(**setup_parameters)
