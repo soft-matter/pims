@@ -99,7 +99,7 @@ class _base_klass(unittest.TestCase):
         # Use a trivial identity function to verify the process_func exists.
         f = lambda x: x
         self.klass(self.filename, process_func=f, **self.kwargs)
-        
+
         # Also, it should be the second positional arg for each class.
         # This is verified more directly in later tests, too.
         self.klass(self.filename, f, **self.kwargs)
@@ -243,3 +243,13 @@ class TestTiffStack_pil(_base_klass):
 
     def test_count(self):
         assert_equal(len(self.v), 5)
+
+def test_open_pngs():
+    pims.open(os.path.join(path, 'image_sequence', '*.png'))
+
+def test_open_mov():
+    _skip_if_no_ffmpeg()
+    pims.open(os.path.join(path, 'bulk-water.mov'))
+
+def test_open_tiff():
+    pims.open(os.path.join(path, 'stuck.tif'))
