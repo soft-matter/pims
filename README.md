@@ -78,7 +78,7 @@ version, run this in the command prompt:
 Contributors
 ------------
 * Daniel B. Allan
-* Thomas A. Caswell (major refacotring, additional formats)
+* Thomas A. Caswell (major refactoring, additional formats)
 
 Supporting Grant
 ----------------
