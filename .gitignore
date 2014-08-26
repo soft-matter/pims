@@ -1,6 +1,6 @@
 *.pro
 *.log
-*.pyc
+*.py[cod]
 *.so
 *~
 *.swp
@@ -11,3 +11,6 @@ pims/version.py
 examples/.ipynb_checkpoints
 pims/tests/data/bulk-water.mov.pims_buffer
 pims/tests/data/bulk-water.mov.pims_meta
+
+# pycharm IDE
+.idea/
