@@ -47,6 +47,7 @@ import six
 import re
 import subprocess as sp
 import sys
+import os
 
 import numpy as np
 
@@ -57,7 +58,6 @@ from pims.frame import Frame
 try:
     from subprocess import DEVNULL  # py3k
 except ImportError:
-    import os
     DEVNULL = open(os.devnull, 'wb')
 
 
