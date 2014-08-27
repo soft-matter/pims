@@ -78,7 +78,7 @@ class FramesStream(with_metaclass(ABCMeta, object)):
     def _as_grey(self, as_grey, process_func):
         def maybe_convert_to_grey(img):
             """See skimage.color.colorconv in the scikit-image project.
-            
+
             As noted there, the weights used in this conversion are calibrated
             for contemporary CRT phosphors. Any alpha channel is ignored."""
             if getattr(img, 'ndim', 0) >= 3:
@@ -120,13 +120,11 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 class FramesSequence(FramesStream):
     """Baseclass for wrapping data buckets that have random access.
 
-    Support random access.
-
-    Supports standard slicing and fancy slicing, but returns a
-    generator.
-
-    Must be finite length.
-
+    This class provides the logic to implement basic and fancy slicing.
+    If getitem (ex []) is called with anything but a
+    scalar a generator which yields the image data is returned (which
+    enables lazy-loading).  Fancy indexing as will as numpy-style boolean
+    and list slicing.
     """
     def __getitem__(self, key):
         """for data access"""
@@ -170,6 +168,16 @@ class FramesSequence(FramesStream):
         Sub classes must over-ride this function for how to get a given
         frame out of the file.  Any data-type specific internal-state
         nonsense should be dealt with in this function.
+
+        Parameters
+        ----------
+        ind : int
+            The index of the frame to retrive
+
+        Returns
+        -------
+        :class:`~pims.frame.Frame`
+            The image data + meta-data for the given frame
         """
         pass
 

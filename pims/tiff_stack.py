@@ -47,12 +47,13 @@ class TiffStack_tifffile(FramesSequence):
     """Read TIFF stacks (single files containing many images) into an
     iterable object that returns images as numpy arrays.
 
-    This reader, based on tiffile.py, should read standard TIFF 
+    This reader, based on tiffile.py, should read standard TIFF
     files and sundry derivatives of the format used in microscopy.
 
     Parameters
     ----------
     filename : string
+        The file name
     process_func : function, optional
         callable with signalture `proc_img = process_func(img)`,
         which will be applied to the data from each frame
@@ -81,8 +82,9 @@ class TiffStack_tifffile(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
 
-    Note
-    ----
+    Notes
+    -----
+
     This wraps tifffile.py. It should deal with a range of
     tiff files and sundry microscope related tiff derivatives.
     The obvious thing to do here is to extend tifffile.TiffFile;
@@ -184,7 +186,7 @@ class TiffStack_libtiff(FramesSequence):
     See Also
     --------
     TiffStack_pil, TiffStack_tiffile, ImageSequence
-    """ 
+    """
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
         self._filename = filename

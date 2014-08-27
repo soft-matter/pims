@@ -35,6 +35,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.autosummary',
     'numpydoc'
 ]
 
@@ -268,3 +269,8 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
+autodoc_member_order = 'bysource'
+numpydoc_show_class_members = False
+
+import glob
+autosummary_generate = glob.glob("api_ref/*.rst")

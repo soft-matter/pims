@@ -6,6 +6,15 @@
 Welcome to PIMS: Python Image Sequence
 ======================================
 
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   dev_guide/index
+   api_ref/index
+
+
 What Problem Does PIMS Solve?
 -----------------------------
 
@@ -95,11 +104,6 @@ CBET-1033985.
 Dan can be reached at daniel.b.allan@jhu.edu.
 
 Tom can be reached at tcaswell@bnl.gov
-
-Contents:
-
-.. toctree::
-   :maxdepth: 2
 
 
 

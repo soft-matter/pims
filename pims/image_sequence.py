@@ -27,20 +27,20 @@ class ImageSequence(FramesSequence):
     Parameters
     ----------
     pathname : string
-       a directory or, safer, a pattern like path/to/images/*.png
-       which will ignore extraneous files
+        a directory or, safer, a pattern like `path/to/images/.png`
+        which will ignore extraneous files
     process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
+         callable with signalture `proc_img = process_func(img)`,
+         which will be applied to the data from each frame
     dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
+         Image arrays will be converted to this datatype.
     as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
+         Convert color images to greyscale. False by default.
+         May not be used in conjection with process_func.
     plugin : string
-        Passed on to skimage.io.imread if scikit-image is available.
-        If scikit-image is not available, this will be ignored and a warning
-        will be issued.
+         Passed on to skimage.io.imread if scikit-image is available.
+         If scikit-image is not available, this will be ignored and a warning
+         will be issued.
 
     Examples
     --------
@@ -50,13 +50,13 @@ class ImageSequence(FramesSequence):
     >>> imshow(video[1][0:10, 0:10]) # Show one corner of the second frame.
 
     >>> for frame in video[:]:
-    ...    # Do something with every frame.
+    ...    pass # Do something with every frame.
 
     >>> for frame in video[10:20]:
-    ...    # Do something with frames 10-20.
+    ...    pass # Do something with frames 10-20.
 
     >>> for frame in video[[5, 7, 13]]:
-    ...    # Do something with frames 5, 7, and 13.
+    ...    pass # Do something with frames 5, 7, and 13.
 
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
