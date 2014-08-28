@@ -118,7 +118,8 @@ class TiffStack_tifffile(FramesSequence):
         self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
-        return Frame(self.process_func(self._tiff[j]), frame_no=j)
+        return Frame(self.process_func(self._tiff[j].asarray()).astype(self._dtype),
+                      frame_no=j)
 
     @property
     def pixel_type(self):
