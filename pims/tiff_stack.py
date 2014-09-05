@@ -185,6 +185,11 @@ class TiffStack_libtiff(FramesSequence):
     --------
     TiffStack_pil, TiffStack_tiffile, ImageSequence
     """
+    @classmethod
+    def class_exts(cls):
+        # TODO extend this set to match reality
+        return {'lsm'} | super(TiffStack_libtiff, cls).class_exts()
+
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
         self._filename = filename
