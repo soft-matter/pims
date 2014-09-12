@@ -64,6 +64,11 @@ class PyAVVideoReader(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
+    @classmethod
+    def class_exts(cls):
+        return {'mov', 'avi',
+                'mp4'} | super(PyAVVideoReader, cls).class_exts()
+
     def __init__(self, filename, process_func=None, pix_fmt="rgb24",
                  as_grey=False):
 
@@ -93,10 +98,7 @@ class PyAVVideoReader(FramesSequence):
                         if isinstance(s, av.video.VideoStream)][0]
         # VideoStream has useful attributes, but they are not implemented.
         # For now, parse the info we nee from the repr.
-        pat = (r"<av.VideoStream (?P<codec>.*), (?P<pix_fmt>.*) "
-               "(?P<width>\d+)x(?P<height>\d+) at .*>")
-        attributes = re.search(pat, repr(video_stream)).groupdict()
-        self._size = int(attributes['width']), int(attributes['height'])
+        self._size = video_stream.width, video_stream.height
 
         del container  # The generator is empty. Reload the file.
         self._load_fresh_file()
