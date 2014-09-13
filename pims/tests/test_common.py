@@ -209,6 +209,10 @@ class TestImageSequenceWithPIL(_frame_base_klass):
     def test_count(self):
         assert_equal(len(self.v), 5)
 
+    def test_bad_path_raises(self):
+        raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
+        self.assertRaises(IOError, raises)
+
 
 class TestImageSequenceWithMPL(_frame_base_klass):
     def setUp(self):
