@@ -90,6 +90,10 @@ class ImageSequence(FramesSequence):
         self._filepaths = filepaths
         self._count = len(self._filepaths)
 
+        # If there were no matches, this was probably a user typo.
+        if self._count == 0:
+            raise IOError("No files were found matching that path.")
+
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
