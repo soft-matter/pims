@@ -19,13 +19,13 @@ def not_available(requirement):
     return raiser
 
 try:
-    import pims.ffmpeg_reader
-    if pims.ffmpeg_reader.available():
-        Video = pims.ffmpeg_reader.FFmpegVideoReader
+    import pims.pyav_reader
+    if pims.pyav_reader.available():
+        Video = pims.pyav_reader.PyAVVideoReader
     else:
         raise ImportError()
 except (ImportError, IOError):
-    Video = not_available("ffmpeg")
+    Video = not_available("PyAV")
 
 try:
     import pims.tiff_stack

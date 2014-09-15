@@ -14,10 +14,10 @@ path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
 
-def _skip_if_no_ffmpeg():
-    import pims.ffmpeg_reader
-    if not pims.ffmpeg_reader.available():
-        raise nose.SkipTest('FFmpeg not found. Skipping.')
+def _skip_if_no_PyAV():
+    import pims.pyav_reader
+    if not pims.pyav_reader.available():
+        raise nose.SkipTest('PyAV not found. Skipping.')
 
 
 def _skip_if_no_libtiff():
@@ -148,28 +148,24 @@ class _frame_base_klass(_base_klass):
 
 class TestVideo(_frame_base_klass):
     def check_skip(self):
-        _skip_if_no_ffmpeg()
+        _skip_if_no_PyAV()
 
     def setUp(self):
-        _skip_if_no_ffmpeg()
+        _skip_if_no_PyAV()
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
         self.klass = pims.Video
-        self.kwargs = dict(use_cache=False)
+        self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
 
     def test_shape(self):
-        _skip_if_no_ffmpeg()
+        _skip_if_no_PyAV()
         assert_equal(self.v.frame_shape, (640, 424))
 
     def test_count(self):
-        _skip_if_no_ffmpeg()
-        assert_equal(len(self.v), 480)
-
-    def tearDown(self):
-        os.remove(self.filename + '.pims_buffer')
-        os.remove(self.filename + '.pims_meta')
+        _skip_if_no_PyAV()
+        assert_equal(len(self.v), 244)
 
 
 class TestTiffStack_libtiff(_base_klass):
@@ -252,7 +248,7 @@ def test_open_pngs():
     pims.open(os.path.join(path, 'image_sequence', '*.png'))
 
 def test_open_mov():
-    _skip_if_no_ffmpeg()
+    _skip_if_no_PyAV()
     pims.open(os.path.join(path, 'bulk-water.mov'))
 
 def test_open_tiff():
