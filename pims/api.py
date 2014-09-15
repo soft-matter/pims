@@ -39,7 +39,7 @@ try:
 except ImportError:
     TiffStack = not_available("libtiff or PIL/PILLOW")
 
-def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
+def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     """Read a directory of sequentially numbered image files into an
     iterable that returns images as numpy arrays.
 
@@ -83,7 +83,7 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
     files = glob.glob(sequence)
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type, delegate to subclasses as needed
-        return ImageSequence(sequence, process_func, dtype, as_gray, plugin)
+        return ImageSequence(sequence, process_func, dtype, as_grey, plugin)
 
     # We are now not in an image sequence, so warn if plugin is specified, since we will not be able to use it
     if plugin is not None:
@@ -113,7 +113,7 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
 
     # TODO maybe we should wrap this in a try and loop to try all the
     # handlers if early ones throw exceptions
-    return handler(sequence, process_func, dtype, as_gray)
+    return handler(sequence, process_func, dtype, as_grey)
 
 
 
