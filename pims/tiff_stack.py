@@ -98,13 +98,14 @@ class TiffStack_tifffile(FramesSequence):
     @classmethod
     def class_exts(cls):
         # TODO extend this set to match reality
-        return {'tif', 'tiff',
+        return {'tif', 'tiff', 'lsm',
                 'stk'} | super(TiffStack_tifffile, cls).class_exts()
 
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
         self._filename = filename
-        self._tiff = tifffile.TiffFile(filename)
+        record = tifffile.TiffFile(filename).series[0]
+        self._tiff = record['pages']
 
         tmp = self._tiff[0]
         if dtype is None:
@@ -186,11 +187,6 @@ class TiffStack_libtiff(FramesSequence):
     --------
     TiffStack_pil, TiffStack_tiffile, ImageSequence
     """
-    @classmethod
-    def class_exts(cls):
-        # TODO extend this set to match reality
-        return {'lsm'} | super(TiffStack_libtiff, cls).class_exts()
-
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
         self._filename = filename

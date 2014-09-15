@@ -94,12 +94,12 @@ class ImageSequence(FramesSequence):
         if self._count == 0:
             raise IOError("No files were found matching that path.")
 
+        tmp = imread(self._filepaths[0], **self.kwargs)
+        self._first_frame_shape = tmp.shape
+
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
-        tmp = imread(self._filepaths[0], **self.kwargs)
-
-        self._first_frame_shape = tmp.shape
 
         if dtype is None:
             self._dtype = tmp.dtype

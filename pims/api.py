@@ -39,7 +39,7 @@ try:
 except ImportError:
     TiffStack = not_available("libtiff or PIL/PILLOW")
 
-def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
+def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     """Read a directory of sequentially numbered image files into an
     iterable that returns images as numpy arrays.
 
@@ -83,7 +83,7 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
     files = glob.glob(sequence)
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type, delegate to subclasses as needed
-        return ImageSequence(sequence, process_func, dtype, as_gray, plugin)
+        return ImageSequence(sequence, process_func, dtype, as_grey, plugin)
 
     # We are now not in an image sequence, so warn if plugin is specified, since we will not be able to use it
     if plugin is not None:
@@ -97,7 +97,7 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
             "Video({1})".format(sequence))
     ext = ext.lower()[1:]
 
-    all_handlers = FramesSequence.__subclasses__()
+    all_handlers = _recursive_subclasses(FramesSequence)
     # TODO: recursively check subclasses
     eligible_handlers = [h for h in all_handlers if ext and ext in h.class_exts()]
     if len(eligible_handlers) < 1:
@@ -113,9 +113,16 @@ def open(sequence, process_func=None, dtype=None, as_gray=False, plugin=None):
 
     # TODO maybe we should wrap this in a try and loop to try all the
     # handlers if early ones throw exceptions
-    return handler(sequence, process_func, dtype, as_gray)
+    return handler(sequence, process_func, dtype, as_grey)
 
 
 
 class UnknownFormatError(Exception):
     pass
+
+
+def _recursive_subclasses(cls):
+    "Return all subclasses (and their subclasses, etc.)."
+    # Source: http://stackoverflow.com/a/3862957/1221924
+    return (cls.__subclasses__() +
+        [g for s in cls.__subclasses__() for g in _recursive_subclasses(s)])
