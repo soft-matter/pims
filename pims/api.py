@@ -97,7 +97,7 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
             "Video({1})".format(sequence))
     ext = ext.lower()[1:]
 
-    all_handlers = FramesSequence.__subclasses__()
+    all_handlers = _recursive_subclasses(FramesSequence)
     # TODO: recursively check subclasses
     eligible_handlers = [h for h in all_handlers if ext and ext in h.class_exts()]
     if len(eligible_handlers) < 1:
@@ -119,3 +119,10 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
 
 class UnknownFormatError(Exception):
     pass
+
+
+def _recursive_subclasses(cls):
+    "Return all subclasses (and their subclasses, etc.)."
+    # Source: http://stackoverflow.com/a/3862957/1221924
+    return (cls.__subclasses__() +
+        [g for s in cls.__subclasses__() for g in _recursive_subclasses(s)])
