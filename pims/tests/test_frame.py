@@ -22,3 +22,9 @@ def test_creation_md():
     tt = Frame(np.ones((5, 3)), frame_no=frame_no, metadata=md_dict)
     assert_equal(tt.metadata, md_dict)
     assert_equal(tt.frame_no, frame_no)
+
+
+def test_repr_png():
+    # This confims a bugfix, where 16-bit images would raise
+    # an error.
+    Frame(10000*np.ones((50, 50), dtype=np.uint16))._repr_png_()
