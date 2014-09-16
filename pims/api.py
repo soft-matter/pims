@@ -2,6 +2,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from pims.base_frames import FramesSequence
+from pims.frame import Frame
+from pims.export import export
 
 import six
 import glob
