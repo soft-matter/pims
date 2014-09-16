@@ -5,8 +5,8 @@ import six
 import numpy as np
 import tempfile
 
-def export(sequence, filename, codec='mpeg4', rate=30, 
-           width=None, height=None, bitrate=None, format='yuv420p',
+def export(sequence, filename, rate=30, bitrate=None,
+           width=None, height=None, codec='mpeg4', format='yuv420p',
            autoscale=True):
     """Export a sequence of images as a standard video file.
 
@@ -20,8 +20,6 @@ def export(sequence, filename, codec='mpeg4', rate=30,
         optional third dimensions representing color.
     filename : string
         name of output file
-    codec : string
-        a valid video encoding, 'mpeg4' by default
     rate : integer
         frame rate of output file, 30 by default
     bitrate : integer
@@ -32,6 +30,8 @@ def export(sequence, filename, codec='mpeg4', rate=30,
         By default, set the  height of the images. If width is specified
         and height is not, the height is autoscaled to maintain the aspect
         ratio.
+    codec : string
+        a valid video encoding, 'mpeg4' by default
     format: string
         Video stream format, 'yuv420p' by default.
     autoscale : boolean
@@ -94,9 +94,8 @@ def export(sequence, filename, codec='mpeg4', rate=30,
     output.close()
 
 
-def play(sequence, rate=30, 
-         width=None, height=None, bitrate=None,
-         autoscale=True):
+def play(sequence, rate=30, bitrate=None,
+         width=None, height=None, autoscale=True):
     """In an IPython notebook, display a sequence of images as
     an embedded video.
 
