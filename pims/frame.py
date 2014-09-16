@@ -49,12 +49,17 @@ class Frame(ndarray):
             setattr(self, attr, val)
 
     def _repr_png_(self):
-        from PIL import Image
+        try:
+            from PIL import Image
+        except ImportError:
+            # IPython will show this exception as a warning unless
+            # _repr_png_() is explicitly called.
+            raise ImportError("Install PIL or Pillow to enable "
+                              "rich display of Frames.")
         w = 500
         h = self.shape[0] * w // self.shape[1]
-        x = asarray(Image.fromarray(self).resize((w, h)))
-        x = (x - x.min()) / (x.max() - x.min())
-        img = Image.fromarray((x*256).astype('uint8'))
+        x = (self - self.min()) / (self.max() - self.min())
+        img = Image.fromarray((x * 256).astype('uint8')).resize((w, h))
         img_buffer = BytesIO()
         img.save(img_buffer, format='png')
         return img_buffer.getvalue()
