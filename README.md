@@ -24,7 +24,7 @@ One of the following is required:
 
 Depending on what file formats you want to read, you will also need:
 
-* [ffmpeg](https://www.ffmpeg.org/) (video formats such as AVI, MOV)
+* [ffmpeg](https://www.ffmpeg.org/) and [PyAV](http://mikeboers.github.io/PyAV/) (video formats such as AVI, MOV)
 * [Pillow](http://pillow.readthedocs.org/en/latest/) (improved TIFF support)
 * [libtiff](https://code.google.com/p/pylibtiff/) (alternative TIFF support)
 * Tifffile, which is included in PIMS
@@ -45,9 +45,15 @@ Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
 
-    pip install http://github.com/soft-matter/pims/zipball/master
+    conda update conda
+    conda install numpy matplotlib scikit-image pillow
+    conda install pip
 
-In the command prompt, type
+Then, to install pims:
+
+    pip install pims
+
+Finally, to try it out, type:
 
     ipython notebook
 
@@ -56,17 +62,27 @@ Optional Dependencies
 
 ### Reading Multi-Frame TIFF Stacks
 
-You will need libtiff, which you can obtain by running the following command
-in a command prompt:
+PIMS can read most TIFF files out of the box, so you should try reading
+you files `(open('my_tiff_file.tif')` and revisit this section if you
+encounter an error. Many camera and software manufacturers have their
+own special variants of the TIFF format. Our default reader, built around
+[Christoph Gohlke's tifffile.py](http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html), handles all the formats we have personally enountered. But we have
+alternative TIFF readers built around 
+Pillow (see above) and libtiff, which can be installed like so:
 
-    pip install -e svn+http://pylibtiff.googlecode.com/svn/trunk/
+    pip install libtiff
 
 ### Reading Video Files (AVI, MOV, etc.)
 
-To load video files directly, you need FFmpeg. You can work around this
-requirement by converting any video files to folders full of images
-using a utility like [ImageJ](http://rsb.info.nih.gov/ij/). Reading folders
-of images is supported out of the box, without OpenCV.
+To load video files directly, you need FFmpeg or libav. These can be tricky to
+install, especially on Windows, so we advise less sophisticated users to simply
+work around this requirement by converting their video files to folders full of
+images using a utility like [ImageJ](http://rsb.info.nih.gov/ij/).
+
+But if either FFmpeg or libav is available, PIMS enables fast random access to
+video files. It relies on PyAV, which can be installed like so:
+
+    pip install av
 
 ### Updating Your Instllation
 
