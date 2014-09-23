@@ -74,6 +74,21 @@ class ImageSequence(FramesSequence):
             self.kwargs = dict()
         else:
             self.kwargs = dict(plugin=plugin)
+
+        self._get_files(pathname)
+
+        tmp = imread(self._filepaths[0], **self.kwargs)
+        self._first_frame_shape = tmp.shape
+
+        self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
+
+        if dtype is None:
+            self._dtype = tmp.dtype
+        else:
+            self._dtype = dtype
+
+    def _get_files(self, pathname):
         self.pathname = os.path.abspath(pathname)  # used by __repr__
         if os.path.isdir(pathname):
             warn("Loading ALL files in this directory. To ignore extraneous "
@@ -94,17 +109,6 @@ class ImageSequence(FramesSequence):
         if self._count == 0:
             raise IOError("No files were found matching that path.")
 
-        tmp = imread(self._filepaths[0], **self.kwargs)
-        self._first_frame_shape = tmp.shape
-
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
-
-
-        if dtype is None:
-            self._dtype = tmp.dtype
-        else:
-            self._dtype = dtype
 
     def get_frame(self, j):
         if j > self._count:
