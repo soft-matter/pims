@@ -226,10 +226,10 @@ class Cine(FramesSequence):
         return {'cine'} | super(Cine,
                                 cls).class_exts()
 
-    def __init__(self, fn, process_func=None,
+    def __init__(self, filename, process_func=None,
                  dtype=None, as_grey=None):
-        self.f = open(fn, 'rb')
-        self.fn = fn
+        self.f = open(filename, 'rb')
+        self._filename = filename
 
         self.header_dict = self.read_header(HEADER_FIELDS)
         self.bitmapinfo_dict = self.read_header(BITMAP_INFO_FIELDS,
@@ -288,6 +288,10 @@ class Cine(FramesSequence):
                                                    )
                                                    })
         self.stack_meta_data['trigger_time'] = self.trigger_time
+
+    @property
+    def filename(self):
+        return self._filename
 
     @property
     def frame_rate(self):
@@ -522,7 +526,7 @@ class Cine(FramesSequence):
         self.f.close()
 
     def __unicode__(self):
-        return self.fn
+        return self.filename
 
     def __str__(self):
         return unicode(self).encode('utf-8')
@@ -536,7 +540,7 @@ Frame Shape: {w} x {h}
 Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   count=len(self),
-                                  filename=self.fn,
+                                  filename=self.filename,
                                   dtype=self.pixel_type)
 
     @property
