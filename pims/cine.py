@@ -466,9 +466,9 @@ class Cine(FramesSequence):
                 # we are working with a monochrome camera
                 # un-pack packed data
                 if (actual_bits == 10):
-                    frame = ten2sixteen(frame)
+                    frame = _ten2sixteen(frame)
                 elif (actual_bits == 12):
-                    frame = twelve2sixteen(frame)
+                    frame = _twelve2sixteen(frame)
                 elif (actual_bits % 8):
                     raise ValueError('Data should be byte aligned, ' +
                          'or 10 or 12 bit packed (appears to be' +
@@ -611,7 +611,10 @@ class file_locker(object):
 CHUNK_SIZE = 6 * 10 ** 5
 
 
-def ten2sixteen(a):
+def _ten2sixteen(a):
+    """
+    Convert array of 10bit uints to array of 16bit uints
+    """
     b = np.zeros(a.size//5*4, dtype='u2')
 
     for j in range(0, len(a), CHUNK_SIZE):
@@ -629,7 +632,10 @@ def ten2sixteen(a):
     return b
 
 
-def sixteen2ten(b):
+def _sixteen2ten(b):
+    """
+    Convert array of 16bit uints to array of 10bit uints
+    """
     a = np.zeros(b.size//4*5, dtype='u1')
 
     for j in range(0, len(a), CHUNK_SIZE):
@@ -647,7 +653,10 @@ def sixteen2ten(b):
     return a
 
 
-def twelve2sixteen(a):
+def _twelve2sixteen(a):
+    """
+    Convert array of 12bit uints to array of 16bit uints
+    """
     b = np.zeros(a.size//3*2, dtype='u2')
 
     for j in range(0, len(a), CHUNK_SIZE):
@@ -662,7 +671,10 @@ def twelve2sixteen(a):
     return b
 
 
-def sixteen2twelve(b):
+def _sixteen2twelve(b):
+    """
+    Convert array of 16bit uints to array of 12bit uints
+    """
     a = np.zeros(b.size//2*3, dtype='u1')
 
     for j in range(0, len(a), CHUNK_SIZE):
