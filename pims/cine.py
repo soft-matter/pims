@@ -221,13 +221,34 @@ def fix_frame(f):
 
 
 class Cine(FramesSequence):
+    """Read cine files
+
+    Read cine files, the out put from Vision Research high-speed phantom
+    cameras.  Support uncompressed monochrome and color files.
+
+    Nominally thread-safe, but this assertion is not tested.
+
+
+    Parameters
+    ----------
+    filename : string
+        Path to cine file.
+    process_func : function, optional
+        callable with signalture `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjection with process_func.
+    """
     @classmethod
     def class_exts(cls):
         return {'cine'} | super(Cine,
                                 cls).class_exts()
 
     def __init__(self, filename, process_func=None,
-                 dtype=None, as_grey=None):
+                 dtype=None, as_grey=False):
         self.f = open(filename, 'rb')
         self._filename = filename
 
