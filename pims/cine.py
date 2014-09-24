@@ -435,6 +435,7 @@ class Cine(FramesSequence):
             # get basic information about the frame we want
             image_start = self.image_locations[number]
             annotation_size = self.unpack(DWORD, image_start)
+            # this is not used, but is needed to advance the point in the file
             annotation = self.unpack('%db' % (annotation_size - 8))
             image_size = self.unpack(DWORD)
 
