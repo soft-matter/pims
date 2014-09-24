@@ -372,7 +372,7 @@ class Cine(FramesSequence):
         '''
         Internal helper-function for reading the tagged blocks.
         '''
-        with file_locker(self.file_lock):
+        with FileLocker(self.file_lock):
             self.f.seek(self.off_setup + self.setup_length + off_set)
             block_size = self.unpack(DWORD)
             b_type = self.unpack(WORD)
@@ -427,7 +427,7 @@ class Cine(FramesSequence):
         return tmp
 
     def _get_frame(self, number):
-        with file_locker(self.file_lock):
+        with FileLocker(self.file_lock):
             # get basic information about the frame we want
             image_start = self.image_locations[number]
             annotation_size = self.unpack(DWORD, image_start)
@@ -567,7 +567,7 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
         time stamps) so this will be unique.
         """
         # get the file lock (so we don't screw up any other reads)
-        with file_locker(self.file_lock):
+        with FileLocker(self.file_lock):
 
             self.f.seek(0)
             max_loc = self.image_locations[0]
@@ -588,7 +588,7 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
         return not self == other
 
 
-class file_locker(object):
+class FileLocker(object):
     """
     A context manager to lock and un-lock a the cine file
 
