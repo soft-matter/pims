@@ -206,19 +206,6 @@ SETUP_FIELDS = [
     ('description', '4096s')
 ]
 
-T64_F = lambda x: int(x) / 2.**32
-T64_F_ms = lambda x: '%.3f' % (float(x.rstrip('L')) / 2.**32)
-T64_S = lambda s: lambda t: time.strftime(s,
-             time.localtime(float(t.rstrip('L'))/2.**32))
-
-
-def fix_frame(f):
-    do = f.dtype
-    f = array(f, dtype='u4')
-    f[2:300:4, 4::8] = ((f[3:301:4, 4::8] + f[1:299:4, 4::8] +
-                         f[2:300:4, 5::8] + f[2:300:4, 3::8]))//4
-    return array(f, dtype=do)
-
 
 class Cine(FramesSequence):
     """Read cine files
@@ -524,10 +511,7 @@ class Cine(FramesSequence):
                                      "compression level: " +
                                      "{}".format(compression))
 
-        if getattr(self, 'auto_fix', False):
-            return fix_frame(frame)
-        else:
-            return frame
+        return frame
 
     def __len__(self):
         return self.image_count
@@ -540,9 +524,6 @@ class Cine(FramesSequence):
 
     def get_fps(self):
         return self.frame_rate
-
-    def enable_auto_fix(self):
-        self.auto_fix = True
 
     def close(self):
         self.f.close()
