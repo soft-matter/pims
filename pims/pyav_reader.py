@@ -16,10 +16,6 @@ except ImportError:
     av = None
 
 
-_pix_fmt_dict = {'rgb24': 3,
-                 'rgba': 4}
-
-
 def available():
     try:
         import av
@@ -40,7 +36,8 @@ class PyAVVideoReader(FramesSequence):
         callable with signalture `proc_img = process_func(img)`,
         which will be applied to the data from each frame
     dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
+        Not implemented for Video reading yet!
+        Any value other than None will raise a NotImplementedError.
     as_grey : boolean, optional
         Convert color images to greyscale. False by default.
         May not be used in conjection with process_func.
@@ -69,16 +66,16 @@ class PyAVVideoReader(FramesSequence):
         return {'mov', 'avi',
                 'mp4'} | super(PyAVVideoReader, cls).class_exts()
 
-    def __init__(self, filename, process_func=None, pix_fmt="rgb24",
+    def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
 
+        if dtype is not None:
+            raise NotImplmentedError("The Video reader can only return the "
+                                     "default data type. Convert the data "
+                                     "type of the manually.")
+
         self.filename = str(filename)
-        self.pix_fmt = pix_fmt
         self._initialize()
-        try:
-            self.depth = _pix_fmt_dict[pix_fmt]
-        except KeyError:
-            raise ValueError("invalid pixel format")
 
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
@@ -154,8 +151,7 @@ class PyAVVideoReader(FramesSequence):
 Source: {filename}
 Length: {count} frames
 Frame Shape: {w} x {h}
-Pixel Format: {pix_fmt}""".format(w=self.frame_shape[0],
+""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   count=len(self),
-                                  filename=self.filename,
-                                  pix_fmt=self.pix_fmt)
+                                  filename=self.filename)
