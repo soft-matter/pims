@@ -79,8 +79,6 @@ class PyAVVideoReader(FramesSequence):
             self.depth = _pix_fmt_dict[pix_fmt]
         except KeyError:
             raise ValueError("invalid pixel format")
-        w, h = self._size
-        self._stride = self.depth*w*h
 
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
@@ -96,9 +94,9 @@ class PyAVVideoReader(FramesSequence):
 
         video_stream = [s for s in container.streams
                         if isinstance(s, av.video.VideoStream)][0]
-        # VideoStream has useful attributes, but they are not implemented.
-        # For now, parse the info we nee from the repr.
-        self._size = video_stream.width, video_stream.height
+        # PyAV always returns frames in color, and we make that
+        # assumption in get_frame() later below, so 3 is hardcoded here:
+        self._im_sz = video_stream.width, video_stream.height, 3
 
         del container  # The generator is empty. Reload the file.
         self._load_fresh_file()
@@ -114,7 +112,7 @@ class PyAVVideoReader(FramesSequence):
 
     @property
     def frame_shape(self):
-        return self._size
+        return self._im_sz
 
     def get_frame(self, j):
         # Find the packet this frame is in.
