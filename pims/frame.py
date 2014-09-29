@@ -58,7 +58,11 @@ class Frame(ndarray):
                               "rich display of Frames.")
         w = 500
         h = self.shape[0] * w // self.shape[1]
-        x = (self - self.min()) / (self.max() - self.min())
+        ptp = self.max() - self.min()
+        # Handle edge case of a flat image.
+        if ptp == 0:
+            ptp = 1
+        x = (self - self.min()) / ptp
         img = Image.fromarray((x * 256).astype('uint8')).resize((w, h))
         img_buffer = BytesIO()
         img.save(img_buffer, format='png')
