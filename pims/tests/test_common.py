@@ -235,6 +235,24 @@ class TestImageSequenceWithMPL(_frame_base_klass):
         self.expected_shape = (424, 640)
         self.expected_len = 5
 
+class TestImageSequenceAcceptsList(_frame_base_klass):
+    def setUp(self):
+        filenames = ['T76S3F00001.png', 'T76S3F00002.png', 'T76S3F00003.png',
+                     'T76S3F00004.png', 'T76S3F00005.png']
+        self.filename = [os.path.join(path, 'image_sequence', fn) for fn in filenames]
+        self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
+        self.kwargs = dict(plugin='matplotlib')
+        self.klass = pims.ImageSequence
+        self.v = self.klass(self.filename, **self.kwargs)
+
+    def test_shape(self):
+        assert_equal(self.v.frame_shape, (424, 640))
+
+    def test_count(self):
+        assert_equal(len(self.v), 5)
+
+
 class TestTiffStack_pil(_base_klass):
     def check_skip(self):
         pass
