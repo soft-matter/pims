@@ -36,8 +36,7 @@ class PyAVVideoReader(FramesSequence):
         callable with signalture `proc_img = process_func(img)`,
         which will be applied to the data from each frame
     dtype : numpy datatype, optional
-        Not implemented for Video reading yet!
-        Any value other than None will raise a NotImplementedError.
+        Image arrays will be converted to this datatype.
     as_grey : boolean, optional
         Convert color images to greyscale. False by default.
         May not be used in conjection with process_func.
@@ -70,9 +69,10 @@ class PyAVVideoReader(FramesSequence):
                  as_grey=False):
 
         if dtype is not None:
-            raise NotImplmentedError("The Video reader can only return the "
-                                     "default data type. Convert the data "
-                                     "type of the manually.")
+            self._dtype = dtype
+        else:
+            # No need to detect dtype: PyAV always returns uint8.
+            self._dtype = np.uint8
 
         self.filename = str(filename)
         self._initialize()
@@ -124,7 +124,7 @@ class PyAVVideoReader(FramesSequence):
         if frame.index != j:
             raise AssertionError("Seeking failed to obtain the correct frame.")
         result = np.asarray(frame.to_rgb().to_image())
-        return Frame(self.process_func(result), frame_no=j)
+        return Frame(self.process_func(result).astype(self._dtype), frame_no=j)
 
     def _seek_packet(self, packet_no):
         """Advance through the container generator until we get the packet
