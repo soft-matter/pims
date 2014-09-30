@@ -16,10 +16,6 @@ except ImportError:
     av = None
 
 
-_pix_fmt_dict = {'rgb24': 3,
-                 'rgba': 4}
-
-
 def available():
     try:
         import av
@@ -69,18 +65,17 @@ class PyAVVideoReader(FramesSequence):
         return {'mov', 'avi',
                 'mp4'} | super(PyAVVideoReader, cls).class_exts()
 
-    def __init__(self, filename, process_func=None, pix_fmt="rgb24",
+    def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
 
+        if dtype is not None:
+            self._dtype = dtype
+        else:
+            # No need to detect dtype: PyAV always returns uint8.
+            self._dtype = np.uint8
+
         self.filename = str(filename)
-        self.pix_fmt = pix_fmt
         self._initialize()
-        try:
-            self.depth = _pix_fmt_dict[pix_fmt]
-        except KeyError:
-            raise ValueError("invalid pixel format")
-        w, h = self._size
-        self._stride = self.depth*w*h
 
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
@@ -96,9 +91,9 @@ class PyAVVideoReader(FramesSequence):
 
         video_stream = [s for s in container.streams
                         if isinstance(s, av.video.VideoStream)][0]
-        # VideoStream has useful attributes, but they are not implemented.
-        # For now, parse the info we nee from the repr.
-        self._size = video_stream.width, video_stream.height
+        # PyAV always returns frames in color, and we make that
+        # assumption in get_frame() later below, so 3 is hardcoded here:
+        self._im_sz = video_stream.width, video_stream.height, 3
 
         del container  # The generator is empty. Reload the file.
         self._load_fresh_file()
@@ -114,7 +109,7 @@ class PyAVVideoReader(FramesSequence):
 
     @property
     def frame_shape(self):
-        return self._size
+        return self._im_sz
 
     def get_frame(self, j):
         # Find the packet this frame is in.
@@ -129,7 +124,7 @@ class PyAVVideoReader(FramesSequence):
         if frame.index != j:
             raise AssertionError("Seeking failed to obtain the correct frame.")
         result = np.asarray(frame.to_rgb().to_image())
-        return Frame(self.process_func(result), frame_no=j)
+        return Frame(self.process_func(result).astype(self._dtype), frame_no=j)
 
     def _seek_packet(self, packet_no):
         """Advance through the container generator until we get the packet
@@ -156,8 +151,7 @@ class PyAVVideoReader(FramesSequence):
 Source: {filename}
 Length: {count} frames
 Frame Shape: {w} x {h}
-Pixel Format: {pix_fmt}""".format(w=self.frame_shape[0],
+""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   count=len(self),
-                                  filename=self.filename,
-                                  pix_fmt=self.pix_fmt)
+                                  filename=self.filename)

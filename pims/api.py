@@ -116,7 +116,7 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
 
     # TODO maybe we should wrap this in a try and loop to try all the
     # handlers if early ones throw exceptions
-    return handler(sequence, process_func, dtype, as_grey)
+    return handler(sequence, process_func=process_func, dtype=dtype, as_grey=as_grey)
 
 
 

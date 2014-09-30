@@ -67,10 +67,18 @@ class _base_klass(unittest.TestCase):
 
     def test_integer_attributes(self):
         self.check_skip()
-        assert_equal(len(self.v.frame_shape), 2)
+        assert_equal(len(self.v.frame_shape), len(self.expected_shape))
         self.assertTrue(isinstance(self.v.frame_shape[0], int))
         self.assertTrue(isinstance(self.v.frame_shape[1], int))
         self.assertTrue(isinstance(len(self.v), int))
+
+    def test_shape(self):
+        self.check_skip()
+        assert_equal(self.v.frame_shape, self.expected_shape)
+
+    def test_count(self):
+        self.check_skip()
+        assert_equal(len(self.v), self.expected_len)
 
     def test_simple_negative_index(self):
         self.check_skip()
@@ -93,6 +101,15 @@ class _base_klass(unittest.TestCase):
         self.check_skip()
         for frame_no in [0, 1, 2, 1]:
             self.assertEqual(self.v[frame_no].frame_no, frame_no)
+
+    def test_dtype_conversion(self):
+        self.check_skip()
+        v8 = self.klass(self.filename, dtype='uint8', **self.kwargs)
+        v16 = self.klass(self.filename, dtype='uint16', **self.kwargs)
+        type8 = v8[0].dtype
+        type16 = v16[0].dtype
+        self.assertEqual(type8, np.uint8)
+        self.assertEqual(type16, np.uint16)
 
     def test_process_func(self):
         self.check_skip()
@@ -158,15 +175,8 @@ class TestVideo(_frame_base_klass):
         self.klass = pims.Video
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
-
-    def test_shape(self):
-        _skip_if_no_PyAV()
-        assert_equal(self.v.frame_shape, (640, 424))
-
-    def test_count(self):
-        _skip_if_no_PyAV()
-        assert_equal(len(self.v), 244)
-
+        self.expected_shape = (640, 424, 3)
+        self.expected_len = 480
 
 class TestTiffStack_libtiff(_base_klass):
     def check_skip(self):
@@ -180,6 +190,8 @@ class TestTiffStack_libtiff(_base_klass):
         self.klass = pims.TiffStack_libtiff
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (424, 640)
+        self.expected_len = 5
 
     def test_shape(self):
         _skip_if_no_libtiff()
@@ -198,6 +210,8 @@ class TestImageSequenceWithPIL(_frame_base_klass):
         self.kwargs = dict(plugin='pil')
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (424, 640)
+        self.expected_len = 5
 
     def test_shape(self):
         assert_equal(self.v.frame_shape, (424, 640))
@@ -218,13 +232,8 @@ class TestImageSequenceWithMPL(_frame_base_klass):
         self.kwargs = dict(plugin='matplotlib')
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
-
-    def test_shape(self):
-        assert_equal(self.v.frame_shape, (424, 640))
-
-    def test_count(self):
-        assert_equal(len(self.v), 5)
-
+        self.expected_shape = (424, 640)
+        self.expected_len = 5
 
 class TestTiffStack_pil(_base_klass):
     def check_skip(self):
@@ -237,12 +246,9 @@ class TestTiffStack_pil(_base_klass):
         self.klass = pims.TiffStack_pil
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (512, 512)
+        self.expected_len = 5
 
-    def test_shape(self):
-        assert_equal(self.v.frame_shape, (512, 512))
-
-    def test_count(self):
-        assert_equal(len(self.v), 5)
 
 def test_open_pngs():
     pims.open(os.path.join(path, 'image_sequence', '*.png'))
