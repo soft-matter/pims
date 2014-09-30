@@ -73,9 +73,11 @@ class _base_klass(unittest.TestCase):
         self.assertTrue(isinstance(len(self.v), int))
 
     def test_shape(self):
+        self.check_skip()
         assert_equal(self.v.frame_shape, self.expected_shape)
 
     def test_count(self):
+        self.check_skip()
         assert_equal(len(self.v), self.expected_len)
 
     def test_simple_negative_index(self):
@@ -99,6 +101,15 @@ class _base_klass(unittest.TestCase):
         self.check_skip()
         for frame_no in [0, 1, 2, 1]:
             self.assertEqual(self.v[frame_no].frame_no, frame_no)
+
+    def test_dtype_conversion(self):
+        self.check_skip()
+        v8 = self.klass(self.filename, dtype='uint8', **self.kwargs)
+        v16 = self.klass(self.filename, dtype='uint16', **self.kwargs)
+        type8 = v8[0].dtype
+        type16 = v16[0].dtype
+        self.assertEqual(type8, np.uint8)
+        self.assertEqual(type16, np.uint16)
 
     def test_process_func(self):
         self.check_skip()
