@@ -236,6 +236,7 @@ class TestImageSequenceAcceptsList(_frame_base_klass):
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640)
+        self.expected_len = len(filenames)
 
 
 class TestTiffStack_pil(_base_klass):
