@@ -24,4 +24,4 @@ before_install:
   - export PATH=/home/travis/anaconda/bin:$PATH
 
 
-script: nosetests -a '!slow'
+script: nosetests
