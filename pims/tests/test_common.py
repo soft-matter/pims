@@ -192,7 +192,7 @@ class TestTiffStack_libtiff(_base_klass):
         self.klass = pims.TiffStack_libtiff
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (424, 640)
+        self.expected_shape = (512, 512)
         self.expected_len = 5
 
 
