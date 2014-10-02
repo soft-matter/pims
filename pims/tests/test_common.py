@@ -195,14 +195,6 @@ class TestTiffStack_libtiff(_base_klass):
         self.expected_shape = (424, 640)
         self.expected_len = 5
 
-    def test_shape(self):
-        _skip_if_no_libtiff()
-        assert_equal(self.v.frame_shape, (512, 512))
-
-    def test_count(self):
-        _skip_if_no_libtiff()
-        assert_equal(len(self.v), 5)
-
 
 class TestImageSequenceWithPIL(_frame_base_klass):
     def setUp(self):
@@ -214,12 +206,6 @@ class TestImageSequenceWithPIL(_frame_base_klass):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640)
         self.expected_len = 5
-
-    def test_shape(self):
-        assert_equal(self.v.frame_shape, (424, 640))
-
-    def test_count(self):
-        assert_equal(len(self.v), 5)
 
     def test_bad_path_raises(self):
         raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
@@ -250,12 +236,6 @@ class TestImageSequenceAcceptsList(_frame_base_klass):
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640)
-
-    def test_shape(self):
-        assert_equal(self.v.frame_shape, (424, 640))
-
-    def test_count(self):
-        assert_equal(len(self.v), 5)
 
 
 class TestTiffStack_pil(_base_klass):
