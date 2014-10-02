@@ -13,6 +13,7 @@ from warnings import warn
 # has to be here for API stuff
 from pims.image_sequence import ImageSequence  # noqa
 from .cine import Cine  # noqa
+from pims.tiff_stack import TiffStack_tifffile  # noqa
 
 
 def not_available(requirement):
@@ -40,7 +41,8 @@ try:
     else:
         raise ImportError()
 except ImportError:
-    TiffStack = not_available("libtiff or PIL/PILLOW")
+    TiffStack = TiffStack_tifffile
+
 
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     """Read a directory of sequentially numbered image files into an

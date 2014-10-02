@@ -254,6 +254,21 @@ class TestTiffStack_pil(_base_klass):
         self.expected_len = 5
 
 
+class TestTiffStack_tifffile(_base_klass):
+    def check_skip(self):
+        pass
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'stuck.tif')
+        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy')).T[::-1]
+        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy')).T[::-1]
+        self.klass = pims.TiffStack_tifffile
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (512, 512)
+        self.expected_len = 5
+
+
 def test_open_pngs():
     pims.open(os.path.join(path, 'image_sequence', '*.png'))
 

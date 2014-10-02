@@ -119,7 +119,9 @@ class TiffStack_tifffile(FramesSequence):
         self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
-        return Frame(self.process_func(self._tiff[j].asarray()).astype(self._dtype),
+        # no idea why we need all of these flips...
+        data = np.flipud(self._tiff[j].asarray().T)
+        return Frame(self.process_func(data).astype(self._dtype),
                       frame_no=j)
 
     @property
