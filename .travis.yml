@@ -8,11 +8,12 @@ install:
   - conda create -n testenv --yes pip python=$TRAVIS_PYTHON_VERSION
   - conda update conda --yes
   - source activate testenv
-  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then conda install --yes imaging; else pip install pillow; fi
-  - conda install --yes numpy scipy nose matplotlib  # install required deps fast
+  - conda install --yes numpy scipy nose pillow matplotlib scikit-image  # install required deps fast
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
   - export LD_LIBRARY_PATH=/usr/local/lib LIBRARY=ffmpeg
   - wget https://raw.githubusercontent.com/mikeboers/PyAV/master/scripts/test-setup
   - bash ./test-setup  # install libraries needed by PyAV
+  - rm ~/anaconda/envs/testenv/lib/libm.so.6  # use the system libm; see github.com/ContinuumIO/anaconda-issues/issues/182
   - pip install av
   - python setup.py build_ext install
 
@@ -24,4 +25,4 @@ before_install:
   - export PATH=/home/travis/anaconda/bin:$PATH
 
 
-script: nosetests -a '!slow'
+script: nosetests

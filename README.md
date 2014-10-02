@@ -84,7 +84,26 @@ video files. It relies on PyAV, which can be installed like so:
 
     pip install av
 
-### Updating Your Instllation
+#### Troubleshotting
+
+If you use conda / Anaconda, watch out for an error like:
+
+    version `GLIBC_2.15' not found
+
+This seems to be because [conda includes an old version of a library needed by
+PyAV](github.com/ContinuumIO/anaconda-issues/issues/182). To work around this,
+simply delete anaconda's version of the library:
+
+    rm ~/anaconda/lib/libm.so.6
+
+and/or
+
+    rm ~/anaconda/envs/name_of_your_environment/lib/libm.so.6
+
+which will cause conda to use the your operating system's version of the
+library.
+
+### Updating Your Installation
 
 The code is under active development. To update to the current development
 version, run this in the command prompt:
