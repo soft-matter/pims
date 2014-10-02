@@ -26,9 +26,10 @@ class ImageSequence(FramesSequence):
 
     Parameters
     ----------
-    pathname : string
+    path_spec : string or iterable of strings
        a directory or, safer, a pattern like path/to/images/*.png
-       which will ignore extraneous files
+       which will ignore extraneous files or a list of files to open
+       in the order they should be loaded.
     process_func : function, optional
         callable with signalture `proc_img = process_func(img)`,
         which will be applied to the data from each frame
@@ -61,7 +62,7 @@ class ImageSequence(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    def __init__(self, pathname, process_func=None, dtype=None,
+    def __init__(self, path_spec, process_func=None, dtype=None,
                  as_grey=False, plugin=None):
         try:
             import skimage
@@ -75,7 +76,7 @@ class ImageSequence(FramesSequence):
         else:
             self.kwargs = dict(plugin=plugin)
 
-        self._get_files(pathname)
+        self._get_files(path_spec)
 
         tmp = imread(self._filepaths[0], **self.kwargs)
         self._first_frame_shape = tmp.shape
@@ -88,19 +89,26 @@ class ImageSequence(FramesSequence):
         else:
             self._dtype = dtype
 
-    def _get_files(self, pathname):
-        self.pathname = os.path.abspath(pathname)  # used by __repr__
-        if os.path.isdir(pathname):
+    def _get_files(self, path_spec):
+        # deal with if input is _not_ a string
+        if not isinstance(path_spec, six.string_types):
+            # assume it is iterable and off we go!
+            self._filepaths = list(path_spec)
+            self._count = len(path_spec)
+            return
+
+        self.pathname = os.path.abspath(path_spec)  # used by __repr__
+        if os.path.isdir(path_spec):
             warn("Loading ALL files in this directory. To ignore extraneous "
                  "files, use a pattern like 'path/to/images/*.png'",
                  UserWarning)
-            directory = pathname
+            directory = path_spec
             filenames = os.listdir(directory)
             make_full_path = lambda filename: (
                 os.path.abspath(os.path.join(directory, filename)))
             filepaths = list(map(make_full_path, filenames))
         else:
-            filepaths = glob.glob(pathname)
+            filepaths = glob.glob(path_spec)
         filepaths.sort()  # listdir returns arbitrary order
         self._filepaths = filepaths
         self._count = len(self._filepaths)
