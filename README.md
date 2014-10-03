@@ -84,7 +84,7 @@ video files. It relies on PyAV, which can be installed like so:
 
     pip install av
 
-#### Troubleshotting
+#### Troubleshooting
 
 If you use conda / Anaconda, watch out for an error like:
 
@@ -100,7 +100,7 @@ and/or
 
     rm ~/anaconda/envs/name_of_your_environment/lib/libm.so.6
 
-which will cause conda to use the your operating system's version of the
+which will cause PyAV to use the your operating system's version of the
 library.
 
 ### Updating Your Installation
