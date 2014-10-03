@@ -38,12 +38,17 @@ def jwtoint(jwrapper):
         return None
 
 
-
 class BioformatsReader(FramesSequence):
     """Reads 3D images from the frames of a file supported by bioformats into an
     iterable object that returns images as numpy arrays.
+    
+    Required:
+    https://github.com/CellProfiler/python-bioformats
+    https://github.com/CellProfiler/python-javabridge
+     or (windows compiled) http://www.lfd.uci.edu/~gohlke/pythonlibs/#javabridge   
+    
     Only tested with Nikon ND2 files
-    For files larger than 4GB, 64 bits Python, Javabridge and JVM are required
+    For files larger than 4GB, 64 bits Python, Javabridge and JDK are required
 
     Parameters
     ----------
@@ -56,7 +61,7 @@ class BioformatsReader(FramesSequence):
     X,Y,Z,W,H,D : cropping positions and sizes in pixels (not implemented)
     dim : 'auto', '3D' or '2D'. In 3D, get_frame returns 3D with j=timeindex
     
-    with nikon nd2 bioformats sometimes gives Z stacks as multipoint images. 
+    with nikon nd2, bioformats sometimes gives Z stacks as multipoint images. 
     checkifrealMP corrects for that, until openmicroscopy solves the problem
     """
     @classmethod
@@ -88,7 +93,6 @@ class BioformatsReader(FramesSequence):
             self._dimension = 2
             
         self._initialize()
-        
         self._validate_process_func(process_func)
     
     def _initialize(self):
@@ -96,7 +100,7 @@ class BioformatsReader(FramesSequence):
         self._reader = bioformats.get_image_reader(0,self.filename) 
         self._jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())
         self._sizeMP = jwtoint(self._jmd.getImageCount())   
-        if not self._checkifrealMP():
+        if self._dimension == 3 and not self._checkifrealMP():
             self._sizeZ = self._sizeMP
             self._sizeMP = 1
             self._multipoint = 0
@@ -109,7 +113,6 @@ class BioformatsReader(FramesSequence):
            
 
     def _updatemetadata(self): 
-        
         if not self._useMPasZ:
             MP = self._multipoint   
             self._sizeC = jwtoint(self._jmd.getPixelsSizeC(MP))
@@ -124,8 +127,7 @@ class BioformatsReader(FramesSequence):
             self._pixelZ = jwtofloat(self._jmd.getPixelsPhysicalSizeZ(MP))
             if self._pixelY == None:
                 self._pixelY = self._pixelX
-            
-            "Scan through and tabulate contents to enable random access."    
+             
             self._indexZ = np.empty(self._len, dtype=np.int32)
             self._indexT = np.empty(self._len, dtype=np.int32)
             self._indexC = np.empty(self._len, dtype=np.int32)
@@ -141,7 +143,7 @@ class BioformatsReader(FramesSequence):
                 self._T[n] = jwtofloat(self._jmd.getPlaneDeltaT(MP,n))
                 self._X[n] = jwtofloat(self._jmd.getPlanePositionX(MP,n))
                 self._Y[n] = jwtofloat(self._jmd.getPlanePositionY(MP,n))
-            self._Z[n] = jwtofloat(self._jmd.getPlanePositionZ(MP,n))
+                self._Z[n] = jwtofloat(self._jmd.getPlanePositionZ(MP,n))
         else:
             self._sizeC = jwtoint(self._jmd.getPixelsSizeC(0))
             self._sizeT = jwtoint(self._jmd.getPixelsSizeT(0))
@@ -266,7 +268,6 @@ class BioformatsReader(FramesSequence):
                         'indexMP': self._multipoint}                  
         else:  
             im = self._reader.read(index=j,series=self._multipoint)
-            
             metadata = {'pixelX': self._pixelX,
                     'pixelY': self._pixelY,
                     'pixelZ': self._pixelZ,
