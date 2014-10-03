@@ -25,9 +25,9 @@ except ImportError:
     _have_setuptools = False
 
 MAJOR = 0
-MINOR = 2
-MICRO = 1
-ISRELEASED = True
+MINOR = 3
+MICRO = 0
+ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
@@ -36,26 +36,6 @@ print(FULLVERSION)
 
 if not ISRELEASED:
     FULLVERSION += '.dev'
-    try:
-        import subprocess
-        try:
-            pipe = subprocess.Popen(["git", "describe", "HEAD"],
-                                    stdout=subprocess.PIPE).stdout
-        except OSError:
-            # msysgit compatibility
-            pipe = subprocess.Popen(
-                ["git.cmd", "describe", "HEAD"],
-                stdout=subprocess.PIPE).stdout
-        rev = pipe.read().strip()
-        # makes distutils blow up on Python 2.7
-        import sys
-        if sys.version_info[0] >= 3:
-            rev = rev.decode('ascii')
-
-        FULLVERSION = rev.lstrip('v')
-
-    except:
-        warnings.warn("WARNING: Couldn't get git revision")
 else:
     FULLVERSION += QUALIFIER
 
