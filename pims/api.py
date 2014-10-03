@@ -51,8 +51,9 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     Parameters
     ----------
     sequence : string, list of strings, or glob
-       The sequence you want to load. This can be a directory containing images,
-       a glob of images, a video file, or a tiff stack
+       The sequence you want to load. This can be a directory containing
+       images, a glob ('/path/foo*.png') pattern of images,
+       a video file, or a tiff stack
     process_func : function, optional
         callable with signalture `proc_img = process_func(img)`,
         which will be applied to the data from each frame
@@ -87,10 +88,12 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     """
     files = glob.glob(sequence)
     if len(files) > 1:
-        # todo: test if ImageSequence can read the image type, delegate to subclasses as needed
+        # todo: test if ImageSequence can read the image type,
+        #       delegate to subclasses as needed
         return ImageSequence(sequence, process_func, dtype, as_grey, plugin)
 
-    # We are now not in an image sequence, so warn if plugin is specified, since we will not be able to use it
+    # We are now not in an image sequence, so warn if plugin is specified,
+    # since we will not be able to use it
     if plugin is not None:
         warn("scikit-image plugin specification ignored because such plugins "
              "only apply when loading a sequence of image files. ")
@@ -103,23 +106,24 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     ext = ext.lower()[1:]
 
     all_handlers = _recursive_subclasses(FramesSequence)
-    # TODO: recursively check subclasses
-    eligible_handlers = [h for h in all_handlers if ext and ext in h.class_exts()]
+    eligible_handlers = [h for h in all_handlers
+                         if ext and ext in h.class_exts()]
     if len(eligible_handlers) < 1:
         raise UnknownFormatError(
-            "Could not autodetect how to load a file of type {0}. Try manually "
+            "Could not autodetect how to load a file of type {0}. "
+            "Try manually "
             "specifying a loader class, e.g. Video({1})".format(ext, sequence))
 
     def sort_on_priority(handlers):
-        #TODO make this use optional information from subclasses
+        # TODO make this use optional information from subclasses
         # give any user-defined (non-build-in) subclasses priority
         return handlers
     handler = sort_on_priority(eligible_handlers)[0]
 
     # TODO maybe we should wrap this in a try and loop to try all the
     # handlers if early ones throw exceptions
-    return handler(sequence, process_func=process_func, dtype=dtype, as_grey=as_grey)
-
+    return handler(sequence, process_func=process_func,
+                   dtype=dtype, as_grey=as_grey)
 
 
 class UnknownFormatError(Exception):

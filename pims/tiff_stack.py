@@ -367,7 +367,6 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type)
 
 
-
 class MM_TiffStack(TiffStack_pil):
     """
     Specialized class for dealing with meta-morph tiffs.
@@ -469,8 +468,6 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   count=len(self),
                                   name_template=self._name_template,
                                   dtype=self.pixel_type)
-
-
 
 
 # needed for the wrapper classes
