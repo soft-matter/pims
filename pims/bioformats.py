@@ -36,6 +36,12 @@ def jwtoint(jwrapper):
         return int(str(jwrapper))
     else:
         return None
+        
+def jwtostr(jwrapper):
+    if jwrapper != None:
+        return str(jwrapper)
+    else:
+        return None
 
 
 class BioformatsReader(FramesSequence):
@@ -80,7 +86,6 @@ class BioformatsReader(FramesSequence):
         self._cropW = W
         self._cropH = H
         self._cropD = D
-        
         dim = str(dim)
         if dim == 'auto':
             self._dimensionauto = True
@@ -91,13 +96,13 @@ class BioformatsReader(FramesSequence):
         else:
             self._dimensionauto = False
             self._dimension = 2
-            
         self._initialize()
         self._validate_process_func(process_func)
     
     def _initialize(self):
         javabridge.start_vm(class_path=bioformats.JARS,max_heap_size='512m')
         self._reader = bioformats.get_image_reader(0,self.filename) 
+        self._lastframe = (-1,-1)
         self._jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())
         self._sizeMP = jwtoint(self._jmd.getImageCount())   
         if self._dimension == 3 and not self._checkifrealMP():
@@ -113,71 +118,26 @@ class BioformatsReader(FramesSequence):
            
 
     def _updatemetadata(self): 
+        MP = self._multipoint  
         if not self._useMPasZ:
-            MP = self._multipoint   
-            self._sizeC = jwtoint(self._jmd.getPixelsSizeC(MP))
-            self._sizeT = jwtoint(self._jmd.getPixelsSizeT(MP))
             self._sizeZ = jwtoint(self._jmd.getPixelsSizeZ(MP))
-            self._sizeY = jwtoint(self._jmd.getPixelsSizeY(MP))
-            self._sizeX = jwtoint(self._jmd.getPixelsSizeX(MP))
             self._len = jwtoint(self._jmd.getPlaneCount(MP))
-                         
-            self._pixelX = jwtofloat(self._jmd.getPixelsPhysicalSizeX(MP))
-            self._pixelY = jwtofloat(self._jmd.getPixelsPhysicalSizeY(MP))
-            self._pixelZ = jwtofloat(self._jmd.getPixelsPhysicalSizeZ(MP))
-            if self._pixelY == None:
-                self._pixelY = self._pixelX
-             
-            self._indexZ = np.empty(self._len, dtype=np.int32)
-            self._indexT = np.empty(self._len, dtype=np.int32)
-            self._indexC = np.empty(self._len, dtype=np.int32)
-            self._Z = np.empty(self._len, dtype=np.float64)
-            self._T = np.empty(self._len, dtype=np.float64)
-            self._X = np.empty(self._len, dtype=np.float64)
-            self._Y = np.empty(self._len, dtype=np.float64)
-            
-            for n in range(self._len):
-                self._indexZ[n] = jwtoint(self._jmd.getPlaneTheZ(MP,n))
-                self._indexT[n] = jwtoint(self._jmd.getPlaneTheT(MP,n))
-                self._indexC[n] = jwtoint(self._jmd.getPlaneTheC(MP,n))
-                self._T[n] = jwtofloat(self._jmd.getPlaneDeltaT(MP,n))
-                self._X[n] = jwtofloat(self._jmd.getPlanePositionX(MP,n))
-                self._Y[n] = jwtofloat(self._jmd.getPlanePositionY(MP,n))
-                self._Z[n] = jwtofloat(self._jmd.getPlanePositionZ(MP,n))
-        else:
-            self._sizeC = jwtoint(self._jmd.getPixelsSizeC(0))
-            self._sizeT = jwtoint(self._jmd.getPixelsSizeT(0))
-            self._sizeY = jwtoint(self._jmd.getPixelsSizeY(0))
-            self._sizeX = jwtoint(self._jmd.getPixelsSizeX(0))
-            self._len = self._sizeT * self._sizeZ * self._sizeC
-            self._pixelX = jwtofloat(self._jmd.getPixelsPhysicalSizeX(0))
-            self._pixelY = jwtofloat(self._jmd.getPixelsPhysicalSizeY(0))
-            self._pixelZ = jwtofloat(self._jmd.getPixelsPhysicalSizeZ(0))
-            
-            "Scan through and tabulate contents to enable random access."    
-            self._indexZ = np.empty(self._len, dtype=np.int32)
-            self._indexT = np.empty(self._len, dtype=np.int32)
-            self._indexC = np.empty(self._len, dtype=np.int32)
-            self._Z = np.empty(self._len, dtype=np.float64)
-            self._T = np.empty(self._len, dtype=np.float64)
-            self._X = np.empty(self._len, dtype=np.float64)
-            self._Y = np.empty(self._len, dtype=np.float64)
-            
-            for ii in range(self._sizeZ):            
-                for n in range(self._sizeT * self._sizeC):
-                    self._indexZ[ii*self._sizeT * self._sizeC+n] = jwtoint(self._jmd.getPlaneTheZ(ii,n))
-                    self._indexT[ii*self._sizeT * self._sizeC+n] = jwtoint(self._jmd.getPlaneTheT(ii,n))
-                    self._indexC[ii*self._sizeT * self._sizeC+n] = jwtoint(self._jmd.getPlaneTheC(ii,n))
-                    self._T[ii*self._sizeT * self._sizeC+n] = jwtofloat(self._jmd.getPlaneDeltaT(ii,n))
-                    self._X[ii*self._sizeT * self._sizeC+n] = jwtofloat(self._jmd.getPlanePositionX(ii,n))
-                    self._Y[ii*self._sizeT * self._sizeC+n] = jwtofloat(self._jmd.getPlanePositionY(ii,n))
-                    self._Z[ii*self._sizeT * self._sizeC+n] = jwtofloat(self._jmd.getPlanePositionZ(ii,n))
-      
+        self._sizeC = jwtoint(self._jmd.getPixelsSizeC(MP))
+        self._sizeT = jwtoint(self._jmd.getPixelsSizeT(MP))
+        self._sizeY = jwtoint(self._jmd.getPixelsSizeY(MP))
+        self._sizeX = jwtoint(self._jmd.getPixelsSizeX(MP))
+        self._len = jwtoint(self._jmd.getPlaneCount(MP))               
+        self._pixelX = jwtofloat(self._jmd.getPixelsPhysicalSizeX(MP))
+        self._pixelY = jwtofloat(self._jmd.getPixelsPhysicalSizeY(MP))
+        self._pixelZ = jwtofloat(self._jmd.getPixelsPhysicalSizeZ(MP))
+        if self._pixelY == None:
+            self._pixelY = self._pixelX
         if self._dimensionauto:
             if self._sizeZ > 1:
                 self._dimension = 3
             else:
                 self._dimension = 2
+                
   
     def _checkifrealMP(self):
         if self._sizeMP == 1:
@@ -233,55 +193,105 @@ class BioformatsReader(FramesSequence):
     def frame_shape(self):
         return self._sizeX, self._sizeY
  
-    
     def get_frame(self, j): 
-        
         if self._cropH > 0 or self._cropH > 0 or self._cropH > 0:
             raise NotImplemented()
+
+        if (self._multipoint, j) == self._lastframe:
+            return self._current
         
         if self._dimension == 3:
+            planelist = np.empty((self._sizeZ,4), dtype=np.int32)
+            
+            if not self._useMPasZ:
+                self._reader.rdr.setSeries(self._multipoint) 
+                for Nc in range(len(self._channel)):            
+                    for z in xrange(self._sizeZ):
+                        planelist[Nc * self._sizeZ + z] = [Nc,z,self._multipoint, self._reader.rdr.getIndex(z,self._channel[Nc],j)]
+            else: 
+                for Nc in range(len(self._channel)):            
+                    for z in xrange(self._sizeZ):
+                        self._reader.rdr.setSeries(z)                        
+                        planelist[Nc * self._sizeZ + z] = [Nc,z,z, self._reader.rdr.getIndex(0,self._channel[Nc],j)]
+            
             im = np.empty((len(self._channel),self._sizeZ,self._sizeY,self._sizeX))
-                    
-            for Nc in range(len(self._channel)):            
-                for z in xrange(self._sizeZ):
-                    if not self._useMPasZ:    
-                        im[Nc,z] = self._reader.read(c=self._channel[Nc], z=z, t=j,series=self._multipoint)
-                    else:
-                        im[Nc,z] = self._reader.read(c=self._channel[Nc], z=0, t=j,series=z)
+            
+            for plane in planelist:             
+                im[plane[0],plane[1]] = self._reader.read(series=plane[2],index=plane[3])
+
             im = im.squeeze()
             
-            tlist = []    
-            for i in xrange(self._len):
-                if self._indexT[i] == j:
-                    tlist.append(i)
+            self._Z = np.empty(self._sizeZ, dtype=np.float64)
+            self._T = np.empty(self._sizeZ, dtype=np.float64)
+            self._X = np.empty(self._sizeZ, dtype=np.float64)
+            self._Y = np.empty(self._sizeZ, dtype=np.float64)
+            
+            for plane in planelist:
+                self._T[plane[1]] = jwtofloat(self._jmd.getPlaneDeltaT(plane[2],plane[3]))
+                self._X[plane[1]] = jwtofloat(self._jmd.getPlanePositionX(plane[2],plane[3]))
+                self._Y[plane[1]] = jwtofloat(self._jmd.getPlanePositionY(plane[2],plane[3]))
+                self._Z[plane[1]] = jwtofloat(self._jmd.getPlanePositionZ(plane[2],plane[3]))
                     
             metadata = {'pixelX': self._pixelX,
                         'pixelY': self._pixelY,
                         'pixelZ': self._pixelZ,
-                        'plane': tlist,
-                        'X': self._X[tlist],
-                        'Y': self._Y[tlist],
-                        'Z': self._Z[tlist],
-                        'T': self._T[tlist],
+                        'plane': planelist[:,3],
+                        'X': self._X,
+                        'Y': self._Y,
+                        'Z': self._Z,
+                        'T': self._T,
                         'indexC': self._channel,
                         'indexT': j,
                         'indexMP': self._multipoint}                  
         else:  
             im = self._reader.read(index=j,series=self._multipoint)
+            
+            self._Z = np.empty(self._sizeZ, dtype=np.float64)
+            self._T = np.empty(self._sizeZ, dtype=np.float64)
+            self._X = np.empty(self._sizeZ, dtype=np.float64)
+            self._Y = np.empty(self._sizeZ, dtype=np.float64)
+                
             metadata = {'pixelX': self._pixelX,
                     'pixelY': self._pixelY,
                     'pixelZ': self._pixelZ,
                     'plane': j,
-                    'X': self._X[j],
-                    'Y': self._Y[j],
-                    'Z': self._Z[j],
-                    'T': self._T[j],
+                    'X': jwtofloat(self._jmd.getPlanePositionX(self._multipoint,j)),
+                    'Y': jwtofloat(self._jmd.getPlanePositionY(self._multipoint,j)),
+                    'Z': jwtofloat(self._jmd.getPlanePositionZ(self._multipoint,j)),
+                    'T': jwtofloat(self._jmd.getPlaneDeltaT(self._multipoint,j)),
                     'indexC': self._channel,
-                    'indexT': self._indexT[j],
-                    'indexZ': self._indexZ[j],
+                    'indexT': jwtoint(self._jmd.getPlaneTheT(self._multipoint,j)),
+                    'indexZ': jwtoint(self._jmd.getPlaneTheZ(self._multipoint,j)),
                     'indexMP': self._multipoint}
-                            
-        return Frame(self.process_func(im), frame_no=j, metadata=metadata)       
+        
+        self._lastframe = (self._multipoint, j) 
+        self._current = Frame(self.process_func(im), frame_no=j, metadata=metadata)                            
+        return self._current     
+     
+    def omexml(self):
+        xml = bioformats.get_omexml_metadata(self.filename)
+        return bioformats.OMEXML(xml)
+    
+    def mdfloat(self,MetadataRetrieve):
+        try:
+            exec('result = self._jmd.' + MetadataRetrieve)
+            return jwtofloat(result)
+        except:
+            return None
+    
+    def mdint(self,MetadataRetrieve):
+        try:
+            exec('result = self._jmd.' + MetadataRetrieve)
+            return jwtoint(result)
+        except:
+            return None
+            
+    def mdstr(self,MetadataRetrieve):
+        try:
+            exec('result = self._jmd.' + MetadataRetrieve)
+            return jwtostr(result)
+        except:
+            return None
      
     @property
     def pixel_type(self):
@@ -289,19 +299,21 @@ class BioformatsReader(FramesSequence):
 
     def __repr__(self):
         # May be overwritten by subclasses
-        return """<Frames>
-Source: {filename}
-Multipoint: {mp}, active: {mpa}
-Framecount: {count} frames
-Colordepth: {c}
-Zstack depth: {z}
-Time frames: {t}
-Frame Shape: {w} x {h}""".format(w=self._sizeX,
-                                  h=self._sizeY,
-                                  mp=self._sizeMP,
-                                  mpa=self._multipoint,
-                                  count=self._len,
-                                  z=self._sizeZ,
-                                  t=self._sizeT,
-                                  c=self._sizeC,
-                                  filename=self.filename)
+        result = """<Frames>
+            Source: {filename}
+            Multipoint: {mp}, active: {mpa}
+            Framecount: {count} frames
+            Colordepth: {c}
+            Zstack depth: {z}
+            Time frames: {t}
+            Frame Shape: {w} x {h}""".format(w=self._sizeX,
+                                              h=self._sizeY,
+                                              mp=self._sizeMP,
+                                              mpa=self._multipoint,
+                                              count=self._len,
+                                              z=self._sizeZ,
+                                              t=self._sizeT,
+                                              c=self._sizeC,
+                                              filename=self.filename)
+        if self._useMPasZ: result = result + "\nInterpreting MP as Z"
+        return result
