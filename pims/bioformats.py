@@ -121,12 +121,12 @@ class BioformatsReader(FramesSequence):
         MP = self._multipoint  
         if not self._useMPasZ:
             self._sizeZ = jwtoint(self._jmd.getPixelsSizeZ(MP))
-            self._len = jwtoint(self._jmd.getPlaneCount(MP))
+            self._planes = jwtoint(self._jmd.getPlaneCount(MP))
         self._sizeC = jwtoint(self._jmd.getPixelsSizeC(MP))
         self._sizeT = jwtoint(self._jmd.getPixelsSizeT(MP))
         self._sizeY = jwtoint(self._jmd.getPixelsSizeY(MP))
         self._sizeX = jwtoint(self._jmd.getPixelsSizeX(MP))
-        self._len = jwtoint(self._jmd.getPlaneCount(MP))               
+        self._planes = jwtoint(self._jmd.getPlaneCount(MP))               
         self._pixelX = jwtofloat(self._jmd.getPixelsPhysicalSizeX(MP))
         self._pixelY = jwtofloat(self._jmd.getPixelsPhysicalSizeY(MP))
         self._pixelZ = jwtofloat(self._jmd.getPixelsPhysicalSizeZ(MP))
@@ -152,7 +152,10 @@ class BioformatsReader(FramesSequence):
         return False
             
     def __len__(self):
-        return self._len
+        if self._dimension == 3:
+            return self._sizeT
+        else:
+            return self._planes
     
     def close(self):  
         bioformats.release_image_reader(0)
@@ -310,7 +313,7 @@ class BioformatsReader(FramesSequence):
                                               h=self._sizeY,
                                               mp=self._sizeMP,
                                               mpa=self._multipoint,
-                                              count=self._len,
+                                              count=self._planes,
                                               z=self._sizeZ,
                                               t=self._sizeT,
                                               c=self._sizeC,
