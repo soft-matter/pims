@@ -285,7 +285,8 @@ class BioformatsReader(FramesSequence):
         self._reader.rdr.setSeries(t)
         for (Nc,c) in enumerate(self._channel):                  
             for z in xrange(self._sizeT):                        
-                planelist[Nc, z] = [t, self._reader.rdr.getIndex(0,c,z)]
+                #planelist[Nc, z] = [t, self._reader.rdr.getIndex(0,c,z)]
+                planelist[Nc, z] = [(t*self._sizeT)%self._sizeMP + z,(t*self._sizeT)//self._sizeMP + c]
         im3D, metadata = self._get_framelist(planelist)
         
         metadata['indexZ'] = metadata['indexT']
@@ -308,17 +309,17 @@ class BioformatsReader(FramesSequence):
         return imlist.squeeze(), metadata
     
     def _get_frame2D(self, MP, j):
-        im = self._reader.read(index=j,series=MP)    
+        im = self._reader.read(series=MP,index=j)    
         dt = np.dtype([('plane', ">i4"),('indexMP', ">i4"),('indexZ', ">i4"),('indexT', ">i4"),  
                        ('X', ">f8"), ('Y', ">f8"),('Z', ">f8"), ('T', ">f8")])
         metadata = np.array((j,
                 MP,
-                jwtoint(self._jmd.getPlaneTheZ(self._multipoint,j)),
-                jwtoint(self._jmd.getPlaneTheT(self._multipoint,j)),
-                jwtofloat(self._jmd.getPlanePositionX(self._multipoint,j)),
-                jwtofloat(self._jmd.getPlanePositionY(self._multipoint,j)),
-                jwtofloat(self._jmd.getPlanePositionZ(self._multipoint,j)),
-                jwtofloat(self._jmd.getPlaneDeltaT(self._multipoint,j))),dtype=dt)
+                jwtoint(self._jmd.getPlaneTheZ(MP,j)),
+                jwtoint(self._jmd.getPlaneTheT(MP,j)),
+                jwtofloat(self._jmd.getPlanePositionX(MP,j)),
+                jwtofloat(self._jmd.getPlanePositionY(MP,j)),
+                jwtofloat(self._jmd.getPlanePositionZ(MP,j)),
+                jwtofloat(self._jmd.getPlaneDeltaT(MP,j))),dtype=dt)
 
         return self.process_func(im), metadata
      
