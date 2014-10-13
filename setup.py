@@ -23,7 +23,7 @@ setup_parameters = dict(
     cmdclass = versioneer.get_cmdclass(),
     description="Python Image Sequence",
     author="PIMS Contributors",
-    install_requires=['six', 'numpy>=1.7', 'tifffile>=0.3.1'],
+    install_requires=['six>=1.8', 'numpy>=1.7', 'tifffile>=0.3.1'],
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",
     packages=['pims'],
