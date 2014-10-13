@@ -1,0 +1,7 @@
+include MANIFEST.in
+include versioneer.py
+include pims/_version.py
+include setup.py
+include setup.cfg
+include license.txt
+include README.md
