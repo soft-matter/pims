@@ -3,14 +3,14 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 from io import BytesIO
-
+from os import getcwd
 from numpy import ndarray, asarray
 
 
 class Frame(ndarray):
     "Extends a numpy array with meta information"
     # See http://docs.scipy.org/doc/numpy/user/basics.subclassing.html
-
+    iPythonWorkingFolder = getcwd()
     def __new__(cls, input_array, frame_no=None, metadata=None):
         obj = asarray(input_array).view(cls)
         obj.frame_no = frame_no
@@ -49,14 +49,14 @@ class Frame(ndarray):
             setattr(self, attr, val)
 
     def _repr_png_(self):
-        try:
-            from PIL import Image
-        except ImportError:
-            # IPython will show this exception as a warning unless
-            # _repr_png_() is explicitly called.
-            raise ImportError("Install PIL or Pillow to enable "
-                              "rich display of Frames.")
-        if self.ndim == 2:
+        if self.ndim == 2 or (self.ndim == 3 and self.shape[0] <= 4):
+            try:
+                from PIL import Image
+            except ImportError:
+                # IPython will show this exception as a warning unless
+                # _repr_png_() is explicitly called.
+                raise ImportError("Install PIL or Pillow to enable "
+                                  "rich display of Frames.")
             w = 500
             h = self.shape[0] * w // self.shape[1]
             ptp = self.max() - self.min()
@@ -68,19 +68,23 @@ class Frame(ndarray):
             img_buffer = BytesIO()
             img.save(img_buffer, format='png')
             return img_buffer.getvalue()
-        elif self.ndim == 3 and self.shape[0] > 4:
-            return self.gen3DIpythonObject()
-        else:
-            return None
+            
+    def _repr_html_(self):
+        if self.ndim == 3 and self.shape[0] > 4:
+            self.gen3DIpythonObject()
+            return '<p>IndexT: ' + str(self.frame_no) + '</p>'
             
     def gen3DIpythonObject(self):
         from PIL import Image
-        from os.path import join
+        from os.path import join, exists
         from IPython.display import HTML, Javascript, display
         from random import random #to force browser refresh of images
         
-        
-        savepath = 'IPython Notebooks\zstacks'
+        savepath = self.iPythonWorkingFolder + '\\_temp_zstacks'
+        if not exists(savepath):
+            raise IOError("Make subfolder '_temp_zstacks' in iPython notebook " 
+                          "folder. If it already exists: make sure pims is "
+                          "loaded before changing the working directory.")
          #point this to ipython notebook folder
         
         d = self.shape[0]
@@ -88,39 +92,36 @@ class Frame(ndarray):
         h = self.shape[1] * w // self.shape[2]
         x = (self - self.min()) / (self.max() - self.min())
         
-        for n in xrange(self.shape[0]):
+        for n in range(self.shape[0]):
             img = Image.fromarray((x[n] * 256).astype('uint8')).resize((w,h))
             img.save(join(savepath,'image'+str(n)+'.png'), format='png')
             
             
         # The piece of HTML/JS was adapted from http://codepen.io/will-moore/pen/Beuyc    
         mainimg = ''
-        for n in xrange(d):
-            mainimg = mainimg + '<img src="zstacks/image'+str(n)+'.png?' + str(random()) + '" class="large_image"/>'
+        for n in range(d):
+            mainimg = mainimg + '<img src="_temp_zstacks/image'+str(n)+'.png?'+\
+                                    str(random()) + '" class="XY_image"/>'
         
-        html = """<div id="large_img_container">
+        html = """<div id="XY_container">
             """ + mainimg + """    
         </div>
-        <p id="indicator">0</p>
+        <div><p id="indicator">IndexZ: 0</p></div>
         """
         
-        css = """<style media="screen" type="text/css">
-        body {
-            font-family: arial;
-        }
-        
-        #large_img_container {
-            position:relative;
+        css = """<style media="screen" type="text/css">        
+        #XY_container {
+            position: relative;
             float: left;
             width:""" + str(w) + """px;
             height:""" + str(h) + """px;
-            overflow:hidden;
+            overflow: hidden;
             Cache-Control: no-store
         }
         
-        .large_image {
-            position:absolute;
-            top:0px; left:0px;
+        .XY_image {
+            position: absolute;
+            top: 0px; left: 0px;
             display: none;
         }
         </style>
@@ -130,41 +131,39 @@ class Frame(ndarray):
         (function($){
             $(function() {
         
-            var SRC_ROOT = "zstacks/",
-                SIZE_X = """ + str(w) + """,
-                SIZE_Y = """ + str(h) + """,
-                SIZE_Z = """ + str(d) + """,
-                large_image_styles = [],
-                z_index = 0;
+            var Zcount = """ + str(d) + """,
+                XY_image_styles = [],
+                Zactive = """ + str(d//2) + """;
                 
-            $(".large_image").each(function() {
-                large_image_styles.push(this.style);
+            $(".XY_image").each(function() {
+                XY_image_styles.push(this.style);
             });
             
             // show the specified plane in the main viewer
-            var show_plane = function(theZ) {
-                if (theZ < 0 || theZ >= SIZE_Z) return;
-                z_index = theZ
+            var show_plane = function(Z) {
+                if (Z < 0 || Z >= Zcount) return;
+                Zactive = Z
                 // hide all planes...
-                for (var i=0; i<large_image_styles.length; i++){
-                    large_image_styles[i].display = 'none';
+                for (var i = 0; i < XY_image_styles.length; i++){
+                    XY_image_styles[i].display = 'none';
                 }
-                large_image_styles[z_index].display = 'block';
-                $("#indicator").text(z_index);
+                XY_image_styles[Zactive].display = 'block';
+                $("#indicator").text('IndexZ: ' + Zactive);
             }
             
             var onMouseWheel = function(e) {
                 e = e.originalEvent;
                 var incr = e.wheelDelta>0||e.detail<0?1:-1;
-                show_plane(z_index + incr);
+                show_plane(Zactive + incr);
                 return false;
             }
             
-            $("#large_img_container").bind("mousewheel DOMMouseScroll", onMouseWheel);
+            $("#XY_container").bind("mousewheel DOMMouseScroll", onMouseWheel);
         
             // finally, start by showing the first plane
-            show_plane(""" + str(d//2) + """);
+            show_plane(Zactive);
         });
         })(jQuery);
         """
-        return display(HTML(css + html),Javascript(js))
+        display(HTML(css + html),Javascript(js))
+        return None
