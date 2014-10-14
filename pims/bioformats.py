@@ -16,6 +16,11 @@ try:
 except ImportError:
     bioformats = None
     
+try:
+    from pandas import DataFrame
+except ImportError:
+    DataFrame = None
+    
 def available():
     try:
         import javabridge
@@ -42,9 +47,9 @@ def jwtostr(jwrapper):
     else:
         return None
 
-
+        
 class BioformatsReader(FramesSequence):
-    """Reads 3D images from the frames of a file supported by bioformats into an
+    """Reads 2D images from the frames of a file supported by bioformats into an
     iterable object that returns images as numpy arrays.
     
     Required:
@@ -59,57 +64,50 @@ class BioformatsReader(FramesSequence):
     ----------
     filename : string
     process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
+        callable with signature `proc_img = process_func(img)`,
         which will be applied to the data from each frame
-    C : list of preferred colors channel to read (change with property channel)
-    MP : active multipoint index (change with property channel)
-    X,Y,Z,W,H,D : cropping positions and sizes in pixels (not implemented)
-    mode : 'auto', '2D', '3D', '3D_MPasZ', '3D_MPasT_TasZ'
+    MP : active multipoint index (change with property multipoint)
     
-    the latter two are for files that bioformats scrambles:
-     - use 3D_MPasZ when the Z stacks are interpreted as a multipoint 
-       collection of TCYX (sizeZ = 1)
-     - 3D_MPasT_TasZ when time frames are interpreted as a multipoint 
-       collection of ZCYZ, with Z stacks in T (sizeZ = 1)
-    the auto format does not cover 3D_MPasT_TasZ and is not 100% foolproof for 3D_MPasZ
-    """
+    Metadata
+    ----------
+    Standard metadata: 
+     - number of subimages (MP)
+     - per subimage: - size C, T, Z, Y, X
+                     - physical pixelsizes X, Y, Z
+     - per frame:         - indices plane, MP, Z, C, T
+        (as dictionary)   - physical locations X, Y, Z, T
+                    
+     - more can be read out using metadataretrieve, passing function & parameters 
+      as string to mdstr, mdfloat, mdint for string, float and integer values.
+     http://downloads.openmicroscopy.org/bio-formats/5.0.4/api/loci/formats/meta/MetadataRetrieve.html
+     - a bioformats.OMEXML object can also be obtained using .omexml, see 
+     https://github.com/CellProfiler/python-bioformats"""
+     
     @classmethod
     def class_exts(cls):
         return {'nd2'} | super(BioformatsReader, cls).class_exts()
 
-    def __init__(self, filename, mode='auto', C=[0], MP=0, X=0, Y=0, Z=0, W=0, H=0, D=0, process_func=None):
+    def __init__(self, filename, MP=0, process_func=None):
         self.filename = str(filename)
-        if type(C) == int: C = [C]        
-        if not mode in ('2D','3D','3D_MPasZ','3D_MPasT_TasZ','auto'):   
-            raise 'Unsupported mode'
-        self._mode = mode
-        self._channel = C
         self._multipoint = MP        
-        self._cropX = X
-        self._cropY = Y
-        self._cropZ = Z
-        self._cropW = W
-        self._cropH = H
-        self._cropD = D
         self._validate_process_func(process_func)
-        self._initialize()
+        self._initializereader()
+        self._changemultipoint() 
     
-    def _initialize(self):
+    
+    def _initializereader(self):
         javabridge.start_vm(class_path=bioformats.JARS,max_heap_size='512m')
-        self._reader = bioformats.get_image_reader(0,self.filename) 
+        self._reader = bioformats.get_image_reader(self.filename, self.filename) 
+        self._jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())        
+        self._sizeMP = jwtoint(self._jmd.getImageCount())
+        self._metadatacolumns = ['plane', 'indexMP', 'indexC', 'indexZ', 
+                                 'indexT','X', 'Y', 'Z', 'T']
         self._lastframe = (-1,-1)
         self._current = None
-        self._jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())        
-        self._sizeMP = jwtoint(self._jmd.getImageCount())           
-        if self._mode == 'auto':
-            self._mode = self._automode()
-        self._updatemetadata()      
            
 
-    def _updatemetadata(self): 
-        if self._mode in ('3D_MPasZ','3D_MPasT_TasZ'):
-            self._multipoint = 0                     
-        MP = self._multipoint  
+    def _changemultipoint(self):   
+        MP = self._multipoint                
         self._reader.rdr.setSeries(MP)
         self._sizeC = jwtoint(self._jmd.getPixelsSizeC(MP))
         self._sizeT = jwtoint(self._jmd.getPixelsSizeT(MP))
@@ -121,227 +119,92 @@ class BioformatsReader(FramesSequence):
         self._pixelY = jwtofloat(self._jmd.getPixelsPhysicalSizeY(MP))
         self._pixelZ = jwtofloat(self._jmd.getPixelsPhysicalSizeZ(MP))
         if self._pixelY == None:
-            self._pixelY = self._pixelX                
-  
-    def _automode(self):
-        # when sizeZ > 1, it is 3D
-        if jwtoint(self._jmd.getPixelsSizeZ(0)) > 1:
-            return '3D'
-        
-        # when sizeZ == 1 and no multipoint, it is 2D
-        if self._sizeMP == 1:
-            return '2D'
-    
-        # when multipoint, check if any other sizeZ > 1, if so then mixed 2D 
-        # and 3D, not supported so go to 'raw' 2D mode
-        for MP in xrange(self._sizeMP): 
-            if jwtoint(self._jmd.getPixelsSizeZ(MP)) > 1:
-                return '2D'
-                
-        #require at least MP of 4 for MPasZ or MPasT
-        if self._sizeMP < 5:
-            return '2D'
-                
-        #check if X or Y were displaced, do not use index = 0 as it mostly gives X,Y = 0,0
-        if round(jwtofloat(self._jmd.getPlanePositionX(2,0))) != round(jwtofloat(self._jmd.getPlanePositionX(1,0))):
-            return '2D'
-        if round(jwtofloat(self._jmd.getPlanePositionY(2,0))) != round(jwtofloat(self._jmd.getPlanePositionY(1,0))):
-            return '2D'
+            self._pixelY = self._pixelX                       
             
-        #check which deltaT is larger: T or MP. The smallest will be Z
-        sizeC = jwtoint(self._jmd.getPixelsSizeC(0))
-        deltaT_MP = jwtofloat(self._jmd.getPlaneDeltaT(1,0)) - jwtofloat(self._jmd.getPlaneDeltaT(0,0))
-        deltaT_T = jwtofloat(self._jmd.getPlaneDeltaT(0,sizeC)) - jwtofloat(self._jmd.getPlaneDeltaT(0,0))
-        if deltaT_MP < deltaT_T:
-            return '3D_MPasZ'
-        else:
-            return '3D_MPasT_TasZ'
             
     def __len__(self):
-        if self._mode == '2D':
-            return self._planes
-        elif self._mode == '3D':
-            return self._sizeT
-        elif self._mode == '3D_MPasZ':
-            return self._sizeT
-        elif self._mode == '3D_MPasT_TasZ':
-            return self._sizeMP
-    
+        return self._planes
+
+            
     def close(self):  
-        bioformats.release_image_reader(0)
+        bioformats.release_image_reader(self.filename)
         
+
     @property
     def pixelsizes(self):
-        if self._mode == '2D':
-            return {'X': self._pixelX, 'Y': self._pixelY}
-        else: 
-            return {'X': self._pixelX, 'Y': self._pixelY, 'Z': self._pixelZ}
+        {'X': self._pixelX, 'Y': self._pixelY, 'Z': self._pixelZ}        
+        
         
     @property
     def sizes(self):
-        if self._mode == '2D' or self._mode == '3D':
-            return {'MP': self._sizeMP, 'X': self._sizeX, 'Y': self._sizeY, 
-                    'Z': self._sizeZ, 'C': self._sizeC, 'T': self._sizeT}
-        elif self._mode == '3D_MPasZ':
-            return {'MP': 1, 'X': self._sizeX, 'Y': self._sizeY, 
-                    'Z': self._sizeMP, 'C': self._sizeC, 'T': self._sizeT}
-        elif self._mode == '3D_MPasT_TasZ':
-            return {'MP': 1, 'X': self._sizeX, 'Y': self._sizeY, 
-                    'Z': self._sizeT, 'C': self._sizeC, 'T': self._sizeMP}
-    
-    @property
-    def channel(self):
-        return self._channel
-    @channel.setter
-    def channel(self, value):
-        if value != self._channel:
-            if type(value) == int:
-                self._channel = [value]
-            else:
-                self._channel = value
-            self._lastframe = (-1,-1)
-            self._current = None
-            
-    @property
-    def mode(self):
-        return self._mode
-    @mode.setter
-    def mode(self, value):
-        if value in ('2D','3D','3D_MPasZ','3D_MPasT_TasZ') and value != self._mode:
-            self._mode = value
-            self._lastframe = (-1,-1)
-            self._current = None
-            self._updatemetadata()
+        return {'MP': self._sizeMP, 'X': self._sizeX, 'Y': self._sizeY, 
+                'Z': self._sizeZ, 'C': self._sizeC, 'T': self._sizeT}
+                        
     
     @property
     def multipoint(self):
         return self._multipoint
     @multipoint.setter
     def multipoint(self, value):
-        if value > self._sizeMP or self._mode in ('3D_MPasZ','3D_MPasT_TasZ'):
-            raise 'MP index out of bounds'
+        if value >= self._sizeMP:
+            raise IndexError('Multipoint index out of bounds.')
         else:
             if value != self._multipoint:
                 self._multipoint = value
-                self._lastframe = (-1,-1)
-                self._current = None
-                self._updatemetadata()
-        
-    @property
-    def cropparams(self):
-        return self._cropX, self._cropY, self._cropZ, self._cropW, self._cropH, self._cropD
-    @cropparams.setter
-    def cropparams(self, value):
-        self._cropX, self._cropY, self._cropZ, self._cropW, self._cropH, self._cropD = value
+                self._changemultipoint()
         
     def frame_shape(self):
         return self._sizeX, self._sizeY
         
+        
     def get_frame(self, j):
-        if self._cropH > 0 or self._cropH > 0 or self._cropH > 0:
-            raise NotImplemented()
-        if (self._multipoint, j) == self._lastframe:
-            return self._current
-            
-        if self._mode == '2D':
-            im, metadata = self._get_frame2D(self._multipoint,j)
-        elif self._mode == '3D':
-            im, metadata = self._get_frame3D(j)
-        elif self._mode == '3D_MPasZ':
-            im, metadata = self._get_frame3D_MPasZ(j)
-        elif self._mode == '3D_MPasT_TasZ':
-            im, metadata = self._get_frame3D_MPasT_TasZ(j)
-            
+        im, metadata = self._get_frame_2D(self._multipoint, j)
+        
+        imageproc = self.process_func(im)
+        metadataproc = dict(zip(self._metadatacolumns, metadata))
+        self._current = Frame(imageproc, frame_no=j, metadata=metadataproc) 
         self._lastframe = (self._multipoint, j) 
-        self._current = Frame(self.process_func(im), frame_no=j, metadata=metadata)                            
+                   
         return self._current
+        
+    def _get_frame_2D(self, MP, j):
+        if (MP, j) == self._lastframe:
+            return self._current
+        
+        im = self._reader.read(series=MP, index=j)    
 
-    def _get_frame3D(self, t): 
-        planelist = np.empty((len(self._channel),self._sizeZ,2), dtype=np.int32)
-        for (Nc,c) in enumerate(self._channel):            
-            for z in xrange(self._sizeZ):
-                planelist[Nc, z] = [self._multipoint,
-                             self._reader.rdr.getIndex(z,c,t)]
-                             
-        im3D, metadata = self._get_framelist(planelist)      
-        
-        return im3D, metadata
-        
-    def _get_frame3D_MPasZ(self, t): 
-        planelist = np.empty((len(self._channel),self._sizeMP,2), dtype=np.int32)
-        for (Nc,c) in enumerate(self._channel):                  
-            for z in xrange(self._sizeMP):
-                self._reader.rdr.setSeries(z)                        
-                planelist[Nc, z] = [z, self._reader.rdr.getIndex(0,c,t)]
-        im3D, metadata = self._get_framelist(planelist)
-        
-        metadata['indexZ'] = metadata['indexMP']
-        metadata['indexMP'] = np.zeros(planelist.shape[1])
-        
-        return im3D, metadata
-        
-    def _get_frame3D_MPasT_TasZ(self, t): 
-        planelist = np.empty((len(self._channel),self._sizeT,2), dtype=np.int32)
-        self._reader.rdr.setSeries(t)
-        for (Nc,c) in enumerate(self._channel):                  
-            for z in xrange(self._sizeT):                        
-                #planelist[Nc, z] = [t, self._reader.rdr.getIndex(0,c,z)]
-                planelist[Nc, z] = [(t*self._sizeT)%self._sizeMP + z,(t*self._sizeT)//self._sizeMP + c]
-        im3D, metadata = self._get_framelist(planelist)
-        
-        metadata['indexZ'] = metadata['indexT']
-        metadata['indexT'] = metadata['indexMP']        
-        metadata['indexMP'] = np.zeros(planelist.shape[1])
-        
-        return im3D, metadata
-        
-        
-    def _get_framelist(self, planelist):         
-        imlist = np.empty((planelist.shape[0],planelist.shape[1],self._sizeY,self._sizeX))
-        dt = np.dtype([('plane', ">i4"),('indexMP', ">i4"),('indexZ', ">i4"),('indexT', ">i4"),  
-                       ('X', ">f8"), ('Y', ">f8"),('Z', ">f8"), ('T', ">f8")])
-        metadata = np.empty(planelist.shape[1], dtype=dt)  
-        
-        for (Nc,zstack) in enumerate(planelist):   
-            for (Nz,plane) in enumerate(zstack):
-                imlist[Nc,Nz], metadata[Nz] = self._get_frame2D(MP=plane[0],j=plane[1])
-        
-        return imlist.squeeze(), metadata
-    
-    def _get_frame2D(self, MP, j):
-        im = self._reader.read(series=MP,index=j)    
-        dt = np.dtype([('plane', ">i4"),('indexMP', ">i4"),('indexZ', ">i4"),('indexT', ">i4"),  
-                       ('X', ">f8"), ('Y', ">f8"),('Z', ">f8"), ('T', ">f8")])
-        metadata = np.array((j,
+        metadata = (j,
                 MP,
-                jwtoint(self._jmd.getPlaneTheZ(MP,j)),
-                jwtoint(self._jmd.getPlaneTheT(MP,j)),
-                jwtofloat(self._jmd.getPlanePositionX(MP,j)),
-                jwtofloat(self._jmd.getPlanePositionY(MP,j)),
-                jwtofloat(self._jmd.getPlanePositionZ(MP,j)),
-                jwtofloat(self._jmd.getPlaneDeltaT(MP,j))),dtype=dt)
+                jwtoint(self._jmd.getPlaneTheC(MP, j)),
+                jwtoint(self._jmd.getPlaneTheZ(MP, j)),
+                jwtoint(self._jmd.getPlaneTheT(MP, j)),
+                jwtofloat(self._jmd.getPlanePositionX(MP, j)),
+                jwtofloat(self._jmd.getPlanePositionY(MP, j)),
+                jwtofloat(self._jmd.getPlanePositionZ(MP, j)),
+                jwtofloat(self._jmd.getPlaneDeltaT(MP, j)))
 
-        return self.process_func(im), metadata
+        return im, metadata
+        
      
     def omexml(self):
         xml = bioformats.get_omexml_metadata(self.filename)
-        return bioformats.OMEXML(xml)
+        return bioformats.OMEXML(xml)        
     
-    def mdfloat(self,MetadataRetrieve):
+    def mdfloat(self, MetadataRetrieve):
         try:
             exec('result = self._jmd.' + MetadataRetrieve)
             return jwtofloat(result)
         except:
             return None
     
-    def mdint(self,MetadataRetrieve):
+    def mdint(self, MetadataRetrieve):
         try:
             exec('result = self._jmd.' + MetadataRetrieve)
             return jwtoint(result)
         except:
             return None
             
-    def mdstr(self,MetadataRetrieve):
+    def mdstr(self, MetadataRetrieve):
         try:
             exec('result = self._jmd.' + MetadataRetrieve)
             return jwtostr(result)
@@ -361,8 +224,7 @@ class BioformatsReader(FramesSequence):
             Colordepth: {c}
             Zstack depth: {z}
             Time frames: {t}
-            Frame Shape: {w} x {h}
-            Reader mode: {mode}""".format(w=self._sizeX,
+            Frame Shape: {w} x {h}""".format(w=self._sizeX,
                                               h=self._sizeY,
                                               mp=self._sizeMP,
                                               mpa=self._multipoint,
@@ -370,6 +232,133 @@ class BioformatsReader(FramesSequence):
                                               z=self._sizeZ,
                                               t=self._sizeT,
                                               c=self._sizeC,
-                                              filename=self.filename,
-                                              mode = self._mode)
+                                              filename=self.filename)
         return result
+        
+        
+class BioformatsReader3D(BioformatsReader):
+    """Extends BioformatsReader3D
+    Reads 3D images from the frames of a file supported by bioformats into an
+    iterable object that returns images as numpy arrays.
+    
+    Required:
+    https://github.com/CellProfiler/python-bioformats
+    https://github.com/CellProfiler/python-javabridge
+     or (windows compiled) http://www.lfd.uci.edu/~gohlke/pythonlibs/#javabridge   
+    
+    Only tested with Nikon ND2 files
+    For files larger than 4GB, 64 bits Python, Javabridge and JDK are required
+
+    Parameters
+    ----------
+    filename : string
+    process_func : function, optional
+        callable with signature `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    C : list of color channels to read (change with property channel)
+    MP : active multipoint index (change with property multipoint)
+    mode : 'auto', '2D', '3D'
+    
+    Metadata
+    ----------
+    Standard metadata: 
+     - number of subimages (MP)
+     - per subimage: - size C, T, Z, Y, X
+                     - physical pixelsizes X, Y, Z
+     - per 2D / 3D frame: - indices plane, MP, Z, T
+        (as DataFrame)    - physical locations X, Y, Z, T
+                    
+     - more can be read out using metadataretrieve, passing function & parameters 
+      as string to mdstr, mdfloat, mdint for string, float and integer values.
+     http://downloads.openmicroscopy.org/bio-formats/5.0.4/api/loci/formats/meta/MetadataRetrieve.html
+     - a bioformats.OMEXML object can also be obtained using .omexml, see 
+     https://github.com/CellProfiler/python-bioformats
+    
+    """
+    @classmethod
+    def class_exts(cls):
+        return {'nd2'} | super(BioformatsReader3D, cls).class_exts()
+
+    def __init__(self, filename, mode='auto', C=[0], MP=0, process_func=None):
+        if not hasattr(C, '__iter__'):
+            C = [C]    
+        if not mode in ('2D', '3D', 'auto'):   
+            raise NotImplementedError('Unsupported mode')
+        self._mode = mode
+        self._channel = C
+        
+        super(BioformatsReader3D, self).__init__(filename, MP, process_func)        
+        
+        if self._mode == 'auto':
+            if self._sizeZ > 1:
+                self._mode = '3D'
+            else:
+                self._mode = '2D' 
+        
+        
+    def __len__(self):
+        if self._mode == '2D':
+            return self._planes
+        elif self._mode == '3D':
+            return self._sizeT    
+                    
+        
+    @property
+    def channel(self):
+        return self._channel
+    @channel.setter
+    def channel(self, value):
+        if not hasattr(value, '__iter__'):
+            value = [value]
+        if np.any(np.greater_equal(value, self._sizeC)) or np.any(np.smaller(value, 0)):
+            raise IndexError('Channel index out of bounds.')
+        if value != self._channel:
+            self._channel = value
+            self._lastframe = (-1,-1)
+            self._current = None
+            
+            
+    @property
+    def mode(self):
+        return self._mode
+    @mode.setter
+    def mode(self, value):
+        if value in ('2D', '3D') and value != self._mode:
+            self._mode = value
+            self._changemultipoint()
+    
+        
+    def get_frame(self, t):
+        if self._mode == '2D':
+            return super(BioformatsReader3D, self).get_frame(t)  
+        else:
+            if (self._multipoint, t) == self._lastframe:
+                return self._current
+                
+            planelist = np.empty((len(self._channel), self._sizeZ, 2), dtype=np.int32)
+            
+            for (Nc, c) in enumerate(self._channel):            
+                for z in range(self._sizeZ):
+                    planelist[Nc, z] = [self._multipoint,
+                                 self._reader.rdr.getIndex(z,c,t)]
+            
+            imlist = np.empty((planelist.shape[0], planelist.shape[1], 
+                               self._sizeY, self._sizeX))
+                               
+                           
+            metadata = np.empty((planelist.shape[1], len(self._metadatacolumns)))  
+            
+            for (Nc, zstack) in enumerate(planelist):   
+                for (Nz, plane) in enumerate(zstack):
+                    imlist[Nc, Nz], metadata[Nz] = self._get_frame_2D(*plane)
+            
+            if DataFrame != None:
+                metadata = DataFrame(metadata, columns=self._metadatacolumns)
+                if len(self._channel) > 1:
+                    metadata = metadata.drop('indexC', 1)
+                
+            self._lastframe = (self._multipoint, t) 
+            self._current = Frame(self.process_func(imlist.squeeze()), 
+                                  frame_no=t, metadata=metadata)                            
+            
+            return self._current

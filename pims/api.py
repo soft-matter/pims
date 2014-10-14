@@ -47,10 +47,12 @@ try:
     import pims.bioformats
     if pims.bioformats.available():
         Bioformats = pims.bioformats.BioformatsReader
+        Bioformats3D = pims.bioformats.BioformatsReader3D
     else:
         raise ImportError()
 except (ImportError, IOError):
     Bioformats = not_available("Bioformats")
+    Bioformats3D = not_available("Bioformats")
     
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     """Read a directory of sequentially numbered image files into an
