@@ -1,0 +1,2 @@
+trackpy/_version.py export-subst
+pims/_version.py export-subst

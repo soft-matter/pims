@@ -19,7 +19,7 @@ except ImportError:
     TIFF = None
 
 try:
-    from .extern import tifffile
+    import tifffile
 except ImportError:
     tifffile = None
 
