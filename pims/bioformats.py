@@ -132,7 +132,7 @@ class BioformatsReader(FramesSequence):
 
     @property
     def pixelsizes(self):
-        {'X': self._pixelX, 'Y': self._pixelY, 'Z': self._pixelZ}        
+        return {'X': self._pixelX, 'Y': self._pixelY, 'Z': self._pixelZ}        
         
         
     @property
@@ -153,6 +153,7 @@ class BioformatsReader(FramesSequence):
                 self._multipoint = value
                 self._changemultipoint()
         
+    @property
     def frame_shape(self):
         return self._sizeX, self._sizeY
         
@@ -237,7 +238,7 @@ class BioformatsReader(FramesSequence):
         
         
 class BioformatsReader3D(BioformatsReader):
-    """Extends BioformatsReader3D
+    """Extends BioformatsReader
     Reads 3D images from the frames of a file supported by bioformats into an
     iterable object that returns images as numpy arrays.
     
@@ -310,7 +311,7 @@ class BioformatsReader3D(BioformatsReader):
     def channel(self, value):
         if not hasattr(value, '__iter__'):
             value = [value]
-        if np.any(np.greater_equal(value, self._sizeC)) or np.any(np.smaller(value, 0)):
+        if np.any(np.greater_equal(value, self._sizeC)) or np.any(np.less(value, 0)):
             raise IndexError('Channel index out of bounds.')
         if value != self._channel:
             self._channel = value
@@ -325,6 +326,8 @@ class BioformatsReader3D(BioformatsReader):
     def mode(self, value):
         if value in ('2D', '3D') and value != self._mode:
             self._mode = value
+            self._lastframe = (-1,-1)
+            self._current = None
             self._changemultipoint()
     
         
