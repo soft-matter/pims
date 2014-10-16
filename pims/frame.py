@@ -64,39 +64,73 @@ class Frame(ndarray):
             if ptp == 0:
                 ptp = 1
             x = (self - self.min()) / ptp
-            img = Image.fromarray((x * 256).astype('uint8')).resize((w, h))
+            img = Image.fromarray((x * 255).astype('uint8')).resize((w, h))
             img_buffer = BytesIO()
             img.save(img_buffer, format='png')
             return img_buffer.getvalue()
             
     def _repr_html_(self):
         if self.ndim == 3 and self.shape[0] > 4:
-            self.gen3DIpythonObject()
+            self.image3D()
             return '<p>IndexT: ' + str(self.frame_no) + '</p>'
+                   
+    def image3D(self, annotate_func = None, annotate_args = {}):
+        """
+        Displays a scrollable z-stack, based on a combined HTML and JavaScript 
+        iPython object. Working folder is saved at package load, to make sure
+        this is the iPython root. In root\_temp_zstacks, temporary png images
+        will be saved and displayed by the HTML/JavaScript object.
+        
+        If annotate_func is passed, this function is applied to each stack.
+        Function has to accept:
+            - image: 2D ndarray of 8-bit integers
+            - z: index of z plane, to be used for annotation
+            - frame_no: frame number, to be used for annotation
+            - ax: axis object that will be used, in order to allow image3D to
+                  suppress direct display
+            - imshow_style: kwargs to be passed to pyplot.imshow
             
-    def gen3DIpythonObject(self):
+        The full stack is normalized, instead of all pictures separately.
+        """
+        
         from PIL import Image
         from os.path import join, exists
         from IPython.display import HTML, Javascript, display
         from random import random #to force browser refresh of images
         
         savepath = self.iPythonWorkingFolder + '\\_temp_zstacks'
+
         if not exists(savepath):
-            raise IOError("Make subfolder '_temp_zstacks' in iPython notebook " 
+            print("Temp folder: " + savepath)
+            raise IOError("Trying to use subfolder '_temp_zstacks' in iPython notebook " 
                           "folder. If it already exists: make sure pims is "
                           "loaded before changing the working directory.")
-         #point this to ipython notebook folder
-        
+
+        annotate = not (annotate_func == None)
+
         d = self.shape[0]
-        w = min(512,self.shape[2])
+        w = min(512, self.shape[2])
         h = self.shape[1] * w // self.shape[2]
-        x = (self - self.min()) / (self.max() - self.min())
+        x = (((self - self.min()) / (self.max() - self.min())) * 255).astype('uint8')
+        annotate_args.update({'imshow_style': {'vmin': 0, 'vmax': 255}})
         
+        if 'ax' in annotate_args: del annotate_args['ax']
+            
         for n in range(self.shape[0]):
-            img = Image.fromarray((x[n] * 256).astype('uint8')).resize((w,h))
-            img.save(join(savepath,'image'+str(n)+'.png'), format='png')
-            
-            
+            if annotate: 
+                import matplotlib.pyplot as plt
+                fig = plt.figure(0)
+                ax = fig.add_subplot(111)
+                ax = annotate_func(image=x[n], z=n, frame_no=self.frame_no, 
+                                   ax=ax, **annotate_args)
+                fig.savefig(join(savepath,'image'+str(n)+'.png'))
+                if n == 0:
+                    w, h = fig.get_dpi()*fig.get_size_inches()   
+                plt.close(0)
+            else:
+                img = Image.fromarray(x[n]).resize((w, h))
+                img.save(join(savepath,'image'+str(n)+'.png'), format='png')
+        
         # The piece of HTML/JS was adapted from http://codepen.io/will-moore/pen/Beuyc    
         mainimg = ''
         for n in range(d):
