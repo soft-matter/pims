@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 import numpy as np
 import tempfile
+from io import BytesIO
 
 def export(sequence, filename, rate=30, bitrate=None,
            width=None, height=None, codec='mpeg4', format='yuv420p',
@@ -149,3 +150,75 @@ def repr_video(fname, mimetype):
 <source alt="test" src="data:video/{0};base64,{1}" type="video/webm">
 Use Google Chrome browser.</video>""".format(mimetype, video_encoded)
     return HTML(data=video_tag)
+
+
+def _scrollable_stack(sequence, width):
+    from IPython.display import Javascript, HTML, display_png
+    from jinja2 import Template
+
+    SCROLL_STACK_JS = Template("""
+require(['jquery'], function() {
+  if (!(window.PIMS)) {
+    var stack_cursors = {};
+    window.PIMS = {stack_cursors: {}};
+  }
+  $('#stack-{{stack_id}}-slice-0').css('display', 'block');
+  window.PIMS.stack_cursors['{{stack_id}}'] = 0;
+});
+
+require(['jquery'],
+$('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
+  var direction;
+  var cursor = window.PIMS.stack_cursors['{{stack_id}}'];
+  e.preventDefault();
+  if (e.type == 'mousewheel') {
+    direction = e.originalEvent.wheelDelta < 0;
+  }
+  else if (e.type == 'DOMMouseScroll') {
+    direction = e.originalEvent.detail < 0;
+  }
+  var delta = direction * 2 - 1;
+  if (cursor + delta < 0) {
+    return;
+  }
+  else if (cursor + delta > {{length}} - 1) {
+    return;
+  }
+  $('#stack-{{stack_id}}-slice-' + cursor).css('display', 'none');
+  $('#stack-{{stack_id}}-slice-' + (cursor + delta)).css('display', 'block');
+  window.PIMS.stack_cursors['{{stack_id}}'] = cursor + delta;
+}));""")
+    TAG = Template('<img src="data:image/png;base64,{{data}}" '
+                   'style="display: none;" '
+                   'id="stack-{{stack_id}}-slice-{{i}}" />')
+    WRAPPER = Template('<div id="image-stack-{{stack_id}}", style='
+                       '"width: {{width}}; float: left; display: inline;">')
+    stack_id = str(id(sequence))  # TODO Be more specific.
+    js = SCROLL_STACK_JS.render(length=len(sequence), stack_id=stack_id)
+    output = '<script>{0}</script>'.format(js)
+    output += WRAPPER.render(width=width, stack_id=stack_id)
+    for i, s in enumerate(sequence):
+        output += TAG.render(data=_as_png(s, width).encode('base64'),
+                             stack_id=stack_id, i=i)
+    output += "</div>"
+    return output
+
+
+def scrollable_stack(sequence, width=500):
+    from IPython.display import HTML
+    return HTML(_scrollable_stack(sequence, width=width))
+
+
+def _as_png(arr, width):
+    from PIL import Image
+    w = width  # for brevity
+    h = arr.shape[0] * w // arr.shape[1]
+    ptp = arr.max() - arr.min()
+    # Handle edge case of a flat image.
+    if ptp == 0:
+        ptp = 1
+    scaled_arr = (arr - arr.min()) / ptp
+    img = Image.fromarray((scaled_arr * 256).astype('uint8')).resize((w, h))
+    img_buffer = BytesIO()
+    img.save(img_buffer, format='png')
+    return img_buffer.getvalue()
