@@ -153,6 +153,10 @@ Use Google Chrome browser.</video>""".format(mimetype, video_encoded)
 
 
 def _scrollable_stack(sequence, width):
+    # See the public function, scrollable_stack, below.
+    # This does all the work, and it returns a string of HTML and JS code,
+    # as expected by Frame._repr_html_(). The public function wraps this
+    # in IPython.display.HTML for the user.
     from IPython.display import Javascript, HTML, display_png
     from jinja2 import Template
 
@@ -205,11 +209,25 @@ $('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
 
 
 def scrollable_stack(sequence, width=500):
+    """Display a sequence or 3D stack of frames as an interactive image
+    that responds to scrolling.
+
+    Parameters
+    ----------
+    sequence: a 3D Frame (or any array) or an iterable of 2D Frames (or arrays)
+    width: integer
+       Optional, defaults to 500. The height is auto-scaled.
+
+    Returns
+    -------
+    an interactive image, contained in a IPython.display.HTML object
+    """
     from IPython.display import HTML
     return HTML(_scrollable_stack(sequence, width=width))
 
 
 def _as_png(arr, width):
+    "Create a PNG image buffer from an array."
     from PIL import Image
     w = width  # for brevity
     h = arr.shape[0] * w // arr.shape[1]
