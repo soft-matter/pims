@@ -4,7 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from numpy import ndarray, asarray
-from pims.export import _scrollable_stack, _as_png
+from pims.display import _scrollable_stack, _as_png
 
 
 WIDTH = 500  # width of rich display, in pixels
