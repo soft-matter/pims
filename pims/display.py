@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import six
+import uuid
 import numpy as np
 import tempfile
 from io import BytesIO
@@ -197,7 +198,7 @@ $('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
                    'id="stack-{{stack_id}}-slice-{{i}}" />')
     WRAPPER = Template('<div id="image-stack-{{stack_id}}", style='
                        '"width: {{width}}; float: left; display: inline;">')
-    stack_id = str(id(sequence))  # TODO Be more specific.
+    stack_id = uuid.uuid4()  # random unique identifier
     js = SCROLL_STACK_JS.render(length=len(sequence), stack_id=stack_id)
     output = '<script>{0}</script>'.format(js)
     output += WRAPPER.render(width=width, stack_id=stack_id)
