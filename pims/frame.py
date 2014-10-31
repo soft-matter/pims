@@ -7,7 +7,7 @@ from numpy import ndarray, asarray
 from pims.display import _scrollable_stack, _as_png
 
 
-WIDTH = 500  # width of rich display, in pixels
+WIDTH = 512  # width of rich display, in pixels
 
 
 class Frame(ndarray):
@@ -50,16 +50,6 @@ class Frame(ndarray):
 
         for attr, val in own_state.items():
             setattr(self, attr, val)
-
-    def _repr_png_(self):
-        try:
-            from PIL import Image
-        except ImportError:
-            # IPython will show this exception as a warning unless
-            # _repr_png_() is explicitly called.
-            raise ImportError("Install PIL or Pillow to enable "
-                              "rich display of Frames.")
-        return _as_png(self, WIDTH)
 
     def _repr_html_(self):
         from jinja2 import Template
