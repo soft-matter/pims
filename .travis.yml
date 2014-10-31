@@ -8,7 +8,7 @@ install:
   - conda create -n testenv --yes pip python=$TRAVIS_PYTHON_VERSION
   - conda update conda --yes
   - source activate testenv
-  - conda install --yes numpy scipy nose pillow matplotlib scikit-image  # install required deps fast
+  - conda install --yes numpy scipy nose pillow matplotlib scikit-image jinja2  # install required deps fast
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
   - export LD_LIBRARY_PATH=/usr/local/lib LIBRARY=ffmpeg
   - wget https://raw.githubusercontent.com/mikeboers/PyAV/master/scripts/test-setup
