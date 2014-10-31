@@ -88,16 +88,24 @@ class FramesStream(with_metaclass(ABCMeta, object)):
                                  "passed to process_func.")
             shape = self.frame_shape
             ndim = len(shape)
+            # Look for dimensions that look like color channels.
+            rgb_like = shape.count(3) == 1
+            rgba_like = shape.count(4) == 1
             if ndim == 2:
                 # The image is already greyscale.
                 process_func = None
-            elif ndim == 3 and (shape.count(3) == 1):
+            elif ndim == 3 and (rgb_like or rgba_like):
                 reduced_shape = list(shape)
-                reduced_shape.remove(3)
+                if rgb_like:
+                    color_axis_size = 3
+                    calibration = [0.2125, 0.7154, 0.0721]
+                else:
+                    color_axis_size = 4
+                    calibration = [0.2125, 0.7154, 0.0721, 1]
+                reduced_shape.remove(color_axis_size)
                 self._im_sz = tuple(reduced_shape)
-                calibration = [0.2125, 0.7154, 0.0721]
                 def convert_to_grey(img):
-                    color_axis = img.shape.index(3)
+                    color_axis = img.shape.index(color_axis_size)
                     img = np.rollaxis(img, color_axis, 3)
                     grey = (img * calibration).sum(2)
                     return grey.astype(img.dtype)  # coerce to original dtype
