@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import base64
 import six
 
 from numpy import ndarray, asarray
@@ -59,7 +60,7 @@ class Frame(ndarray):
         if self.ndim == 2 or (self.ndim == 3 and has_color_channels):
             tag = Template('<img src="data:image/png;base64,{{data}}" '
                            'style="width: {{width}}" />')
-            return tag.render(data=_as_png(self, WIDTH).encode('base64'),
+            return tag.render(data=base64.b64encode(_as_png(self, WIDTH)),
                               width=WIDTH)
         # If Frame is 3D, display as a scrollable stack.
         elif self.ndim == 3 or (self.ndim == 4 and has_color_channels):

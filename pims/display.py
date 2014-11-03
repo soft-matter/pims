@@ -6,6 +6,7 @@ import uuid
 import numpy as np
 import tempfile
 from io import BytesIO
+import base64
 
 def export(sequence, filename, rate=30, bitrate=None,
            width=None, height=None, codec='mpeg4', format='yuv420p',
@@ -206,8 +207,8 @@ $('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
         sequence = _normalize(np.asarray(sequence))
     for i, s in enumerate(sequence):
         output += TAG.render(
-            data=_as_png(s, width, normalize=False).encode('base64'),
-                         stack_id=stack_id, i=i)
+            data=base64.b64encode(_as_png(s, width, normalize=False)),
+            stack_id=stack_id, i=i)
     output += "</div>"
     return output
 
