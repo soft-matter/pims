@@ -1,10 +1,14 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import base64
 import six
-from io import BytesIO
 
 from numpy import ndarray, asarray
+from pims.display import _scrollable_stack, _as_png
+
+
+WIDTH = 512  # width of rich display, in pixels
 
 
 class Frame(ndarray):
@@ -48,22 +52,23 @@ class Frame(ndarray):
         for attr, val in own_state.items():
             setattr(self, attr, val)
 
-    def _repr_png_(self):
-        try:
-            from PIL import Image
-        except ImportError:
-            # IPython will show this exception as a warning unless
-            # _repr_png_() is explicitly called.
-            raise ImportError("Install PIL or Pillow to enable "
-                              "rich display of Frames.")
-        w = 500
-        h = self.shape[0] * w // self.shape[1]
-        ptp = self.max() - self.min()
-        # Handle edge case of a flat image.
-        if ptp == 0:
-            ptp = 1
-        x = (self - self.min()) / ptp
-        img = Image.fromarray((x * 256).astype('uint8')).resize((w, h))
-        img_buffer = BytesIO()
-        img.save(img_buffer, format='png')
-        return img_buffer.getvalue()
+    def _repr_html_(self):
+        from jinja2 import Template
+        # If Frame is 2D, display as a plain image.
+        # We have to build the image tag ourselves; _repr_html_ expects HTML.
+        has_color_channels = (3 in self.shape) or (4 in self.shape)
+        if self.ndim == 2 or (self.ndim == 3 and has_color_channels):
+            tag = Template('<img src="data:image/png;base64,{{data}}" '
+                           'style="width: {{width}}" />')
+            return tag.render(data=base64.b64encode(_as_png(self, WIDTH)),
+                              width=WIDTH)
+        # If Frame is 3D, display as a scrollable stack.
+        elif self.ndim == 3 or (self.ndim == 4 and has_color_channels):
+            return _scrollable_stack(self, width=WIDTH)
+        else:
+            # This exception will be caught by IPython and displayed
+            # as a FormatterWarning.
+            raise ValueError("No rich representation is available for "
+                             "{0}-dimensional Frames".format(self.ndim))
+
+

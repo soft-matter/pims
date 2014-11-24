@@ -2,8 +2,11 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import six
+import uuid
 import numpy as np
 import tempfile
+from io import BytesIO
+import base64
 
 def export(sequence, filename, rate=30, bitrate=None,
            width=None, height=None, codec='mpeg4', format='yuv420p',
@@ -149,3 +152,103 @@ def repr_video(fname, mimetype):
 <source alt="test" src="data:video/{0};base64,{1}" type="video/webm">
 Use Google Chrome browser.</video>""".format(mimetype, video_encoded)
     return HTML(data=video_tag)
+
+
+def _scrollable_stack(sequence, width, normalize=True):
+    # See the public function, scrollable_stack, below.
+    # This does all the work, and it returns a string of HTML and JS code,
+    # as expected by Frame._repr_html_(). The public function wraps this
+    # in IPython.display.HTML for the user.
+    from IPython.display import Javascript, HTML, display_png
+    from jinja2 import Template
+
+    SCROLL_STACK_JS = Template("""
+require(['jquery'], function() {
+  if (!(window.PIMS)) {
+    var stack_cursors = {};
+    window.PIMS = {stack_cursors: {}};
+  }
+  $('#stack-{{stack_id}}-slice-0').css('display', 'block');
+  window.PIMS.stack_cursors['{{stack_id}}'] = 0;
+});
+
+require(['jquery'],
+$('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
+  var direction;
+  var cursor = window.PIMS.stack_cursors['{{stack_id}}'];
+  e.preventDefault();
+  if (e.type == 'mousewheel') {
+    direction = e.originalEvent.wheelDelta < 0;
+  }
+  else if (e.type == 'DOMMouseScroll') {
+    direction = e.originalEvent.detail < 0;
+  }
+  var delta = direction * 2 - 1;
+  if (cursor + delta < 0) {
+    return;
+  }
+  else if (cursor + delta > {{length}} - 1) {
+    return;
+  }
+  $('#stack-{{stack_id}}-slice-' + cursor).css('display', 'none');
+  $('#stack-{{stack_id}}-slice-' + (cursor + delta)).css('display', 'block');
+  window.PIMS.stack_cursors['{{stack_id}}'] = cursor + delta;
+}));""")
+    TAG = Template('<img src="data:image/png;base64,{{data}}" '
+                   'style="display: none;" '
+                   'id="stack-{{stack_id}}-slice-{{i}}" />')
+    WRAPPER = Template('<div id="image-stack-{{stack_id}}", style='
+                       '"width: {{width}}; float: left; display: inline;">')
+    stack_id = uuid.uuid4()  # random unique identifier
+    js = SCROLL_STACK_JS.render(length=len(sequence), stack_id=stack_id)
+    output = '<script>{0}</script>'.format(js)
+    output += WRAPPER.render(width=width, stack_id=stack_id)
+    if normalize:
+        sequence = _normalize(np.asarray(sequence))
+    for i, s in enumerate(sequence):
+        output += TAG.render(
+            data=base64.b64encode(_as_png(s, width, normalize=False)),
+            stack_id=stack_id, i=i)
+    output += "</div>"
+    return output
+
+
+def scrollable_stack(sequence, width=512, normalize=True):
+    """Display a sequence or 3D stack of frames as an interactive image
+    that responds to scrolling.
+
+    Parameters
+    ----------
+    sequence: a 3D Frame (or any array) or an iterable of 2D Frames (or arrays)
+    width: integer
+        Optional, defaults to 512. The height is auto-scaled.
+    normalize : Rescale the brightness to fill the gamut. All pixels in the
+        stack rescaled uniformly.
+
+    Returns
+    -------
+    an interactive image, contained in a IPython.display.HTML object
+    """
+    from IPython.display import HTML
+    return HTML(_scrollable_stack(sequence, width=width, normalize=normalize))
+
+
+def _as_png(arr, width, normalize=True):
+    "Create a PNG image buffer from an array."
+    from PIL import Image
+    w = width  # for brevity
+    h = arr.shape[0] * w // arr.shape[1]
+    if normalize:
+        arr = _normalize(arr)
+    img = Image.fromarray((arr * 255).astype('uint8')).resize((w, h))
+    img_buffer = BytesIO()
+    img.save(img_buffer, format='png')
+    return img_buffer.getvalue()
+
+def _normalize(arr):
+    ptp = arr.max() - arr.min()
+    # Handle edge case of a flat image.
+    if ptp == 0:
+        ptp = 1
+    scaled_arr = (arr - arr.min()) / ptp
+    return scaled_arr
