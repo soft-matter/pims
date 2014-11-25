@@ -46,12 +46,12 @@ except ImportError:
 try:
     import pims.bioformats
     if pims.bioformats.available():
-        Bioformats = pims.bioformats.BioformatsReader
+        Bioformats2D = pims.bioformats.BioformatsReader2D
         Bioformats3D = pims.bioformats.BioformatsReader3D
     else:
         raise ImportError()
 except (ImportError, IOError):
-    Bioformats = not_available("Bioformats")
+    Bioformats2D = not_available("Bioformats")
     Bioformats3D = not_available("Bioformats")
     
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
