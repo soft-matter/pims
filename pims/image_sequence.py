@@ -8,6 +8,7 @@ import glob
 from warnings import warn
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
+import re
 import numpy as np
 
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
@@ -154,46 +155,50 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   pathname=source,
                                   dtype=self.pixel_type)
  
-def tzcfromfilename(filename):
-    def toint(s):
-        result = str(s)
-        while result[0] == "0":
-            result = result[1:]
-        return int(result)
-    filename_rev = filename[::-1]
-    extension = filename_rev.find('.')
-    filename_rev = filename_rev[extension + 1:]
-    dimensions = np.array(['t', 'z', 'c'])
-    positions = np.array([len(filename_rev) - filename_rev.find(s) for s in dimensions])
-    order = positions.argsort()
-    dimensions = dimensions[order]
-    positions = positions[order]
-    d0 = toint(filename[positions[0]:positions[1] - 1])
-    try:
-        d0 = toint(filename[positions[0]:positions[1] - 1])
-    except:
-        d0 = 0
-    try:
-        d1 = toint(filename[positions[1]:positions[2] - 1])
-    except:
-        d1 = 0
-    try:
-        d2 = toint(filename[positions[2]:len(filename) - extension - 1])
-    except:
-        d2 = 0
-    result = {dimensions[0]: d0, dimensions[1]: d1, dimensions[2]: d2}
-    return (result['t'], result['z'], result['c'])
+def tzcfromfilename(filename, tzcidentifiers=['t','z','c']):
+    """ Find ocurrences of z/t/c + number (e.g. t001, z06, c2)
+    in a filename and returns a list of [t, z, c] coordinates
+
+    Parameters
+    ----------
+    filename : string
+        filename to be searched for t, z, c indices
+    tzcidentifiers : list of string, optional
+        3 strings preceding t, z, c indices, in that order
+        
+    Returns
+    ---------
+    list of int
+        t, z, c indices. Elements default to 0 when index was not found.
+    
+    
+    """
+    tzc = [re.escape(a) for a in tzcidentifiers]
+    dimensions = re.findall(r'({0}|{1}|{2})(\d+)'.format(*tzc), 
+                         filename)
+    if len(dimensions) > 3:
+        dimensions = dimensions[-3:]
+    order = [a[0] for a in dimensions]
+    result = [0, 0, 0]
+    for (i, col) in enumerate(tzcidentifiers):
+        try:
+            result[i] = int(dimensions[order.index(col)][1])
+        except ValueError:
+            result[i] = 0    
+    return result
                                 
                                 
 class ImageSequence3D(ImageSequence):
+    """Read a directory of (t, z, c) numbered image files into an
+    iterable that returns images as numpy arrays, indexed by t.
+    """
     def _get_files(self, path_spec):
         super(ImageSequence3D, self)._get_files(path_spec) 
         self._toc = np.array([tzcfromfilename(f) for f in self._filepaths])
         for n in range(3):
-            if min(self._toc[:,n]) == 1:
-                self._toc[:,n] = self._toc[:,n] - 1            
+            self._toc[:,n] = self._toc[:,n] - min(self._toc[:,n])           
         self._filepaths = np.array(self._filepaths)
-        self._count = max(self._toc[:,0])
+        self._count = max(self._toc[:,0]) + 1
         self._sizeZ = max(self._toc[:,1]) + 1
         self._sizeC = max(self._toc[:,2]) + 1
         self._pixelX = None
@@ -205,17 +210,15 @@ class ImageSequence3D(ImageSequence):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
             
-        res = np.empty((len(self._channel), self._sizeZ, 
-                        self._first_frame_shape[0], self._first_frame_shape[1]))        
+        res = np.zeros((len(self._channel), self._sizeZ, 
+                        self._first_frame_shape[0], self._first_frame_shape[1]),
+                        dtype=self._dtype)        
 
         for (Nc, c) in enumerate(self._channel):
             selector = np.logical_and(self._toc[:,0] == j, self._toc[:,2] == c)
             filelist = self._filepaths[selector]
             for (z, loc) in enumerate(filelist):
                 res[Nc, z] = imread(loc, **self.kwargs)
-         
-        if res.dtype != self._dtype:
-            res = res.astype(self._dtype)
         
         return Frame(self.process_func(res.squeeze()), frame_no=j)
     
@@ -238,13 +241,14 @@ class ImageSequence3D(ImageSequence):
         return self._channel
     @channel.setter
     def channel(self, value):
-        if not hasattr(value, '__iter__'):
-            value = [value]
-        if np.any(np.greater_equal(value, self._sizeC)) or np.any(np.less(value, 0)):
+        try:
+            channel = tuple(value)
+        except TypeError:
+            channel = tuple((value,))
+        if np.any(np.greater_equal(channel, self._sizeC)) or np.any(np.less(channel, 0)):
             raise IndexError('Channel index out of bounds.')
-        self._channel = value
+        self._channel = channel
             
-                
     def __repr__(self):
         # May be overwritten by subclasses
         try:
