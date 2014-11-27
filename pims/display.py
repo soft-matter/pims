@@ -315,21 +315,25 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
     B *= 255
     return (np.uint8(R), np.uint8(G), np.uint8(B))
     
-def to_rgb(image, wavelengths = None):    
-    """This converts a multichannel image to an RGB image, with given channel
-    wavelengths in nm.
+def to_rgb(image, wavelengths = None, normalize = True):    
+    """This converts a greyscale or multichannel image to an RGB image, with 
+    given channel wavelength(s) in nm.
 
     Parameters
     ----------
     image : ndarray
-        multichannel image
-    wavelengths : list of int or float
-        wavelengths in the range from 380 nm through 750 nm
+        Multichannel image (channel dimension is first dimension). When first
+        dimension is longer than 4, the file is interpreted as a greyscale.
+    wavelengths : int or float or list of int or list of float, optional
+        Wavelength(s) in the range from 380 nm through 750 nm
+    normalize : bool, optional
+        Multichannel images will be downsampled to 8-bit RGB, if normalize is
+        True. Greyscale images will always give 8-bit RGB.
     
     Returns
     -------
-    ndarray
-        RGB image
+    ndarray of int
+        RGB image, with inner dimension of length 3
     """
     # identify number of channels and resulting shape
     is_multichannel = image.ndim > 2 and image.shape[0] < 5
@@ -341,7 +345,8 @@ def to_rgb(image, wavelengths = None):
         shape_rgb = image.shape + (3,)
     # identify rgb values of channels, if not given as parameter
     if wavelengths == None:
-        rgbs = [(255,0,0), (0,255,0), (0,0,255), (255,0,255)][:channels]
+        # pick from standard colors Green, Magenta, Blue, Red
+        rgbs = [(0,255,0), (255,0,255), (0,0,255), (255,0,0)][:channels]
     else:
         try:
             rgbs = [wavelength_to_rgb(nm) for nm in wavelengths[:channels]]
@@ -354,16 +359,17 @@ def to_rgb(image, wavelengths = None):
         image_rgb = _normalize(image) # float between 0 and 1
         image_rgb = np.repeat(np.expand_dims(image_rgb,-1),3,-1)
         image_rgb = np.multiply(image_rgb, rgb)
-        return image_rgb.astype('uint16')
+        return image_rgb.astype('uint8')
 
     if is_multichannel: 
         result = np.zeros(shape_rgb, dtype=np.uint16)
         for i in range(channels):
-            result += _monochannel_to_rgb(image[i], wavelengths[i])
+            result += _monochannel_to_rgb(image[i], rgbs[i])
     else:
-        result = _monochannel_to_rgb(image, wavelengths[i])
-        
-    norm = result.max()
-    result = (result / norm).astype('uint8')
+        result = _monochannel_to_rgb(image, rgbs[i])
+    
+    if is_multichannel and normalize:    
+        norm = result.max()
+        result = (result / norm * 255).astype('uint8')
     
     return result

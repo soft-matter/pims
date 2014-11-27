@@ -74,13 +74,13 @@ class Frame(ndarray):
 
     def _repr_html_(self):
         from jinja2 import Template
-        # Identify wether image is multichannel and convert to rgb if necessary
+        # Identify whether image is multichannel and convert to rgb if necessary
         if self.ndim > 2 and self.shape[0] < 5:
             if hasattr(self, 'wavelengths'):
                 wavelengths = self.wavelengths
             else:
                 wavelengths = None
-            image = to_rgb(self, wavelengths)
+            image = to_rgb(self, wavelengths, False)
             has_color_channels = True
         else:
             image = self
