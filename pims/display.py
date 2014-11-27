@@ -258,3 +258,112 @@ def _estimate_bitrate(shape, frame_rate):
     "Return a bitrate that will guarantee lossless video."
     # Total Pixels x 8 bits x 3 channels x FPS
     return shape[0] * shape[1] * 8 * 3 * frame_rate
+
+def wavelength_to_rgb(wavelength, gamma=0.8):
+    """This converts a given wavelength of light to an approximate RGB color.
+
+    Parameters
+    ----------
+    wavelength : int or float
+        the wavelength must be given in nanometers in the range from 380 nm 
+        through 750 nm
+    gamma : float
+    
+    Returns
+    -------
+    tuple of int
+        RGB value
+
+    References
+    ----------
+    Based on code by Dan Bruton
+    http://www.physics.sfasu.edu/astro/color/spectra.html
+    """
+    wavelength = float(wavelength)
+    if wavelength >= 380 and wavelength <= 440:
+        attenuation = 0.3 + 0.7 * (wavelength - 380) / (440 - 380)
+        R = ((-(wavelength - 440) / (440 - 380)) * attenuation) ** gamma
+        G = 0.0
+        B = (1.0 * attenuation) ** gamma
+    elif wavelength >= 440 and wavelength <= 490:
+        R = 0.0
+        G = ((wavelength - 440) / (490 - 440)) ** gamma
+        B = 1.0
+    elif wavelength >= 490 and wavelength <= 510:
+        R = 0.0
+        G = 1.0
+        B = (-(wavelength - 510) / (510 - 490)) ** gamma
+    elif wavelength >= 510 and wavelength <= 580:
+        R = ((wavelength - 510) / (580 - 510)) ** gamma
+        G = 1.0
+        B = 0.0
+    elif wavelength >= 580 and wavelength <= 645:
+        R = 1.0
+        G = (-(wavelength - 645) / (645 - 580)) ** gamma
+        B = 0.0
+    elif wavelength >= 645 and wavelength <= 750:
+        attenuation = 0.3 + 0.7 * (750 - wavelength) / (750 - 645)
+        R = (1.0 * attenuation) ** gamma
+        G = 0.0
+        B = 0.0
+    else:
+        R = 0.0
+        G = 0.0
+        B = 0.0
+    R *= 255
+    G *= 255
+    B *= 255
+    return (np.uint8(R), np.uint8(G), np.uint8(B))
+    
+def to_rgb(image, wavelengths = None):    
+    """This converts a multichannel image to an RGB image, with given channel
+    wavelengths in nm.
+
+    Parameters
+    ----------
+    image : ndarray
+        multichannel image
+    wavelengths : list of int or float
+        wavelengths in the range from 380 nm through 750 nm
+    
+    Returns
+    -------
+    ndarray
+        RGB image
+    """
+    # identify number of channels and resulting shape
+    is_multichannel = image.ndim > 2 and image.shape[0] < 5
+    if is_multichannel:
+        channels = image.shape[0]
+        shape_rgb = image.shape[1:] + (3,)
+    else:
+        channels = 1
+        shape_rgb = image.shape + (3,)
+    # identify rgb values of channels, if not given as parameter
+    if wavelengths == None:
+        rgbs = [(255,0,0), (0,255,0), (0,0,255), (255,0,255)][:channels]
+    else:
+        try:
+            rgbs = [wavelength_to_rgb(nm) for nm in wavelengths[:channels]]
+        except TypeError or IndexError:
+            rgbs = [wavelength_to_rgb(wavelengths)]
+    if channels != len(rgbs):
+        raise IndexError('Not enough wavelength values to build rgb image')
+
+    def _monochannel_to_rgb(image, rgb):        
+        image_rgb = _normalize(image) # float between 0 and 1
+        image_rgb = np.repeat(np.expand_dims(image_rgb,-1),3,-1)
+        image_rgb = np.multiply(image_rgb, rgb)
+        return image_rgb.astype('uint16')
+
+    if is_multichannel: 
+        result = np.zeros(shape_rgb, dtype=np.uint16)
+        for i in range(channels):
+            result += _monochannel_to_rgb(image[i], wavelengths[i])
+    else:
+        result = _monochannel_to_rgb(image, wavelengths[i])
+        
+    norm = result.max()
+    result = (result / norm).astype('uint8')
+    
+    return result
