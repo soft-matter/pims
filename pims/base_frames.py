@@ -101,7 +101,7 @@ class FramesStream(with_metaclass(ABCMeta, object)):
                     calibration = [0.2125, 0.7154, 0.0721]
                 else:
                     color_axis_size = 4
-                    calibration = [0.2125, 0.7154, 0.0721, 1]
+                    calibration = [0.2125, 0.7154, 0.0721, 0]
                 reduced_shape.remove(color_axis_size)
                 self._im_sz = tuple(reduced_shape)
                 def convert_to_grey(img):
