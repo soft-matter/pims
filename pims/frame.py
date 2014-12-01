@@ -76,11 +76,11 @@ class Frame(ndarray):
         from jinja2 import Template
         # Identify whether image is multichannel and convert to rgb if necessary
         if self.ndim > 2 and self.shape[0] < 5:
-            if hasattr(self, 'wavelengths'):
-                wavelengths = self.wavelengths
-            else:
-                wavelengths = None
-            image = to_rgb(self, wavelengths, False)
+            try:
+                colors = self.metadata['colors']
+            except KeyError or AttributeError:
+                colors = None
+            image = to_rgb(self, colors, False)
             has_color_channels = True
         else:
             image = self

@@ -288,18 +288,24 @@ def to_rgb(image, colors = None, normalize = True):
     else:
         channels = 1
         shape_rgb = image.shape + (3,)
-    if colors == None:
-        # pick from colors with highest luminance Yellow, Cyan, Magenta, Green
-        if channels > 4:
+    if colors == None:        
+        # pick colors with high RGB luminance
+        if channels == 1:
+            colors = ['g']
+        elif channels == 2:
+            colors = ['g', 'm']
+        elif channels == 3: 
+            colors = ['c', 'g', 'm']
+        elif channels == 4: 
+            colors = ['c', 'g', 'm', 'r']
+        else:
             raise IndexError('Not enough color values to build rgb image')
-        rgbs = [(255,255,0),(0,255,255),(255,0,255),(0,255,0)][:channels]
-    else:
-        # identify rgb values of channels using matplotlib ColorConverter
-        if channels > len(colors):
-            raise IndexError('Not enough color values to build rgb image')
-        from matplotlib.colors import ColorConverter
-        rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
-        rgbs = rgbs[:channels,:3]
+    # identify rgb values of channels using matplotlib ColorConverter
+    if channels > len(colors):
+        raise IndexError('Not enough color values to build rgb image')
+    from matplotlib.colors import ColorConverter
+    rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
+    rgbs = rgbs[:channels,:3]
         
     def _monochannel_to_rgb(image, rgb):        
         image_rgb = _normalize(image) # float between 0 and 1
