@@ -155,7 +155,7 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   pathname=source,
                                   dtype=self.pixel_type)
  
-def tzcfromfilename(filename, tzcidentifiers=['t','z','c']):
+def filename_to_tzc(filename, identifiers=['t','z','c']):
     """ Find ocurrences of z/t/c + number (e.g. t001, z06, c2)
     in a filename and returns a list of [t, z, c] coordinates
 
@@ -163,7 +163,7 @@ def tzcfromfilename(filename, tzcidentifiers=['t','z','c']):
     ----------
     filename : string
         filename to be searched for t, z, c indices
-    tzcidentifiers : list of string, optional
+    identifiers : list of string, optional
         3 strings preceding t, z, c indices, in that order
         
     Returns
@@ -173,14 +173,14 @@ def tzcfromfilename(filename, tzcidentifiers=['t','z','c']):
     
     
     """
-    tzc = [re.escape(a) for a in tzcidentifiers]
+    tzc = [re.escape(a) for a in identifiers]
     dimensions = re.findall(r'({0}|{1}|{2})(\d+)'.format(*tzc), 
                          filename)
     if len(dimensions) > 3:
         dimensions = dimensions[-3:]
     order = [a[0] for a in dimensions]
     result = [0, 0, 0]
-    for (i, col) in enumerate(tzcidentifiers):
+    for (i, col) in enumerate(identifiers):
         try:
             result[i] = int(dimensions[order.index(col)][1])
         except ValueError:
@@ -194,7 +194,7 @@ class ImageSequence3D(ImageSequence):
     """
     def _get_files(self, path_spec):
         super(ImageSequence3D, self)._get_files(path_spec) 
-        self._toc = np.array([tzcfromfilename(f) for f in self._filepaths])
+        self._toc = np.array([filename_to_tzc(f) for f in self._filepaths])
         for n in range(3):
             self._toc[:,n] = self._toc[:,n] - min(self._toc[:,n])           
         self._filepaths = np.array(self._filepaths)
