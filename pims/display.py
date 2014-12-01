@@ -260,6 +260,28 @@ def _estimate_bitrate(shape, frame_rate):
     return shape[0] * shape[1] * 8 * 3 * frame_rate
 
 
+def _monochannel_to_rgb(image, rgb):  
+    """This converts a greyscale image to an RGB image, using given rgb value.
+    
+    Parameters
+    ----------
+    image : ndarray
+        image; there should be no channel axis
+    rgb : tuple of uint8
+        output color in (r, g, b) format
+
+    Returns
+    -------
+    ndarray of uint8
+        rgb image, with extra inner dimension of length 3
+        
+    """
+    image_rgb = _normalize(image) # float between 0 and 1
+    image_rgb = np.repeat(np.expand_dims(image_rgb,-1),3,-1)
+    image_rgb = np.multiply(image_rgb, rgb)
+    return image_rgb.astype('uint8')
+   
+
 def to_rgb(image, colors = None, normalize = True):    
     """This converts a greyscale or multichannel image to an RGB image, with 
     given channel colors .
@@ -306,12 +328,6 @@ def to_rgb(image, colors = None, normalize = True):
     from matplotlib.colors import ColorConverter
     rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
     rgbs = rgbs[:channels,:3]
-        
-    def _monochannel_to_rgb(image, rgb):        
-        image_rgb = _normalize(image) # float between 0 and 1
-        image_rgb = np.repeat(np.expand_dims(image_rgb,-1),3,-1)
-        image_rgb = np.multiply(image_rgb, rgb)
-        return image_rgb.astype('uint8')
 
     if is_multichannel: 
         result = np.zeros(shape_rgb, dtype=np.uint16)
