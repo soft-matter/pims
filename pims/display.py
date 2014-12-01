@@ -259,73 +259,18 @@ def _estimate_bitrate(shape, frame_rate):
     # Total Pixels x 8 bits x 3 channels x FPS
     return shape[0] * shape[1] * 8 * 3 * frame_rate
 
-def wavelength_to_rgb(wavelength, gamma=0.8):
-    """This converts a given wavelength of light to an approximate RGB color.
 
-    Parameters
-    ----------
-    wavelength : int or float
-        the wavelength must be given in nanometers in the range from 380 nm 
-        through 750 nm
-    gamma : float
-    
-    Returns
-    -------
-    tuple of int
-        RGB value
-
-    References
-    ----------
-    Based on code by Dan Bruton
-    http://www.physics.sfasu.edu/astro/color/spectra.html
-    """
-    wavelength = float(wavelength)
-    if wavelength >= 380 and wavelength <= 440:
-        attenuation = 0.3 + 0.7 * (wavelength - 380) / (440 - 380)
-        R = ((-(wavelength - 440) / (440 - 380)) * attenuation) ** gamma
-        G = 0.0
-        B = (1.0 * attenuation) ** gamma
-    elif wavelength >= 440 and wavelength <= 490:
-        R = 0.0
-        G = ((wavelength - 440) / (490 - 440)) ** gamma
-        B = 1.0
-    elif wavelength >= 490 and wavelength <= 510:
-        R = 0.0
-        G = 1.0
-        B = (-(wavelength - 510) / (510 - 490)) ** gamma
-    elif wavelength >= 510 and wavelength <= 580:
-        R = ((wavelength - 510) / (580 - 510)) ** gamma
-        G = 1.0
-        B = 0.0
-    elif wavelength >= 580 and wavelength <= 645:
-        R = 1.0
-        G = (-(wavelength - 645) / (645 - 580)) ** gamma
-        B = 0.0
-    elif wavelength >= 645 and wavelength <= 750:
-        attenuation = 0.3 + 0.7 * (750 - wavelength) / (750 - 645)
-        R = (1.0 * attenuation) ** gamma
-        G = 0.0
-        B = 0.0
-    else:
-        R = 0.0
-        G = 0.0
-        B = 0.0
-    R *= 255
-    G *= 255
-    B *= 255
-    return (np.uint8(R), np.uint8(G), np.uint8(B))
-    
-def to_rgb(image, wavelengths = None, normalize = True):    
+def to_rgb(image, colors = None, normalize = True):    
     """This converts a greyscale or multichannel image to an RGB image, with 
-    given channel wavelength(s) in nm.
+    given channel colors .
 
     Parameters
     ----------
     image : ndarray
         Multichannel image (channel dimension is first dimension). When first
         dimension is longer than 4, the file is interpreted as a greyscale.
-    wavelengths : int or float or list of int or list of float, optional
-        Wavelength(s) in the range from 380 nm through 750 nm
+    colors : list of matplotlib.colors
+        List of either single letters, or rgb(a) as lists of floats
     normalize : bool, optional
         Multichannel images will be downsampled to 8-bit RGB, if normalize is
         True. Greyscale images will always give 8-bit RGB.
@@ -343,18 +288,19 @@ def to_rgb(image, wavelengths = None, normalize = True):
     else:
         channels = 1
         shape_rgb = image.shape + (3,)
-    # identify rgb values of channels, if not given as parameter
-    if wavelengths == None:
-        # pick from standard colors Green, Magenta, Blue, Red
-        rgbs = [(0,255,0), (255,0,255), (0,0,255), (255,0,0)][:channels]
+    if colors == None:
+        # pick from colors with highest luminance Yellow, Cyan, Magenta, Green
+        if channels > 4:
+            raise IndexError('Not enough color values to build rgb image')
+        rgbs = [(255,255,0),(0,255,255),(255,0,255),(0,255,0)][:channels]
     else:
-        try:
-            rgbs = [wavelength_to_rgb(nm) for nm in wavelengths[:channels]]
-        except TypeError or IndexError:
-            rgbs = [wavelength_to_rgb(wavelengths)]
-    if channels != len(rgbs):
-        raise IndexError('Not enough wavelength values to build rgb image')
-
+        # identify rgb values of channels using matplotlib ColorConverter
+        if channels > len(colors):
+            raise IndexError('Not enough color values to build rgb image')
+        from matplotlib.colors import ColorConverter
+        rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
+        rgbs = rgbs[:channels,:3]
+        
     def _monochannel_to_rgb(image, rgb):        
         image_rgb = _normalize(image) # float between 0 and 1
         image_rgb = np.repeat(np.expand_dims(image_rgb,-1),3,-1)
