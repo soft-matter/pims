@@ -49,16 +49,15 @@ def export(sequence, filename, rate=30, bitrate=None,
         raise("This feature requires PyAV with FFmpeg or libav installed.")
     output = av.open(filename, 'w')
     stream = output.add_stream(bytes(codec), rate)
-    if bitrate is None:
-        # Estimate a workabout bitrate.
-        bitrate = int(128000 * rate / 30)
-    stream.bit_rate = int(bitrate)
     stream.pix_fmt = bytes(format)
 
     ndim = None
     for frame_no, img in enumerate(sequence):
         if not frame_no:
             # Inspect first frame to set up stream.
+            if bitrate is None:
+                bitrate = _estimate_bitrate(img.shape, rate)
+                stream.bit_rate = int(bitrate)
             if width is None:
                 stream.height = img.shape[0]
                 stream.width = img.shape[1]
@@ -245,6 +244,7 @@ def _as_png(arr, width, normalize=True):
     img.save(img_buffer, format='png')
     return img_buffer.getvalue()
 
+
 def _normalize(arr):
     ptp = arr.max() - arr.min()
     # Handle edge case of a flat image.
@@ -252,3 +252,9 @@ def _normalize(arr):
         ptp = 1
     scaled_arr = (arr - arr.min()) / ptp
     return scaled_arr
+
+
+def _estimate_bitrate(shape, frame_rate):
+    "Return a bitrate that will guarantee lossless video."
+    # Total Pixels x 8 bits x 3 channels x FPS
+    return shape[0] * shape[1] * 8 * 3 * frame_rate
