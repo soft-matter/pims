@@ -154,8 +154,9 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   count=len(self),
                                   pathname=source,
                                   dtype=self.pixel_type)
- 
-def filename_to_tzc(filename, identifiers=['t','z','c']):
+
+
+def filename_to_tzc(filename, identifiers=None):
     """ Find ocurrences of z/t/c + number (e.g. t001, z06, c2)
     in a filename and returns a list of [t, z, c] coordinates
 
@@ -173,7 +174,10 @@ def filename_to_tzc(filename, identifiers=['t','z','c']):
     
     
     """
-    tzc = [re.escape(a) for a in identifiers]
+    if identifiers is None:
+        identifiers = tzc = ['t','z','c']
+    else:
+        tzc = [re.escape(a) for a in identifiers]
     dimensions = re.findall(r'({0}|{1}|{2})(\d+)'.format(*tzc), 
                          filename)
     if len(dimensions) > 3:
@@ -239,6 +243,7 @@ class ImageSequence3D(ImageSequence):
     @property
     def channel(self):
         return self._channel
+        
     @channel.setter
     def channel(self, value):
         try:
