@@ -7,6 +7,10 @@ import numpy as np
 import tempfile
 from io import BytesIO
 import base64
+try:
+    from matplotlib.colors import ColorConverter
+except ImportError:
+    ColorConverter = None
 
 def export(sequence, filename, rate=30, bitrate=None,
            width=None, height=None, codec='mpeg4', format='yuv420p',
@@ -276,9 +280,8 @@ def _monochannel_to_rgb(image, rgb):
         rgb image, with extra inner dimension of length 3
         
     """
-    image_rgb = _normalize(image) # float between 0 and 1
-    image_rgb = np.repeat(np.expand_dims(image_rgb,-1),3,-1)
-    image_rgb = np.multiply(image_rgb, rgb)
+    image_rgb = _normalize(image).reshape(*(image.shape + (1,)))
+    image_rgb = image_rgb * np.asarray(rgb).reshape(*((1,)*image.ndim + (3,)))
     return image_rgb.astype('uint8')
    
 
@@ -292,7 +295,9 @@ def to_rgb(image, colors = None, normalize = True):
         Multichannel image (channel dimension is first dimension). When first
         dimension is longer than 4, the file is interpreted as a greyscale.
     colors : list of matplotlib.colors
-        List of either single letters, or rgb(a) as lists of floats
+        List of either single letters, or rgb(a) as lists of floats. The sum
+        of these lists should equal (1.0, 1.0, 1.0), when clipping needs to
+        be avoided.
     normalize : bool, optional
         Multichannel images will be downsampled to 8-bit RGB, if normalize is
         True. Greyscale images will always give 8-bit RGB.
@@ -300,7 +305,8 @@ def to_rgb(image, colors = None, normalize = True):
     Returns
     -------
     ndarray of int
-        RGB image, with inner dimension of length 3
+        RGB image, with inner dimension of length 3. The RGB image is clipped
+        so that values lay between 0 and 255.        
     """
     # identify number of channels and resulting shape
     is_multichannel = image.ndim > 2 and image.shape[0] < 5
@@ -312,22 +318,24 @@ def to_rgb(image, colors = None, normalize = True):
         shape_rgb = image.shape + (3,)
     if colors == None:        
         # pick colors with high RGB luminance
-        if channels == 1:
-            colors = ['g']
-        elif channels == 2:
-            colors = ['g', 'm']
-        elif channels == 3: 
-            colors = ['c', 'g', 'm']
-        elif channels == 4: 
-            colors = ['c', 'g', 'm', 'r']
+        if channels == 1:    #white
+            rgbs = [[255, 255, 255]] 
+        elif channels == 2:  #green, magenta
+            rgbs = [[0, 255, 0], [255, 0, 255]] 
+        elif channels == 3:  #cyan, green, magenta
+            rgbs = [[0, 255, 255], [0, 255, 0], [255, 0, 255]] 
+        elif channels == 4:  #cyan, green, magenta, red
+            rgbs = [[0, 255, 255], [0, 255, 0], [255, 0, 255], [255, 0, 0]] 
         else:
             raise IndexError('Not enough color values to build rgb image')
-    # identify rgb values of channels using matplotlib ColorConverter
-    if channels > len(colors):
-        raise IndexError('Not enough color values to build rgb image')
-    from matplotlib.colors import ColorConverter
-    rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
-    rgbs = rgbs[:channels,:3]
+    else:        
+        # identify rgb values of channels using matplotlib ColorConverter
+        if ColorConverter is None:
+            raise ImportError('Matplotlib is required for multichannel display')
+        if channels > len(colors):
+            raise IndexError('Not enough color values to build rgb image')
+        rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
+        rgbs = rgbs[:channels,:3]
 
     if is_multichannel: 
         result = np.zeros(shape_rgb, dtype=np.uint16)
@@ -336,8 +344,9 @@ def to_rgb(image, colors = None, normalize = True):
     else:
         result = _monochannel_to_rgb(image, rgbs[i])
     
-    if is_multichannel and normalize:    
-        norm = result.max()
-        result = (result / norm * 255).astype('uint8')
+    result = result.clip(0,255)    
+    
+    if normalize:    
+        result = (_normalize(result) * 255).astype('uint8')
     
     return result
