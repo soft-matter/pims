@@ -90,7 +90,7 @@ class Frame(ndarray):
         if image.ndim == 2 or (image.ndim == 3 and has_color_channels):
             tag = Template('<img src="data:image/png;base64,{{data}}" '
                            'style="width: {{width}}" />')
-            return tag.render(data=base64.b64encode(_as_png(self, WIDTH)),
+            return tag.render(data=base64.b64encode(_as_png(image, WIDTH)),
                               width=WIDTH)
         # If Frame is 3D, display as a scrollable stack.
         elif image.ndim == 3 or (image.ndim == 4 and has_color_channels):

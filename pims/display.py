@@ -276,13 +276,13 @@ def _monochannel_to_rgb(image, rgb):
 
     Returns
     -------
-    ndarray of uint8
+    ndarray of float
         rgb image, with extra inner dimension of length 3
         
     """
     image_rgb = _normalize(image).reshape(*(image.shape + (1,)))
     image_rgb = image_rgb * np.asarray(rgb).reshape(*((1,)*image.ndim + (3,)))
-    return image_rgb.astype('uint8')
+    return image_rgb
    
 
 def to_rgb(image, colors = None, normalize = True):    
@@ -304,9 +304,10 @@ def to_rgb(image, colors = None, normalize = True):
     
     Returns
     -------
-    ndarray of int
+    ndarray
         RGB image, with inner dimension of length 3. The RGB image is clipped
-        so that values lay between 0 and 255.        
+        so that values lay between 0 and 255. When normalize = True (default),
+        datatype is np.uint8, else it is float.
     """
     # identify number of channels and resulting shape
     is_multichannel = image.ndim > 2 and image.shape[0] < 5
@@ -338,7 +339,7 @@ def to_rgb(image, colors = None, normalize = True):
         rgbs = rgbs[:channels,:3]
 
     if is_multichannel: 
-        result = np.zeros(shape_rgb, dtype=np.uint16)
+        result = np.zeros(shape_rgb)
         for i in range(channels):
             result += _monochannel_to_rgb(image[i], rgbs[i])
     else:
