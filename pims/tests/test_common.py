@@ -1,14 +1,15 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
 import six
 
+from itertools import product
 import os
 import unittest
 import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 import pims
+import pims.sprite
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -267,6 +268,20 @@ class TestTiffStack_tifffile(_base_klass):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (512, 512)
         self.expected_len = 5
+
+
+def test_sprite_roundtrip():
+    klass = pims.sprite.SpriteSheet
+    r, c = 10, 12
+
+    im_sz = 360, 480
+    sheet = np.zeros((r*im_sz[0], c*im_sz[1]))
+    for _r, _c in product(range(r), range(c)):
+        slc_r = slice(_r*im_sz[0], (_r+1)*im_sz[0])
+        slc_c = slice(_c*im_sz[1], (_c+1)*im_sz[1])
+        sheet[slc_r, slc_c] = _r * c + _c
+
+    sprites = klass(sheet, r, c)
 
 
 def test_open_pngs():
