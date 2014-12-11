@@ -16,11 +16,31 @@ class Frame(ndarray):
     # See http://docs.scipy.org/doc/numpy/user/basics.subclassing.html
 
     def __new__(cls, input_array, frame_no=None, metadata=None):
+        # get a view of the input data as a Frame object
         obj = asarray(input_array).view(cls)
+
+        # if no frame number is passed in, see if the input array has one
+        if frame_no is None and hasattr(input_array, 'frame_no'):
+            frame_no = getattr(input_array, 'frame_no')
+
         obj.frame_no = frame_no
+        # check if the input object _has_ a metadata attribute
+        if hasattr(input_array, 'metadata'):
+            # and get a local (shallow) copy
+            arr_metadata = dict(getattr(input_array, 'metadata'))
+        else:
+            # else, empty dict
+            arr_metadata = dict()
+
+        # validation on input
         if metadata is None:
             metadata = {}
-        obj.metadata = metadata
+
+        # override meta-data on input object with explicitly passed in metadata
+        arr_metadata.update(metadata)
+
+        # assign to the output
+        obj.metadata = arr_metadata
         return obj
 
     def __array_finalize__(self, obj):
@@ -70,5 +90,3 @@ class Frame(ndarray):
             # as a FormatterWarning.
             raise ValueError("No rich representation is available for "
                              "{0}-dimensional Frames".format(self.ndim))
-
-
