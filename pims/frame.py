@@ -5,7 +5,7 @@ import base64
 import six
 
 from numpy import ndarray, asarray
-from pims.display import _scrollable_stack, _as_png
+from pims.display import _scrollable_stack, _as_png, to_rgb
 
 
 WIDTH = 512  # width of rich display, in pixels
@@ -74,17 +74,27 @@ class Frame(ndarray):
 
     def _repr_html_(self):
         from jinja2 import Template
+        # Identify whether image is multichannel, convert to rgb if necessary
+        if self.ndim > 2 and self.shape[0] < 5:
+            try:
+                colors = self.metadata['colors']
+            except KeyError or AttributeError:
+                colors = None
+            image = to_rgb(self, colors, False)
+            has_color_channels = True
+        else:
+            image = self
+            has_color_channels = (3 in image.shape) or (4 in image.shape)
         # If Frame is 2D, display as a plain image.
         # We have to build the image tag ourselves; _repr_html_ expects HTML.
-        has_color_channels = (3 in self.shape) or (4 in self.shape)
-        if self.ndim == 2 or (self.ndim == 3 and has_color_channels):
+        if image.ndim == 2 or (image.ndim == 3 and has_color_channels):
             tag = Template('<img src="data:image/png;base64,{{data}}" '
                            'style="width: {{width}}" />')
-            return tag.render(data=base64.b64encode(_as_png(self, WIDTH)),
+            return tag.render(data=base64.b64encode(_as_png(image, WIDTH)),
                               width=WIDTH)
         # If Frame is 3D, display as a scrollable stack.
-        elif self.ndim == 3 or (self.ndim == 4 and has_color_channels):
-            return _scrollable_stack(self, width=WIDTH)
+        elif image.ndim == 3 or (image.ndim == 4 and has_color_channels):
+            return _scrollable_stack(image, width=WIDTH)
         else:
             # This exception will be caught by IPython and displayed
             # as a FormatterWarning.
