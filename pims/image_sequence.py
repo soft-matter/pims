@@ -20,7 +20,8 @@ except ImportError:
         from matplotlib.pyplot import imread
     except ImportError:
         from scipy.ndimage import imread
-    
+
+
 class ImageSequence(FramesSequence):
     """Read a directory of sequentially numbered image files into an
     iterable that returns images as numpy arrays.
@@ -118,7 +119,6 @@ class ImageSequence(FramesSequence):
         if self._count == 0:
             raise IOError("No files were found matching that path.")
 
-
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
@@ -166,20 +166,19 @@ def filename_to_tzc(filename, identifiers=None):
         filename to be searched for t, z, c indices
     identifiers : list of string, optional
         3 strings preceding t, z, c indices, in that order
-        
+
     Returns
     ---------
     list of int
         t, z, c indices. Elements default to 0 when index was not found.
-    
-    
+
     """
     if identifiers is None:
-        identifiers = tzc = ['t','z','c']
+        identifiers = tzc = ['t', 'z', 'c']
     else:
         tzc = [re.escape(a) for a in identifiers]
-    dimensions = re.findall(r'({0}|{1}|{2})(\d+)'.format(*tzc), 
-                         filename)
+    dimensions = re.findall(r'({0}|{1}|{2})(\d+)'.format(*tzc),
+                            filename)
     if len(dimensions) > 3:
         dimensions = dimensions[-3:]
     order = [a[0] for a in dimensions]
@@ -188,72 +187,64 @@ def filename_to_tzc(filename, identifiers=None):
         try:
             result[i] = int(dimensions[order.index(col)][1])
         except ValueError:
-            result[i] = 0    
+            result[i] = 0
     return result
-                                
-                                
+
+
 class ImageSequence3D(ImageSequence):
     """Read a directory of (t, z, c) numbered image files into an
     iterable that returns images as numpy arrays, indexed by t.
     """
     def _get_files(self, path_spec):
-        super(ImageSequence3D, self)._get_files(path_spec) 
+        super(ImageSequence3D, self)._get_files(path_spec)
         self._toc = np.array([filename_to_tzc(f) for f in self._filepaths])
         for n in range(3):
-            self._toc[:,n] = self._toc[:,n] - min(self._toc[:,n])           
+            self._toc[:, n] = self._toc[:, n] - min(self._toc[:, n])
         self._filepaths = np.array(self._filepaths)
-        self._count = max(self._toc[:,0]) + 1
-        self._sizeZ = max(self._toc[:,1]) + 1
-        self._sizeC = max(self._toc[:,2]) + 1
-        self._pixelX = None
-        self._pixelY = None
-        self._pixelZ = None
-        self._channel = list(range(0, self._sizeC))
-        
+        self._count = max(self._toc[:, 0]) + 1
+        self._sizeZ = max(self._toc[:, 1]) + 1
+        self._sizeC = max(self._toc[:, 2]) + 1
+        self._channel = list(range(self._sizeC))
+
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
-            
-        res = np.zeros((len(self._channel), self._sizeZ, 
-                        self._first_frame_shape[0], self._first_frame_shape[1]),
-                        dtype=self._dtype)        
-
+        res = np.zeros((len(self._channel), self._sizeZ,
+                        self._first_frame_shape[0],
+                        self._first_frame_shape[1]),
+                       dtype=self._dtype)
         for (Nc, c) in enumerate(self._channel):
-            selector = np.logical_and(self._toc[:,0] == j, self._toc[:,2] == c)
+            selector = np.logical_and(self._toc[:, 0] == j,
+                                      self._toc[:, 2] == c)
             filelist = self._filepaths[selector]
             for (z, loc) in enumerate(filelist):
                 res[Nc, z] = imread(loc, **self.kwargs)
-        
+
         return Frame(self.process_func(res.squeeze()), frame_no=j)
-    
-    @property   
+
+    @property
     def sizes(self):
-        return {'X': self._first_frame_shape[1], 
+        return {'X': self._first_frame_shape[1],
                 'Y': self._first_frame_shape[0],
                 'Z': self._sizeZ,
                 'T': self._count,
                 'C': self._sizeC}
-                
-    @property   
-    def pixelsizes(self):
-        return {'X': self._pixelX, 
-                'Y': self._pixelY,
-                'Z': self._pixelZ}
-                
+
     @property
     def channel(self):
         return self._channel
-        
+
     @channel.setter
     def channel(self, value):
         try:
             channel = tuple(value)
         except TypeError:
             channel = tuple((value,))
-        if np.any(np.greater_equal(channel, self._sizeC)) or np.any(np.less(channel, 0)):
+        if np.any(np.greater_equal(channel, self._sizeC)) or \
+           np.any(np.less(channel, 0)):
             raise IndexError('Channel index out of bounds.')
         self._channel = channel
-            
+
     def __repr__(self):
         # May be overwritten by subclasses
         try:
@@ -271,5 +262,5 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   count=len(self),
                                   pathname=source,
                                   dtype=self.pixel_type,
-                                  C = self._sizeC,
-                                  Z = self._sizeZ)
+                                  C=self._sizeC,
+                                  Z=self._sizeZ)
