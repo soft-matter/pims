@@ -12,6 +12,7 @@ try:
 except ImportError:
     ColorConverter = None
 
+
 def export(sequence, filename, rate=30, bitrate=None,
            width=None, height=None, codec='mpeg4', format='yuv420p',
            autoscale=True):
@@ -45,7 +46,7 @@ def export(sequence, filename, rate=30, bitrate=None,
         Linearly rescale the brightness to use the full gamut of black to
         white values. If the datatype of the images is not 'uint8', this must
         be set to True, as it is by default.
-        
+
     """
     try:
         import av
@@ -68,7 +69,7 @@ def export(sequence, filename, rate=30, bitrate=None,
             else:
                 stream.width = width
                 stream.height = (height or
-                                width * img.shape[0] // img.shape[1])
+                                 width * img.shape[0] // img.shape[1])
             ndim = img.ndim
 
         if ndim == 3:
@@ -127,14 +128,14 @@ def play(sequence, rate=30, bitrate=None,
         Linearly rescale the brightness to use the full gamut of black to
         white values. If the datatype of the images is not 'uint8', this must
         be set to True, as it is by default.
-        
+
     """
     try:
         from IPython.display import display
     except ImportError:
         raise ImportError("This feature requires IPython.")
     with tempfile.NamedTemporaryFile(suffix='.webm') as temp:
-        export(sequence, bytes(temp.name), codec='libvpx', rate=rate, 
+        export(sequence, bytes(temp.name), codec='libvpx', rate=rate,
                width=width, height=height, bitrate=bitrate, format='yuv420p',
                autoscale=True)
         temp.flush()
@@ -146,7 +147,7 @@ def repr_video(fname, mimetype):
     and display as HTML5 video.
     """
     try:
-       from IPython.display import HTML
+        from IPython.display import HTML
     except ImportError:
         raise ImportError("This feature requires IPython.")
     video_encoded = open(fname, "rb").read().encode("base64")
@@ -264,9 +265,9 @@ def _estimate_bitrate(shape, frame_rate):
     return shape[0] * shape[1] * 8 * 3 * frame_rate
 
 
-def _monochannel_to_rgb(image, rgb):  
+def _monochannel_to_rgb(image, rgb):
     """This converts a greyscale image to an RGB image, using given rgb value.
-    
+
     Parameters
     ----------
     image : ndarray
@@ -278,16 +279,16 @@ def _monochannel_to_rgb(image, rgb):
     -------
     ndarray of float
         rgb image, with extra inner dimension of length 3
-        
+
     """
     image_rgb = _normalize(image).reshape(*(image.shape + (1,)))
     image_rgb = image_rgb * np.asarray(rgb).reshape(*((1,)*image.ndim + (3,)))
     return image_rgb
-   
 
-def to_rgb(image, colors = None, normalize = True):    
-    """This converts a greyscale or multichannel image to an RGB image, with 
-    given channel colors .
+
+def to_rgb(image, colors=None, normalize=True):
+    """This converts a greyscale or multichannel image to an RGB image, with
+    given channel colors.
 
     Parameters
     ----------
@@ -301,7 +302,7 @@ def to_rgb(image, colors = None, normalize = True):
     normalize : bool, optional
         Multichannel images will be downsampled to 8-bit RGB, if normalize is
         True. Greyscale images will always give 8-bit RGB.
-    
+
     Returns
     -------
     ndarray
@@ -317,37 +318,37 @@ def to_rgb(image, colors = None, normalize = True):
     else:
         channels = 1
         shape_rgb = image.shape + (3,)
-    if colors == None:        
+    if colors is None:
         # pick colors with high RGB luminance
-        if channels == 1:    #white
-            rgbs = [[255, 255, 255]] 
-        elif channels == 2:  #green, magenta
-            rgbs = [[0, 255, 0], [255, 0, 255]] 
-        elif channels == 3:  #cyan, green, magenta
-            rgbs = [[0, 255, 255], [0, 255, 0], [255, 0, 255]] 
-        elif channels == 4:  #cyan, green, magenta, red
-            rgbs = [[0, 255, 255], [0, 255, 0], [255, 0, 255], [255, 0, 0]] 
+        if channels == 1:    # white
+            rgbs = [[255, 255, 255]]
+        elif channels == 2:  # green, magenta
+            rgbs = [[0, 255, 0], [255, 0, 255]]
+        elif channels == 3:  # cyan, green, magenta
+            rgbs = [[0, 255, 255], [0, 255, 0], [255, 0, 255]]
+        elif channels == 4:  # cyan, green, magenta, red
+            rgbs = [[0, 255, 255], [0, 255, 0], [255, 0, 255], [255, 0, 0]]
         else:
             raise IndexError('Not enough color values to build rgb image')
-    else:        
+    else:
         # identify rgb values of channels using matplotlib ColorConverter
         if ColorConverter is None:
-            raise ImportError('Matplotlib is required for multichannel display')
+            raise ImportError('Matplotlib required for conversion to rgb')
         if channels > len(colors):
             raise IndexError('Not enough color values to build rgb image')
         rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
-        rgbs = rgbs[:channels,:3]
+        rgbs = rgbs[:channels, :3]
 
-    if is_multichannel: 
+    if is_multichannel:
         result = np.zeros(shape_rgb)
         for i in range(channels):
             result += _monochannel_to_rgb(image[i], rgbs[i])
     else:
-        result = _monochannel_to_rgb(image, rgbs[i])
-    
-    result = result.clip(0,255)    
-    
-    if normalize:    
+        result = _monochannel_to_rgb(image, rgbs[0])
+
+    result = result.clip(0, 255)
+
+    if normalize:
         result = (_normalize(result) * 255).astype('uint8')
-    
+
     return result

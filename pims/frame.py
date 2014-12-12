@@ -74,7 +74,7 @@ class Frame(ndarray):
 
     def _repr_html_(self):
         from jinja2 import Template
-        # Identify whether image is multichannel and convert to rgb if necessary
+        # Identify whether image is multichannel, convert to rgb if necessary
         if self.ndim > 2 and self.shape[0] < 5:
             try:
                 colors = self.metadata['colors']
@@ -94,7 +94,7 @@ class Frame(ndarray):
                               width=WIDTH)
         # If Frame is 3D, display as a scrollable stack.
         elif image.ndim == 3 or (image.ndim == 4 and has_color_channels):
-            return _scrollable_stack(image, width=WIDTH) 
+            return _scrollable_stack(image, width=WIDTH)
         else:
             # This exception will be caught by IPython and displayed
             # as a FormatterWarning.
