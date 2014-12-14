@@ -53,7 +53,8 @@ try:
 except (ImportError, IOError):
     Bioformats2D = not_available("Bioformats")
     Bioformats3D = not_available("Bioformats")
-    
+
+
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     """Read a directory of sequentially numbered image files into an
     iterable that returns images as numpy arrays.
