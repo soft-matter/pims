@@ -157,8 +157,7 @@ class BioformatsReader2D(FramesSequence):
         javabridge.start_vm(class_path=bioformats.JARS, max_heap_size='512m')
         self._reader = bioformats.get_image_reader(self.filename,
                                                    self.filename)
-        if self._reader.rdr.isRGB():
-            raise NotImplementedError('RGB images are not supported')
+        self._RGB = self._reader.rdr.isRGB()
         self._jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())
         self._size_series = self._reader.rdr.getSeriesCount()
         self._metadatacolumns = ['plane', 'series', 'indexC', 'indexZ',
@@ -225,8 +224,8 @@ class BioformatsReader2D(FramesSequence):
         converts the numpy array and metadata to a Frame object.
         """
         im, metadata = self._get_frame(self.series, j)
-        imageproc = self.process_func(im)
-        return Frame(imageproc, frame_no=j, metadata=metadata)
+        im = self.process_func(im)
+        return Frame(im, frame_no=j, metadata=metadata)
 
     def _get_frame(self, series, j):
         """Returns image as 2D numpy array and metadata as dictionary.
@@ -337,10 +336,14 @@ class BioformatsReader3D(BioformatsReader2D):
 
     @property
     def channel(self):
+        if self._RGB:
+            raise AttributeError('Channel index not applicable to RGB files.')
         return self._channel
 
     @channel.setter
     def channel(self, value):
+        if self._RGB:
+            raise AttributeError('Channel index not applicable to RGB files.')
         try:
             channel = tuple(value)
         except TypeError:
@@ -353,18 +356,24 @@ class BioformatsReader3D(BioformatsReader2D):
     def _get_frame(self, series, t):
         """Builds array of images and DataFrame of metadata.
         """
-        imlist = np.zeros((len(self.channel), self._sizeZ,
-                           self._sizeY, self._sizeX), dtype=self.pixel_type)
+        shape = (len(self._channel), self._sizeZ, self._sizeY, self._sizeX)
+        if self._RGB:
+            shape = shape + (self._sizeC,)
+        imlist = np.zeros(shape, dtype=self.pixel_type)
         metadata = []
 
-        for (Nc, c) in enumerate(self.channel):
+        for (Nc, c) in enumerate(self._channel):
             for z in range(self._sizeZ):
                 index = self._reader.rdr.getIndex(z, c, t)
                 imlist[Nc, z], md = self._get_frame_2D(series, index)
                 metadata.append(md)
 
+        """The following block produces a dataframe, which is incompatible with
+        the pims.Frame object. Instead, here metadata is converted to a dict.
         if DataFrame is not None:
             metadata = DataFrame(metadata, columns=self._metadatacolumns)
             metadata.set_index(['indexC', 'indexZ'], drop=False, inplace=True)
-
+        """
+        metadata = np.asarray(metadata).squeeze()
+        metadata = dict(zip(self._metadatacolumns, metadata.T))
         return imlist.squeeze(), metadata
