@@ -101,6 +101,10 @@ class BioformatsReader2D(FramesSequence):
     omexml : bioformats.OMEXML object
         returns the bioformats.OMEXML object. Very slow for large files.
         see https://github.com/CellProfiler/python-bioformats
+    pixel_type : numpy.dtype
+        numpy datatype of pixels
+    reader_class_name : string
+        classname of bioformats imagereader (loci.formats.in.*)
 
     Methods
     ----------
@@ -111,11 +115,10 @@ class BioformatsReader2D(FramesSequence):
         documentation on MetadataRetrieve methods can be found here:
         http://downloads.openmicroscopy.org/bio-formats/5.0.4/api/loci/formats/meta/MetadataRetrieve.html
 
-
     Examples
     ----------
     >>> frames.metadataretrieve('getPlaneDeltaT', 0, 50)
-    ...    # evaluates MetadataRetrieve.getPlaneDeltaT(0, 50)
+    ...    # evaluates loci.formats.meta.MetadataRetrieve.getPlaneDeltaT(0, 50)
 
     Notes
     ----------
@@ -124,9 +127,16 @@ class BioformatsReader2D(FramesSequence):
     https://github.com/CellProfiler/python-javabridge
     or (windows compiled) http://www.lfd.uci.edu/~gohlke/pythonlibs/#javabridge
 
-    Only tested with Nikon ND2 files
+    Tested with files from http://loci.wisc.edu/software/sample-data
+    Working for:
+        Zeiss Laser Scanning Microscopy, IPLab, Gatan Digital Micrograph,
+        Image-Pro sequence, Leica, Image-Pro workspace, Nikon NIS-Elements ND2,
+        Image Cytometry Standard, QuickTime movie
+    Not (fully) working for:
+        Olympus Fluoview TIFF, Bio-Rad PIC, Openlab LIFF, PerkinElmer,
+        Andor Bio-imaging Division TIFF, Leica LIF, BIo-Rad PIC
+
     For files larger than 4GB, 64 bits Python is required
-    Does not support RGB files
 
     Metadata provided by get_frame, as dictionary:
         plane: index of image in series
@@ -239,15 +249,18 @@ class BioformatsReader2D(FramesSequence):
         """
         im = self._reader.read(series=series, index=j, rescale=False)
 
-        metadata = (j,
-                    series,
-                    jwtoint(self._jmd.getPlaneTheC(series, j)),
-                    jwtoint(self._jmd.getPlaneTheZ(series, j)),
-                    jwtoint(self._jmd.getPlaneTheT(series, j)),
-                    jwtofloat(self._jmd.getPlanePositionX(series, j)),
-                    jwtofloat(self._jmd.getPlanePositionY(series, j)),
-                    jwtofloat(self._jmd.getPlanePositionZ(series, j)),
-                    jwtofloat(self._jmd.getPlaneDeltaT(series, j)))
+        try:
+            metadata = (j,
+                        series,
+                        jwtoint(self._jmd.getPlaneTheC(series, j)),
+                        jwtoint(self._jmd.getPlaneTheZ(series, j)),
+                        jwtoint(self._jmd.getPlaneTheT(series, j)),
+                        jwtofloat(self._jmd.getPlanePositionX(series, j)),
+                        jwtofloat(self._jmd.getPlanePositionY(series, j)),
+                        jwtofloat(self._jmd.getPlanePositionZ(series, j)),
+                        jwtofloat(self._jmd.getPlaneDeltaT(series, j)))
+        except javabridge.JavaException:
+            metadata = (j, series, 0, 0, 0, 0, 0, 0, 0)
 
         return im, metadata
 
@@ -261,6 +274,10 @@ class BioformatsReader2D(FramesSequence):
         except AttributeError or TypeError:
             return None
         return jwtoauto(jw)
+
+    @property
+    def reader_class_name(self):
+        return self._reader.rdr.get_class_name()
 
     @property
     def pixel_type(self):
@@ -306,16 +323,7 @@ class BioformatsReader3D(BioformatsReader2D):
     Methods
     ----------
     get_frame(t) : pims.frame object
-        returns 3D image in active series. See notes for metadata content.
-
-    Notes
-    ----------
-    Metadata provided by get_frame, as DataFrame with following columns:
-        plane: index of image in series
-        series: series index
-        indexC, indexZ, indexT: indexes of C, Z and T
-        X, Y, Z: physical location of the image in microns
-        T: timestamp of the image in seconds
+        returns 3D image in active series.
     """
     @classmethod
     def class_exts(cls):
@@ -350,7 +358,9 @@ class BioformatsReader3D(BioformatsReader2D):
             channel = tuple((value,))
         if np.any(np.greater_equal(channel, self._sizeC)) or \
            np.any(np.less(channel, 0)):
-            raise IndexError('Channel index out of bounds.')
+            raise IndexError('Channel index should be positive and less ' +
+                             'than the number of channels ' +
+                             '({})'.format(self._sizeC + 1))
         self._channel = channel
 
     def _get_frame(self, series, t):
