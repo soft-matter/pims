@@ -32,28 +32,12 @@ def available():
         return True
 
 
-def jwtofloat(jwrapper):
-    if jwrapper is not None:
-        return float(str(jwrapper))
-    else:
-        return None
-
-
-def jwtoint(jwrapper):
-    if jwrapper is not None:
-        return int(str(jwrapper))
-    else:
-        return None
-
-
-def jwtostr(jwrapper):
-    if jwrapper is not None:
-        return str(jwrapper)
-    else:
-        return None
-
-
-def jwtoauto(jwrapper):
+def wrap_md(fn, *args):
+    try:
+        jwrapper = fn(*args)
+    except TypeError:
+        raise TypeError('Wrong number of arguments: use help for the syntax' +
+                        'information of this specific function.')
     if jwrapper is None:
         return None
     jw = str(jwrapper)
@@ -110,14 +94,14 @@ class BioformatsReader2D(FramesSequence):
     ----------
     get_frame(plane) : pims.frame object
         returns 2D image in active series. See notes for metadata content.
-    metadataretrieve(mdr, *args) : float or int or str
-        returns the result of loci.formats.meta.MetadataRetrieve.<mdr>(*args)
-        documentation on MetadataRetrieve methods can be found here:
-        http://downloads.openmicroscopy.org/bio-formats/5.0.4/api/loci/formats/meta/MetadataRetrieve.html
+    <loci.formats.meta.MetadataRetrieve.function>(*args) : float or int or str
+        On initialization, the LOCI MetadataRetrieve functions are tested and
+        the supported ones are bound. For documentation, see http://downloads.
+        openmicroscopy.org/bio-formats/5.0.6/api/loci/formats/meta/MetadataRetrieve.html
 
     Examples
     ----------
-    >>> frames.metadataretrieve('getPlaneDeltaT', 0, 50)
+    >>> frames.getPlaneDeltaT(0, 50)
     ...    # evaluates loci.formats.meta.MetadataRetrieve.getPlaneDeltaT(0, 50)
 
     Notes
@@ -162,13 +146,31 @@ class BioformatsReader2D(FramesSequence):
         self._change_series()
 
     def _initializereader(self):
-        """Starts java VM, creates reader and MetadataStore
+        """Starts java VM, creates reader and metadata fields
         """
         javabridge.start_vm(class_path=bioformats.JARS, max_heap_size='512m')
         self._reader = bioformats.get_image_reader(self.filename,
                                                    self.filename)
         self._RGB = self._reader.rdr.isRGB()
         self._jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())
+
+        env = javabridge.get_env()
+        for name, method in self._jmd.methods.iteritems():
+            if name[:3] == 'get':
+                if name in ['getRoot', 'getClass']:
+                    continue
+                params = env.get_object_array_elements(method[0].getParameterTypes())
+                try:
+                    fn = getattr(self._jmd, name)
+                    field = fn(*((0,) * len(params)))
+                    # If there is no exception, wrap the function and bind.
+                    fnw = lambda fn1=fn: lambda *args: wrap_md(fn1, *args)
+                    fnw = fnw()
+                    fnw.__doc__ = fn.__doc__
+                    setattr(self, name, fnw)
+                except javabridge.JavaException:
+                    # function is not supported by this specific reader
+                    pass
         self._size_series = self._reader.rdr.getSeriesCount()
         self._metadatacolumns = ['plane', 'series', 'indexC', 'indexZ',
                                  'indexT', 'X', 'Y', 'Z', 'T']
@@ -190,9 +192,9 @@ class BioformatsReader2D(FramesSequence):
         self._sizeY = self._reader.rdr.getSizeY()
         self._sizeX = self._reader.rdr.getSizeX()
         self._planes = self._reader.rdr.getImageCount()
-        self._pixelX = jwtofloat(self._jmd.getPixelsPhysicalSizeX(series))
-        self._pixelY = jwtofloat(self._jmd.getPixelsPhysicalSizeY(series))
-        self._pixelZ = jwtofloat(self._jmd.getPixelsPhysicalSizeZ(series))
+        self._pixelX = self.getPixelsPhysicalSizeX(series)
+        self._pixelY = self.getPixelsPhysicalSizeY(series)
+        self._pixelZ = self.getPixelsPhysicalSizeZ(series)
         if self._pixelY is None:
             self._pixelY = self._pixelX
 
@@ -252,14 +254,14 @@ class BioformatsReader2D(FramesSequence):
         try:
             metadata = (j,
                         series,
-                        jwtoint(self._jmd.getPlaneTheC(series, j)),
-                        jwtoint(self._jmd.getPlaneTheZ(series, j)),
-                        jwtoint(self._jmd.getPlaneTheT(series, j)),
-                        jwtofloat(self._jmd.getPlanePositionX(series, j)),
-                        jwtofloat(self._jmd.getPlanePositionY(series, j)),
-                        jwtofloat(self._jmd.getPlanePositionZ(series, j)),
-                        jwtofloat(self._jmd.getPlaneDeltaT(series, j)))
-        except javabridge.JavaException:
+                        self.getPlaneTheC(series, j),
+                        self.getPlaneTheZ(series, j),
+                        self.getPlaneTheT(series, j),
+                        self.getPlanePositionX(series, j),
+                        self.getPlanePositionY(series, j),
+                        self.getPlanePositionZ(series, j),
+                        self.getPlaneDeltaT(series, j))
+        except AttributeError:
             metadata = (j, series, 0, 0, 0, 0, 0, 0, 0)
 
         return im, metadata
@@ -267,13 +269,6 @@ class BioformatsReader2D(FramesSequence):
     def omexml(self):
         xml = bioformats.get_omexml_metadata(self.filename)
         return bioformats.OMEXML(xml)
-
-    def metadataretrieve(self, mdr, *args):
-        try:
-            jw = getattr(self._jmd, mdr)(*args)
-        except AttributeError or TypeError:
-            return None
-        return jwtoauto(jw)
 
     @property
     def reader_class_name(self):
