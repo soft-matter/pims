@@ -32,24 +32,6 @@ def available():
         return True
 
 
-def wrap_md(fn, *args):
-    try:
-        jwrapper = fn(*args)
-    except TypeError:
-        raise TypeError('Wrong number of arguments: use help for the syntax' +
-                        'information of this specific function.')
-    if jwrapper is None:
-        return None
-    jw = str(jwrapper)
-    try:
-        return int(jw)
-    except ValueError:
-        try:
-            return float(jw)
-        except ValueError:
-            return jw
-
-
 class BioformatsReader2D(FramesSequence):
     """Reads 2D images from the frames of a file supported by bioformats into an
     iterable object that returns images as numpy arrays.
@@ -89,11 +71,15 @@ class BioformatsReader2D(FramesSequence):
         numpy datatype of pixels
     reader_class_name : string
         classname of bioformats imagereader (loci.formats.in.*)
+    isRGB : boolean
+        True if the image is an RGB image
 
     Methods
     ----------
     get_frame(plane) : pims.frame object
         returns 2D image in active series. See notes for metadata content.
+    get_index(z, c, t) : int
+        returns the imageindex in the current series with given coordinates
     <loci.formats.meta.MetadataRetrieve.function>(*args) : float or int or str
         On initialization, the LOCI MetadataRetrieve functions are tested and
         the supported ones are bound. For documentation, see http://downloads.
@@ -132,7 +118,7 @@ class BioformatsReader2D(FramesSequence):
 
     @classmethod
     def class_exts(cls):
-        return {'nd2'} | super(BioformatsReader2D, cls).class_exts()
+        return set(bioformats.READABLE_FORMATS)
 
     def __init__(self, filename, series=0, process_func=None, dtype=None,
                  as_grey=False):
@@ -151,20 +137,39 @@ class BioformatsReader2D(FramesSequence):
         javabridge.start_vm(class_path=bioformats.JARS, max_heap_size='512m')
         self._reader = bioformats.get_image_reader(self.filename,
                                                    self.filename)
-        self._RGB = self._reader.rdr.isRGB()
-        self._jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())
 
+        def wrap_md(fn, name=None, paramcount=None, *args):
+            if len(args) != paramcount:
+                # raise sensible error for wrong number of arguments
+                raise TypeError(('{0}() takes exactly {1} arguments ({2} ' +
+                                 'given)').format(name, paramcount, len(args)))
+            jw = fn(*args)
+            if jw is None or jw == '':
+                return None
+            # convert value to int, float, or string
+            jw = str(jw)
+            try:
+                return int(jw)
+            except ValueError:
+                try:
+                    return float(jw)
+                except ValueError:
+                    return jw
+
+        jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())
         env = javabridge.get_env()
-        for name, method in self._jmd.methods.iteritems():
+        for name, method in jmd.methods.iteritems():
             if name[:3] == 'get':
                 if name in ['getRoot', 'getClass']:
                     continue
                 params = env.get_object_array_elements(method[0].getParameterTypes())
                 try:
-                    fn = getattr(self._jmd, name)
+                    fn = getattr(jmd, name)
                     field = fn(*((0,) * len(params)))
                     # If there is no exception, wrap the function and bind.
-                    fnw = lambda fn1=fn: lambda *args: wrap_md(fn1, *args)
+                    def fnw(fn1=fn, naame=name, paramcount=len(params)):
+                        return (lambda *args: wrap_md(fn1, naame,
+                                                      paramcount, *args))
                     fnw = fnw()
                     fnw.__doc__ = fn.__doc__
                     setattr(self, name, fnw)
@@ -181,6 +186,7 @@ class BioformatsReader2D(FramesSequence):
         """
         series = self._series
         self._reader.rdr.setSeries(series)
+        self.isRGB = self._reader.rdr.isRGB()
 
         # make use of built-in methods of bioformats to determine numpy dtype
         im, md = self._get_frame_2D(series, 0)
@@ -270,6 +276,9 @@ class BioformatsReader2D(FramesSequence):
         xml = bioformats.get_omexml_metadata(self.filename)
         return bioformats.OMEXML(xml)
 
+    def get_index(self, z, c, t):
+        return self._reader.rdr.getIndex(z, c, t)
+
     @property
     def reader_class_name(self):
         return self._reader.rdr.get_class_name()
@@ -320,9 +329,6 @@ class BioformatsReader3D(BioformatsReader2D):
     get_frame(t) : pims.frame object
         returns 3D image in active series.
     """
-    @classmethod
-    def class_exts(cls):
-        return {'nd2'} | super(BioformatsReader3D, cls).class_exts()
 
     def __init__(self, filename, C=(0,), series=0,
                  process_func=None, dtype=None, as_grey=False):
@@ -339,13 +345,13 @@ class BioformatsReader3D(BioformatsReader2D):
 
     @property
     def channel(self):
-        if self._RGB:
+        if self.isRGB:
             raise AttributeError('Channel index not applicable to RGB files.')
         return self._channel
 
     @channel.setter
     def channel(self, value):
-        if self._RGB:
+        if self.isRGB:
             raise AttributeError('Channel index not applicable to RGB files.')
         try:
             channel = tuple(value)
@@ -362,14 +368,14 @@ class BioformatsReader3D(BioformatsReader2D):
         """Builds array of images and DataFrame of metadata.
         """
         shape = (len(self._channel), self._sizeZ, self._sizeY, self._sizeX)
-        if self._RGB:
+        if self.isRGB:
             shape = shape + (self._sizeC,)
         imlist = np.zeros(shape, dtype=self.pixel_type)
         metadata = []
 
         for (Nc, c) in enumerate(self._channel):
             for z in range(self._sizeZ):
-                index = self._reader.rdr.getIndex(z, c, t)
+                index = self.get_index(z, c, t)
                 imlist[Nc, z], md = self._get_frame_2D(series, index)
                 metadata.append(md)
 
