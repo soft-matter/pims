@@ -118,7 +118,10 @@ class BioformatsReader2D(FramesSequence):
 
     @classmethod
     def class_exts(cls):
-        return set(bioformats.READABLE_FORMATS)
+        try:
+            return set(bioformats.READABLE_FORMATS)
+        except AttributeError:
+            return {}
 
     def __init__(self, filename, series=0, process_func=None, dtype=None,
                  as_grey=False):
