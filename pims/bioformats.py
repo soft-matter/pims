@@ -123,6 +123,8 @@ class BioformatsReader2D(FramesSequence):
         except AttributeError:
             return {}
 
+    class_priority = 2
+
     def __init__(self, filename, series=0, process_func=None, dtype=None,
                  as_grey=False):
         if dtype is not None:
@@ -332,6 +334,7 @@ class BioformatsReader3D(BioformatsReader2D):
     get_frame(t) : pims.frame object
         returns 3D image in active series.
     """
+    class_priority = 5
 
     def __init__(self, filename, C=(0,), series=0,
                  process_func=None, dtype=None, as_grey=False):

@@ -126,9 +126,15 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
             "specifying a loader class, e.g. Video({1})".format(ext, sequence))
 
     def sort_on_priority(handlers):
-        # TODO make this use optional information from subclasses
-        # give any user-defined (non-build-in) subclasses priority
-        return handlers
+        # This uses optional priority information from subclasses
+        # > 10 means that it will be used instead of than built-in subclasses
+        def priority(cls):
+            try:
+                return cls.class_priority
+            except AttributeError:
+                return 10
+        return sorted(handlers, key=priority, reverse=True)
+
     handler = sort_on_priority(eligible_handlers)[0]
 
     # TODO maybe we should wrap this in a try and loop to try all the
