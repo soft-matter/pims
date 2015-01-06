@@ -137,9 +137,23 @@ class BioformatsReader2D(FramesSequence):
         self._change_series()
 
     def _initializereader(self):
-        """Starts java VM, creates reader and metadata fields
+        """Starts java VM, java logger, creates reader and metadata fields
         """
-        javabridge.start_vm(class_path=bioformats.JARS, max_heap_size='512m')
+        if not javabridge._javabridge.get_vm().is_active():
+            javabridge.start_vm(class_path=bioformats.JARS,
+                                max_heap_size='512m')
+            javabridge.static_call("org/apache/log4j/BasicConfigurator",
+                               "configure", "()V")
+            log4j_logger = javabridge.static_call("org/apache/log4j/Logger",
+                                                  "getRootLogger",
+                                                  "()Lorg/apache/log4j/Logger;")
+            warn_level = javabridge.get_static_field("org/apache/log4j/Level",
+                                                     "ERROR",
+                                                     "Lorg/apache/log4j/Level;")
+            javabridge.call(log4j_logger, "setLevel",
+                            "(Lorg/apache/log4j/Level;)V", warn_level)
+        javabridge.attach()
+
         self._reader = bioformats.get_image_reader(self.filename,
                                                    self.filename)
 
@@ -167,20 +181,28 @@ class BioformatsReader2D(FramesSequence):
             if name[:3] == 'get':
                 if name in ['getRoot', 'getClass']:
                     continue
+                """ temp to get rid of JavaExceptions """
+                if name not in ['getPixelsPhysicalSizeX',
+                                'getPixelsPhysicalSizeY',
+                                'getPixelsPhysicalSizeZ']:
+                    continue
                 params = env.get_object_array_elements(method[0].getParameterTypes())
                 try:
                     fn = getattr(jmd, name)
                     field = fn(*((0,) * len(params)))
                     # If there is no exception, wrap the function and bind.
+
                     def fnw(fn1=fn, naame=name, paramcount=len(params)):
                         return (lambda *args: wrap_md(fn1, naame,
                                                       paramcount, *args))
+
                     fnw = fnw()
                     fnw.__doc__ = fn.__doc__
                     setattr(self, name, fnw)
                 except javabridge.JavaException:
                     # function is not supported by this specific reader
                     pass
+
         self._size_series = self._reader.rdr.getSeriesCount()
         self._metadatacolumns = ['plane', 'series', 'indexC', 'indexZ',
                                  'indexT', 'X', 'Y', 'Z', 'T']
@@ -214,6 +236,7 @@ class BioformatsReader2D(FramesSequence):
 
     def close(self):
         bioformats.release_image_reader(self.filename)
+        javabridge.detach()
 
     @property
     def pixelsizes(self):
