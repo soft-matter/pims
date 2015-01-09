@@ -8,6 +8,8 @@ import glob
 from warnings import warn
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
+import re
+import numpy as np
 
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
@@ -117,7 +119,6 @@ class ImageSequence(FramesSequence):
         if self._count == 0:
             raise IOError("No files were found matching that path.")
 
-
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
@@ -153,3 +154,113 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   count=len(self),
                                   pathname=source,
                                   dtype=self.pixel_type)
+
+
+def filename_to_tzc(filename, identifiers=None):
+    """ Find ocurrences of z/t/c + number (e.g. t001, z06, c2)
+    in a filename and returns a list of [t, z, c] coordinates
+
+    Parameters
+    ----------
+    filename : string
+        filename to be searched for t, z, c indices
+    identifiers : list of string, optional
+        3 strings preceding t, z, c indices, in that order
+
+    Returns
+    ---------
+    list of int
+        t, z, c indices. Elements default to 0 when index was not found.
+
+    """
+    if identifiers is None:
+        identifiers = tzc = ['t', 'z', 'c']
+    else:
+        tzc = [re.escape(a) for a in identifiers]
+    dimensions = re.findall(r'({0}|{1}|{2})(\d+)'.format(*tzc),
+                            filename)
+    if len(dimensions) > 3:
+        dimensions = dimensions[-3:]
+    order = [a[0] for a in dimensions]
+    result = [0, 0, 0]
+    for (i, col) in enumerate(identifiers):
+        try:
+            result[i] = int(dimensions[order.index(col)][1])
+        except ValueError:
+            result[i] = 0
+    return result
+
+
+class ImageSequence3D(ImageSequence):
+    """Read a directory of (t, z, c) numbered image files into an
+    iterable that returns images as numpy arrays, indexed by t.
+    """
+    def _get_files(self, path_spec):
+        super(ImageSequence3D, self)._get_files(path_spec)
+        self._toc = np.array([filename_to_tzc(f) for f in self._filepaths])
+        for n in range(3):
+            self._toc[:, n] = self._toc[:, n] - min(self._toc[:, n])
+        self._filepaths = np.array(self._filepaths)
+        self._count = max(self._toc[:, 0]) + 1
+        self._sizeZ = max(self._toc[:, 1]) + 1
+        self._sizeC = max(self._toc[:, 2]) + 1
+        self._channel = list(range(self._sizeC))
+
+    def get_frame(self, j):
+        if j > self._count:
+            raise ValueError("File does not contain this many frames")
+        res = np.zeros((len(self._channel), self._sizeZ,
+                        self._first_frame_shape[0],
+                        self._first_frame_shape[1]),
+                       dtype=self._dtype)
+        for (Nc, c) in enumerate(self._channel):
+            selector = np.logical_and(self._toc[:, 0] == j,
+                                      self._toc[:, 2] == c)
+            filelist = self._filepaths[selector]
+            for (z, loc) in enumerate(filelist):
+                res[Nc, z] = imread(loc, **self.kwargs)
+
+        return Frame(self.process_func(res.squeeze()), frame_no=j)
+
+    @property
+    def sizes(self):
+        return {'X': self._first_frame_shape[1],
+                'Y': self._first_frame_shape[0],
+                'Z': self._sizeZ,
+                'T': self._count,
+                'C': self._sizeC}
+
+    @property
+    def channel(self):
+        return self._channel
+
+    @channel.setter
+    def channel(self, value):
+        try:
+            channel = tuple(value)
+        except TypeError:
+            channel = tuple((value,))
+        if np.any(np.greater_equal(channel, self._sizeC)) or \
+           np.any(np.less(channel, 0)):
+            raise IndexError('Channel index out of bounds.')
+        self._channel = channel
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        try:
+            source = self.pathname
+        except AttributeError:
+            source = '(list of images)'
+        return """<Frames>
+Source: {pathname}
+SizeT: {count} frames
+SizeZ: {Z} frames
+SizeC: {C} frames
+Frame Shape: {w} x {h}
+Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
+                                  h=self.frame_shape[1],
+                                  count=len(self),
+                                  pathname=source,
+                                  dtype=self.pixel_type,
+                                  C=self._sizeC,
+                                  Z=self._sizeZ)
