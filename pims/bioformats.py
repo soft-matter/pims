@@ -32,6 +32,71 @@ def available():
         return True
 
 
+class MetadataRetrieve():
+    """This class is an interface to loci.formats.meta.MetadataRetrieve. At
+    initialization, it tests all the MetadataRetrieve functions and it only
+    binds the ones that do not raise a java exception.
+
+    Parameters
+    ----------
+    jmd: _javabridge.JB_Object
+        java MetadataStore, retrieved with reader.rdr.getMetadataStore()
+    log: _javabridge.JB_Object
+        java OutputStream to which java system.err and system.out are printing.
+
+    Methods
+    ----------
+    <loci.formats.meta.MetadataRetrieve.function>(*args) : float or int or str
+        see http://downloads.openmicroscopy.org/bio-formats/5.0.6/api/loci/
+                                             formats/meta/MetadataRetrieve.html
+    """
+    def __init__(self, jmd, log):
+        jmd = javabridge.JWrapper(jmd)
+
+        def wrap_md(fn, name=None, paramcount=None, *args):
+            if len(args) != paramcount:
+                # raise sensible error for wrong number of arguments
+                raise TypeError(('{0}() takes exactly {1} arguments ({2} ' +
+                                 'given)').format(name, paramcount, len(args)))
+            try:
+                jw = fn(*args)
+            except javabridge.JavaException, e:
+                print(javabridge.to_string(log))
+                javabridge.call(log, 'reset', '()V')
+                raise e
+            if jw is None or jw == '':
+                return None
+            # convert value to int, float, or string
+            jw = str(jw)
+            try:
+                return int(jw)
+            except ValueError:
+                try:
+                    return float(jw)
+                except ValueError:
+                    return jw
+
+        env = javabridge.get_env()
+        for name, method in jmd.methods.iteritems():
+            if name[:3] == 'get':
+                if name in ['getRoot', 'getClass']:
+                    continue
+                params = env.get_object_array_elements(method[0].getParameterTypes())
+                try:
+                    fn = getattr(jmd, name)
+                    field = fn(*((0,) * len(params)))
+                    # If there is no exception, wrap the function and bind.
+                    def fnw(fn1=fn, naame=name, paramcount=len(params)):
+                        return (lambda *args: wrap_md(fn1, naame,
+                                                      paramcount, *args))
+                    fnw = fnw()
+                    fnw.__doc__ = fn.__doc__
+                    setattr(self, name, fnw)
+                except javabridge.JavaException:
+                    # function is not supported by this specific reader
+                    pass
+
+
 class BioformatsReader2D(FramesSequence):
     """Reads 2D images from the frames of a file supported by bioformats into an
     iterable object that returns images as numpy arrays.
@@ -54,6 +119,9 @@ class BioformatsReader2D(FramesSequence):
     ----------
     __len__ : int
         Number of planes in active series (= size Z*C*T)
+    metadata : MetadataRetrieve object
+        This object contains loci.formats.meta.MetadataRetrieve functions for
+        metadata reading.
     sizes : dict of int
         Number of series and for active series: X, Y, Z, C, T sizes
     frame_shape : tuple of int
@@ -64,9 +132,6 @@ class BioformatsReader2D(FramesSequence):
         active series that is read by get_frame. Writeable.
     channel : int or list of int
         channel(s) that are read by get_frame. Writeable.
-    omexml : bioformats.OMEXML object
-        returns the bioformats.OMEXML object. Very slow for large files.
-        see https://github.com/CellProfiler/python-bioformats
     pixel_type : numpy.dtype
         numpy datatype of pixels
     reader_class_name : string
@@ -80,18 +145,21 @@ class BioformatsReader2D(FramesSequence):
         returns 2D image in active series. See notes for metadata content.
     get_index(z, c, t) : int
         returns the imageindex in the current series with given coordinates
-    <loci.formats.meta.MetadataRetrieve.function>(*args) : float or int or str
-        On initialization, the LOCI MetadataRetrieve functions are tested and
-        the supported ones are bound. For documentation, see http://downloads.
-        openmicroscopy.org/bio-formats/5.0.6/api/loci/formats/meta/MetadataRetrieve.html
+    get_metadata_raw(form) : dict or list or string
+        returns the raw metadata from the file. Form defaults to 'dict', other
+        options are 'list' and 'string'.
+    get_metadata_xml() : string
+        returns the metadata in xml format
+    get_metadata_omexml() : bioformats.OMEXML object
+        parses the xml metadata to an omexml object
 
     Examples
     ----------
-    >>> frames.getPlaneDeltaT(0, 50)
+    >>> frames.metadata.getPlaneDeltaT(0, 50)
     ...    # evaluates loci.formats.meta.MetadataRetrieve.getPlaneDeltaT(0, 50)
 
     Notes
-    ----------
+    ----------    
     Dependencies:
     https://github.com/CellProfiler/python-bioformats
     https://github.com/CellProfiler/python-javabridge
@@ -108,7 +176,7 @@ class BioformatsReader2D(FramesSequence):
 
     For files larger than 4GB, 64 bits Python is required
 
-    Metadata provided by get_frame, as dictionary:
+    Metadata automatically provided by get_frame, as dictionary:
         plane: index of image in series
         series: series index
         indexC, indexZ, indexT: indexes of C, Z, T
@@ -136,73 +204,28 @@ class BioformatsReader2D(FramesSequence):
         self._initializereader()
         self._change_series()
 
+
     def _initializereader(self):
         """Starts java VM, java logger, creates reader and metadata fields
         """
         if not javabridge._javabridge.get_vm().is_active():
             javabridge.start_vm(class_path=bioformats.JARS,
                                 max_heap_size='512m')
-            javabridge.static_call("org/apache/log4j/BasicConfigurator",
-                               "configure", "()V")
-            log4j_logger = javabridge.static_call("org/apache/log4j/Logger",
-                                                  "getRootLogger",
-                                                  "()Lorg/apache/log4j/Logger;")
-            warn_level = javabridge.get_static_field("org/apache/log4j/Level",
-                                                     "ERROR",
-                                                     "Lorg/apache/log4j/Level;")
-            javabridge.call(log4j_logger, "setLevel",
-                            "(Lorg/apache/log4j/Level;)V", warn_level)
+        self._java_log = javabridge.run_script("""
+                org.apache.log4j.BasicConfigurator.configure();
+                log4j_logger = org.apache.log4j.Logger.getRootLogger();
+                log4j_logger.setLevel(org.apache.log4j.Level.WARN);
+                java_out = new java.io.ByteArrayOutputStream();
+                out_printstream = new java.io.PrintStream(java_out);
+                java.lang.System.setOut(out_printstream);
+                java.lang.System.setErr(out_printstream);
+                java_out;""")
         javabridge.attach()
-
         self._reader = bioformats.get_image_reader(self.filename,
                                                    self.filename)
-
-        def wrap_md(fn, name=None, paramcount=None, *args):
-            if len(args) != paramcount:
-                # raise sensible error for wrong number of arguments
-                raise TypeError(('{0}() takes exactly {1} arguments ({2} ' +
-                                 'given)').format(name, paramcount, len(args)))
-            jw = fn(*args)
-            if jw is None or jw == '':
-                return None
-            # convert value to int, float, or string
-            jw = str(jw)
-            try:
-                return int(jw)
-            except ValueError:
-                try:
-                    return float(jw)
-                except ValueError:
-                    return jw
-
-        jmd = javabridge.JWrapper(self._reader.rdr.getMetadataStore())
-        env = javabridge.get_env()
-        for name, method in jmd.methods.iteritems():
-            if name[:3] == 'get':
-                if name in ['getRoot', 'getClass']:
-                    continue
-                """ temp to get rid of JavaExceptions """
-                if name not in ['getPixelsPhysicalSizeX',
-                                'getPixelsPhysicalSizeY',
-                                'getPixelsPhysicalSizeZ']:
-                    continue
-                params = env.get_object_array_elements(method[0].getParameterTypes())
-                try:
-                    fn = getattr(jmd, name)
-                    field = fn(*((0,) * len(params)))
-                    # If there is no exception, wrap the function and bind.
-
-                    def fnw(fn1=fn, naame=name, paramcount=len(params)):
-                        return (lambda *args: wrap_md(fn1, naame,
-                                                      paramcount, *args))
-
-                    fnw = fnw()
-                    fnw.__doc__ = fn.__doc__
-                    setattr(self, name, fnw)
-                except javabridge.JavaException:
-                    # function is not supported by this specific reader
-                    pass
-
+        self.metadata = MetadataRetrieve(self._reader.rdr.getMetadataStore(),
+                                         self._java_log)
+        javabridge.call(self._java_log, 'reset', '()V')  # reset the java log
         self._size_series = self._reader.rdr.getSeriesCount()
         self._metadatacolumns = ['plane', 'series', 'indexC', 'indexZ',
                                  'indexT', 'X', 'Y', 'Z', 'T']
@@ -225,9 +248,9 @@ class BioformatsReader2D(FramesSequence):
         self._sizeY = self._reader.rdr.getSizeY()
         self._sizeX = self._reader.rdr.getSizeX()
         self._planes = self._reader.rdr.getImageCount()
-        self._pixelX = self.getPixelsPhysicalSizeX(series)
-        self._pixelY = self.getPixelsPhysicalSizeY(series)
-        self._pixelZ = self.getPixelsPhysicalSizeZ(series)
+        self._pixelX = self.metadata.getPixelsPhysicalSizeX(series)
+        self._pixelY = self.metadata.getPixelsPhysicalSizeY(series)
+        self._pixelZ = self.metadata.getPixelsPhysicalSizeZ(series)
         if self._pixelY is None:
             self._pixelY = self._pixelX
 
@@ -288,24 +311,63 @@ class BioformatsReader2D(FramesSequence):
         try:
             metadata = (j,
                         series,
-                        self.getPlaneTheC(series, j),
-                        self.getPlaneTheZ(series, j),
-                        self.getPlaneTheT(series, j),
-                        self.getPlanePositionX(series, j),
-                        self.getPlanePositionY(series, j),
-                        self.getPlanePositionZ(series, j),
-                        self.getPlaneDeltaT(series, j))
+                        self.metadata.getPlaneTheC(series, j),
+                        self.metadata.getPlaneTheZ(series, j),
+                        self.metadata.getPlaneTheT(series, j),
+                        self.metadata.getPlanePositionX(series, j),
+                        self.metadata.getPlanePositionY(series, j),
+                        self.metadata.getPlanePositionZ(series, j),
+                        self.metadata.getPlaneDeltaT(series, j))
         except AttributeError:
             metadata = (j, series, 0, 0, 0, 0, 0, 0, 0)
 
         return im, metadata
 
-    def omexml(self):
-        xml = bioformats.get_omexml_metadata(self.filename)
-        return bioformats.OMEXML(xml)
+    def get_metadata_xml(self):
+        # bioformats.get_omexml_metadata opens and closes a new reader
+        return bioformats.get_omexml_metadata(self.filename)
+
+    def get_metadata_omexml(self):
+        return bioformats.OMEXML(self.get_metadata_xml())
+
+    def get_metadata_raw(self, form='dict'):
+        # code based on javabridge.jutil.to_string,
+        # .jdictionary_to_string_dictionary and .jenumeration_to_string_list
+        # addition is that it deals with UnicodeErrors
+        def to_string(jobject):
+            if not isinstance(jobject, javabridge.jutil._javabridge.JB_Object):
+                try:
+                    return str(jobject)
+                except UnicodeError:
+                    return jobject
+            return javabridge.jutil.call(jobject, 'toString',
+                                         '()Ljava/lang/String;')
+        hashtable = self._reader.rdr.getMetadata()
+        jhashtable = javabridge.jutil.get_dictionary_wrapper(hashtable)
+        jenumeration = javabridge.jutil.get_enumeration_wrapper(jhashtable.keys())
+        keys = []
+        while jenumeration.hasMoreElements():
+            keys.append(jenumeration.nextElement())
+        if form == 'dict':
+            result = {}
+            for key in keys:
+                result[key] = to_string(jhashtable.get(key))
+        elif form == 'list':
+            result = []
+            for key in keys:
+                result.append(key + ': ' + to_string(jhashtable.get(key)))
+        elif form == 'string':
+            result = ''
+            for key in keys:
+                result += key + ': ' + to_string(jhashtable.get(key)) + '\n'
+        return result
 
     def get_index(self, z, c, t):
         return self._reader.rdr.getIndex(z, c, t)
+
+    @property
+    def java_log(self):
+        return javabridge.to_string(self._java_log)
 
     @property
     def reader_class_name(self):
