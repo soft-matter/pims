@@ -136,6 +136,8 @@ class BioformatsReader2D(FramesSequence):
         numpy datatype of pixels
     reader_class_name : string
         classname of bioformats imagereader (loci.formats.in.*)
+    java_log : string
+        contains everything printed to java system.out and system.err
     isRGB : boolean
         True if the image is an RGB image
 
@@ -152,6 +154,10 @@ class BioformatsReader2D(FramesSequence):
         returns the metadata in xml format
     get_metadata_omexml() : bioformats.OMEXML object
         parses the xml metadata to an omexml object
+    close(is_last) :
+        closes the reader. When is_last is true, java VM is stopped. Be sure
+        to do that only at the last image, because the VM cannot be restarted
+        unless you restart python console. The same as pims.kill_vm()
 
     Examples
     ----------
@@ -159,7 +165,11 @@ class BioformatsReader2D(FramesSequence):
     ...    # evaluates loci.formats.meta.MetadataRetrieve.getPlaneDeltaT(0, 50)
 
     Notes
-    ----------    
+    ----------
+    Be sure to kill the java VM with pims.kill_vm() the end of the day. It
+    cannot be restarted from the same python console, however. You can also
+    kill the vm by calling frame.close(is_last=True).
+
     Dependencies:
     https://github.com/CellProfiler/python-bioformats
     https://github.com/CellProfiler/python-javabridge
@@ -203,7 +213,6 @@ class BioformatsReader2D(FramesSequence):
         self._validate_process_func(process_func)
         self._initializereader()
         self._change_series()
-
 
     def _initializereader(self):
         """Starts java VM, java logger, creates reader and metadata fields
@@ -257,9 +266,11 @@ class BioformatsReader2D(FramesSequence):
     def __len__(self):
         return self._planes
 
-    def close(self):
+    def close(self, is_last=False):
         bioformats.release_image_reader(self.filename)
         javabridge.detach()
+        if is_last:
+            javabridge.kill_vm()
 
     @property
     def pixelsizes(self):
@@ -403,21 +414,100 @@ class BioformatsReader3D(BioformatsReader2D):
 
     Parameters
     ----------
+    filename: str
+    series: int, optional
+        Active image series index, defaults to 0. Changeable via the `series`
+        property.
     C : int or list of int
         Channel(s) that are read by get_frame. Changeable via the `channel`
         property.
+    process_func: function, optional
+        callable with signature `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype: numpy.dtype, optional
+        unused
+    as_grey: bool, optional
+        unused
 
     Attributes
     ----------
     __len__ : int
         Number of timepoints in active series (equal to sizes['T'])
+    metadata : MetadataRetrieve object
+        This object contains loci.formats.meta.MetadataRetrieve functions for
+        metadata reading.
+    sizes : dict of int
+        Number of series and for active series: X, Y, Z, C, T sizes
+    frame_shape : tuple of int
+        Sizes in pixels in X, Y. Equal to (sizes['X'], sizes['Y'])
+    pixelsizes : dict of float
+        Physical pixelsizes in X, Y, Z (in microns)
     channel : int or iterable of int
         channel(s) that are read by get_frame. Writeable.
+    series : int
+        active series that is read by get_frame. Writeable.
+    channel : int or list of int
+        channel(s) that are read by get_frame. Writeable.
+    pixel_type : numpy.dtype
+        numpy datatype of pixels
+    reader_class_name : string
+        classname of bioformats imagereader (loci.formats.in.*)
+    java_log : string
+        contains everything printed to java system.out and system.err
+    isRGB : boolean
+        True if the image is an RGB image
 
     Methods
     ----------
-    get_frame(t) : pims.frame object
-        returns 3D image in active series.
+    get_frame(plane) : pims.frame object
+        returns 3D image in active series. See notes for metadata content.
+    get_index(z, c, t) : int
+        returns the imageindex in the current series with given coordinates
+    get_metadata_raw(form) : dict or list or string
+        returns the raw metadata from the file. Form defaults to 'dict', other
+        options are 'list' and 'string'.
+    get_metadata_xml() : string
+        returns the metadata in xml format
+    get_metadata_omexml() : bioformats.OMEXML object
+        parses the xml metadata to an omexml object
+    close(is_last) :
+        closes the reader. When is_last is true, java VM is stopped. Be sure
+        to do that only at the last image, because the VM cannot be restarted
+        unless you restart python console. The same as pims.kill_vm()
+
+    Examples
+    ----------
+    >>> frames.metadata.getPlaneDeltaT(0, 50)
+    ...    # evaluates loci.formats.meta.MetadataRetrieve.getPlaneDeltaT(0, 50)
+
+    Notes
+    ----------
+    Be sure to kill the java VM with pims.kill_vm() the end of the day. It
+    cannot be restarted from the same python console, however. You can also
+    kill the vm by calling frame.close(is_last=True).
+
+    Dependencies:
+    https://github.com/CellProfiler/python-bioformats
+    https://github.com/CellProfiler/python-javabridge
+    or (windows compiled) http://www.lfd.uci.edu/~gohlke/pythonlibs/#javabridge
+
+    Tested with files from http://loci.wisc.edu/software/sample-data
+    Working for:
+        Zeiss Laser Scanning Microscopy, IPLab, Gatan Digital Micrograph,
+        Image-Pro sequence, Leica, Image-Pro workspace, Nikon NIS-Elements ND2,
+        Image Cytometry Standard, QuickTime movie
+    Not (fully) working for:
+        Olympus Fluoview TIFF, Bio-Rad PIC, Openlab LIFF, PerkinElmer,
+        Andor Bio-imaging Division TIFF, Leica LIF, BIo-Rad PIC
+
+    For files larger than 4GB, 64 bits Python is required
+
+    Metadata automatically provided by get_frame, as dictionary:
+        plane: index of image in series
+        series: series index
+        indexC, indexZ, indexT: indexes of C, Z, T
+        X, Y, Z: physical location of the image in microns
+        T: timestamp of the image in seconds
     """
     class_priority = 5
 

@@ -48,6 +48,7 @@ try:
     if pims.bioformats.available():
         Bioformats2D = pims.bioformats.BioformatsReader2D
         Bioformats3D = pims.bioformats.BioformatsReader3D
+        from javabridge import kill_vm
     else:
         raise ImportError()
 except (ImportError, IOError):
