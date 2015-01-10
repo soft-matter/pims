@@ -60,7 +60,7 @@ class MetadataRetrieve():
                                  'given)').format(name, paramcount, len(args)))
             try:
                 jw = fn(*args)
-            except javabridge.JavaException, e:
+            except javabridge.JavaException as e:
                 print(javabridge.to_string(log))
                 javabridge.call(log, 'reset', '()V')
                 raise e
