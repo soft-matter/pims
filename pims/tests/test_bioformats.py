@@ -13,8 +13,8 @@ import sys
 sys.path.append(r'E:\Documents\Scripts\GitHub\pims')
 import pims
 try:
-    from javabridge import kill_vm
-    from bioformats import JARS
+    import javabridge
+    import bioformats
     BIOFORMATS_INSTALLED = True
 except ImportError:
     BIOFORMATS_INSTALLED = False
@@ -61,6 +61,25 @@ class _image_single(unittest.TestCase):
         self.check_skip()
         # simple smoke test, values not checked
         repr(self.v)
+        
+    def test_dtype_conversion(self):
+        self.check_skip()
+        v8 = self.klass(self.filename, dtype='uint8', **self.kwargs)
+        v16 = self.klass(self.filename, dtype='uint16', **self.kwargs)
+        type8 = v8[0].dtype
+        type16 = v16[0].dtype
+        self.assertEqual(type8, np.uint8)
+        self.assertEqual(type16, np.uint16)
+
+    def test_process_func(self):
+        self.check_skip()
+        # Use a trivial identity function to verify the process_func exists.
+        f = lambda x: x
+        self.klass(self.filename, process_func=f, **self.kwargs)
+
+        # Also, it should be the second positional arg for each class.
+        # This is verified more directly in later tests, too.
+        self.klass(self.filename, f, **self.kwargs)
 
 
 class _image_series(_image_single):
@@ -135,12 +154,12 @@ class TestND2(_image_series):
     def setUp(self):
         _skip_if_no_bioformats()
         self.filename = os.path.join(path, 'cluster.nd2')
-        self.klass = pims.Bioformats3D
-        self.kwargs = {'C': (0, 1)}
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
         self.frame0 = np.load(os.path.join(path, 'nd2_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'nd2_frame1.npy'))
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (38, 31)
+        self.expected_shape = (31, 38)
         self.expected_len = 3
 
     def tearDown(self):
@@ -156,11 +175,11 @@ class TestIPL(_image_single):
     def setUp(self):
         _skip_if_no_bioformats()
         self.filename = os.path.join(path, 'blend_final.ipl')
-        self.klass = pims.Bioformats3D
-        self.kwargs = {}
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
         self.frame0 = np.load(os.path.join(path, 'blend_final.npy'))
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (650, 515)
+        self.expected_shape = (515, 650, 3)
         self.expected_len = 1
 
     def tearDown(self):
@@ -176,8 +195,8 @@ class TestSEQ(_image_stack):
     def setUp(self):
         _skip_if_no_bioformats()
         self.filename = os.path.join(path, 'heart.seq')
-        self.klass = pims.Bioformats3D
-        self.kwargs = {}
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
         self.frame0 = np.load(os.path.join(path, 'heart_plane0.npy'))
         self.frame1 = np.load(os.path.join(path, 'heart_plane1.npy'))
         self.v = self.klass(self.filename, **self.kwargs)
@@ -200,8 +219,8 @@ class TestLEI(_image_stack):
     def setUp(self):
         _skip_if_no_bioformats()
         self.filename = os.path.join(path, 'leica_stack.lei')
-        self.klass = pims.Bioformats3D
-        self.kwargs = {}
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
         self.frame0 = np.load(os.path.join(path, 'leica_stack_plane0.npy'))
         self.frame1 = np.load(os.path.join(path, 'leica_stack_plane1.npy'))
         self.v = self.klass(self.filename, **self.kwargs)
@@ -225,8 +244,8 @@ class TestICS(_image_single):
     def setUp(self):
         _skip_if_no_bioformats()
         self.filename = os.path.join(path, 'qdna1.ics')
-        self.klass = pims.Bioformats3D
-        self.kwargs = {}
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
         self.frame0 = np.load(os.path.join(path, 'qdna1_frame0.npy'))
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (256, 256)
@@ -236,13 +255,16 @@ class TestICS(_image_single):
         self.v.close()
 
 
+# TODO: Metadata tests
+
+
 class zzzKillVM(unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
 
     def test_kill_javaVM(self):
         self.check_skip()
-        kill_vm()
+        pims.kill_vm()
 
 
 if __name__ == '__main__':

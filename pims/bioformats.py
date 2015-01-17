@@ -41,7 +41,7 @@ class MetadataRetrieve():
     ----------
     jmd: _javabridge.JB_Object
         java MetadataStore, retrieved with reader.rdr.getMetadataStore()
-    log: _javabridge.JB_Object
+    log: _javabridge.JB_Object, optional
         java OutputStream to which java system.err and system.out are printing.
 
     Methods
@@ -50,7 +50,7 @@ class MetadataRetrieve():
         see http://downloads.openmicroscopy.org/bio-formats/5.0.6/api/loci/
                                              formats/meta/MetadataRetrieve.html
     """
-    def __init__(self, jmd, log):
+    def __init__(self, jmd, log=None):
         jmd = javabridge.JWrapper(jmd)
 
         def wrap_md(fn, name=None, paramcount=None, *args):
@@ -61,8 +61,9 @@ class MetadataRetrieve():
             try:
                 jw = fn(*args)
             except javabridge.JavaException as e:
-                print(javabridge.to_string(log))
-                javabridge.call(log, 'reset', '()V')
+                if log is not None:
+                    print(javabridge.to_string(log))
+                    javabridge.call(log, 'reset', '()V')
                 raise e
             if jw is None or jw == '':
                 return None
@@ -96,24 +97,31 @@ class MetadataRetrieve():
                     # function is not supported by this specific reader
                     pass
 
+        if log is not None:
+            javabridge.call(log, 'reset', '()V')
 
-class BioformatsReader2D(FramesSequence):
-    """Reads 2D images from the frames of a file supported by bioformats into an
-    iterable object that returns images as numpy arrays.
+
+class BioformatsReaderRaw(FramesSequence):
+    """Reads 2D images from the frames of a file supported by bioformats into
+    an iterable object that returns images as numpy arrays.
 
     Parameters
     ----------
     filename: str
+    process_func : function, optional
+        callable with signature `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjunction with process_func.
+    meta: bool, optional
+        When true, the metadata object is generated. Takes time to build.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
-    process_func: function, optional
-        callable with signature `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype: numpy.dtype, optional
-        unused
-    as_grey: bool, optional
-        unused
+
 
     Attributes
     ----------
@@ -121,13 +129,11 @@ class BioformatsReader2D(FramesSequence):
         Number of planes in active series (= size Z*C*T)
     metadata : MetadataRetrieve object
         This object contains loci.formats.meta.MetadataRetrieve functions for
-        metadata reading.
+        metadata reading. Not available when meta == False.
     sizes : dict of int
         Number of series and for active series: X, Y, Z, C, T sizes
     frame_shape : tuple of int
-        Sizes in pixels in X, Y. Equal to (sizes['X'], sizes['Y'])
-    pixelsizes : dict of float
-        Physical pixelsizes in X, Y, Z (in microns)
+        Shape of the image (y, x) or (y, x, 3) or (y, x, 4)
     series : int
         active series that is read by get_frame. Writeable.
     channel : int or list of int
@@ -203,23 +209,10 @@ class BioformatsReader2D(FramesSequence):
 
     class_priority = 2
 
-    def __init__(self, filename, series=0, process_func=None, dtype=None,
-                 as_grey=False):
-        if dtype is not None:
-            raise NotImplementedError('This reader does not support ' +
-                                      'typecasting')
-        self.filename = str(filename)
-        self._series = series
-        self._validate_process_func(process_func)
-        self._initializereader()
-        self._change_series()
-
-    def _initializereader(self):
-        """Starts java VM, java logger, creates reader and metadata fields
-        """
-        if not javabridge._javabridge.get_vm().is_active():
-            javabridge.start_vm(class_path=bioformats.JARS,
-                                max_heap_size='512m')
+    def __init__(self, filename, process_func=None, dtype=None,
+                 as_grey=False, meta=True, series=0):
+        # Start java VM and initialize logger
+        javabridge.start_vm(class_path=bioformats.JARS, max_heap_size='512m')
         self._java_log = javabridge.run_script("""
                 org.apache.log4j.BasicConfigurator.configure();
                 log4j_logger = org.apache.log4j.Logger.getRootLogger();
@@ -230,12 +223,40 @@ class BioformatsReader2D(FramesSequence):
                 java.lang.System.setErr(out_printstream);
                 java_out;""")
         javabridge.attach()
+
+        # Initialize reader
+        self.filename = str(filename)
         self._reader = bioformats.get_image_reader(self.filename,
                                                    self.filename)
-        self.metadata = MetadataRetrieve(self._reader.rdr.getMetadataStore(),
-                                         self._java_log)
-        javabridge.call(self._java_log, 'reset', '()V')  # reset the java log
+        # Initialize metadata
+        if meta:
+            jmd = self._reader.rdr.getMetadataStore()
+            self.metadata = MetadataRetrieve(jmd,
+                                             self._java_log)
+
+        # Set the correct series and initialize the sizes
         self._size_series = self._reader.rdr.getSeriesCount()
+        try:
+            self._series = series
+        except:
+            self._series = 0
+        self._change_series()
+
+        # Make use of bioformats to determine datatype and shape
+        # Assumes equal image shapes and dtype for every series.
+        # TODO: make this different for each series (also for as_grey)
+        im = self._reader.read(series=series, index=0, rescale=False)
+        self._first_frame_shape = [int(x) for x in im.shape]
+        if dtype is None:
+            self._pixel_type = im.dtype
+        else:
+            self._pixel_type = dtype
+
+        # Define a process func, if applicable
+        self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
+
+        # Define the names of the standard per frame metadata.
         self._metadatacolumns = ['plane', 'series', 'indexC', 'indexZ',
                                  'indexT', 'X', 'Y', 'Z', 'T']
 
@@ -246,22 +267,12 @@ class BioformatsReader2D(FramesSequence):
         series = self._series
         self._reader.rdr.setSeries(series)
         self.isRGB = self._reader.rdr.isRGB()
-
-        # make use of built-in methods of bioformats to determine numpy dtype
-        im, md = self._get_frame_2D(series, 0)
-        self._pixel_type = im.dtype
-
         self._sizeC = self._reader.rdr.getSizeC()
         self._sizeT = self._reader.rdr.getSizeT()
         self._sizeZ = self._reader.rdr.getSizeZ()
         self._sizeY = self._reader.rdr.getSizeY()
         self._sizeX = self._reader.rdr.getSizeX()
         self._planes = self._reader.rdr.getImageCount()
-        self._pixelX = self.metadata.getPixelsPhysicalSizeX(series)
-        self._pixelY = self.metadata.getPixelsPhysicalSizeY(series)
-        self._pixelZ = self.metadata.getPixelsPhysicalSizeZ(series)
-        if self._pixelY is None:
-            self._pixelY = self._pixelX
 
     def __len__(self):
         return self._planes
@@ -271,10 +282,6 @@ class BioformatsReader2D(FramesSequence):
         javabridge.detach()
         if is_last:
             javabridge.kill_vm()
-
-    @property
-    def pixelsizes(self):
-        return {'X': self._pixelX, 'Y': self._pixelY, 'Z': self._pixelZ}
 
     @property
     def sizes(self):
@@ -297,7 +304,7 @@ class BioformatsReader2D(FramesSequence):
 
     @property
     def frame_shape(self):
-        return self._sizeX, self._sizeY
+        return self._first_frame_shape
 
     def get_frame(self, j):
         """Wrapper for _get_frame, additionally applies the process_func and
@@ -318,7 +325,10 @@ class BioformatsReader2D(FramesSequence):
         """Actual reader, returns image as 2D numpy array and metadata as tuple.
         """
         im = self._reader.read(series=series, index=j, rescale=False)
+        if im.dtype != self._pixel_type:
+            im = im.astype(self._pixel_type)
 
+        # TODO: make the metadatafields user-defined.
         try:
             metadata = (j,
                         series,
@@ -408,26 +418,29 @@ Frame Shape: {w} x {h}""".format(w=self._sizeX,
         return result
 
 
-class BioformatsReader3D(BioformatsReader2D):
+class BioformatsReader(BioformatsReaderRaw):
     """Reads 3D images from the frames of a file supported by bioformats into an
     iterable object that returns images as numpy arrays, indexed by T index.
 
     Parameters
     ----------
     filename: str
+    process_func : function, optional
+        callable with signature `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Convert color images to greyscale. False by default.
+        May not be used in conjunction with process_func.
+    meta: bool, optional
+        When true, the metadata object is generated. Takes time to build.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
     C : int or list of int
         Channel(s) that are read by get_frame. Changeable via the `channel`
-        property.
-    process_func: function, optional
-        callable with signature `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype: numpy.dtype, optional
-        unused
-    as_grey: bool, optional
-        unused
+        property. Defaults to all channels.
 
     Attributes
     ----------
@@ -435,13 +448,11 @@ class BioformatsReader3D(BioformatsReader2D):
         Number of timepoints in active series (equal to sizes['T'])
     metadata : MetadataRetrieve object
         This object contains loci.formats.meta.MetadataRetrieve functions for
-        metadata reading.
+        metadata reading. Not available when meta == False.
     sizes : dict of int
         Number of series and for active series: X, Y, Z, C, T sizes
     frame_shape : tuple of int
-        Sizes in pixels in X, Y. Equal to (sizes['X'], sizes['Y'])
-    pixelsizes : dict of float
-        Physical pixelsizes in X, Y, Z (in microns)
+        Shape of the image (y, x) or (y, x, 3) or (y, x, 4)
     channel : int or iterable of int
         channel(s) that are read by get_frame. Writeable.
     series : int
@@ -511,15 +522,17 @@ class BioformatsReader3D(BioformatsReader2D):
     """
     class_priority = 5
 
-    def __init__(self, filename, C=(0,), series=0,
-                 process_func=None, dtype=None, as_grey=False):
-        try:
-            self._channel = tuple(C)
-        except TypeError:
-            self._channel = tuple((C,))
-
-        super(BioformatsReader3D, self).__init__(filename, series,
-                                                 process_func)
+    def __init__(self, filename, process_func=None, dtype=None,
+                 as_grey=False, meta=True, series=0, C=None):
+        super(BioformatsReader, self).__init__(filename, process_func, dtype,
+                                               as_grey, meta, series)
+        if self.isRGB:
+            self._channel = (0,)
+        else:
+            try:
+                self.channel = C
+            except IndexError:
+                self._channel = tuple(range(self._sizeC))
 
     def __len__(self):
         return self._sizeT
@@ -537,7 +550,7 @@ class BioformatsReader3D(BioformatsReader2D):
         try:
             channel = tuple(value)
         except TypeError:
-            channel = tuple((value,))
+            channel = (value,)
         if np.any(np.greater_equal(channel, self._sizeC)) or \
            np.any(np.less(channel, 0)):
             raise IndexError('Channel index should be positive and less ' +

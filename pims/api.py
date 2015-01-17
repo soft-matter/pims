@@ -46,14 +46,14 @@ except ImportError:
 try:
     import pims.bioformats
     if pims.bioformats.available():
-        Bioformats2D = pims.bioformats.BioformatsReader2D
-        Bioformats3D = pims.bioformats.BioformatsReader3D
+        BioformatsRaw = pims.bioformats.BioformatsReaderRaw
+        Bioformats = pims.bioformats.BioformatsReader
         from javabridge import kill_vm
     else:
         raise ImportError()
 except (ImportError, IOError):
-    Bioformats2D = not_available("Bioformats")
-    Bioformats3D = not_available("Bioformats")
+    BioformatsRaw = not_available("javabridge and bioformats")
+    Bioformats = not_available("javabridge and bioformats")
 
 
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
