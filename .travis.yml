@@ -1,28 +1,40 @@
 language: python
-python:
-  - 2.7
-  - 3.3
+
+matrix:
+  include: 
+    - python: "2.7"
+      env: BUILD_MODE="pyav"
+    - python: "3.3"
+      env: BUILD_MODE="pyav"
 
 install:
-  - conda update conda --yes
-  - conda create -n testenv --yes pip python=$TRAVIS_PYTHON_VERSION
-  - conda update conda --yes
+  - conda create -n testenv --yes numpy scipy nose pillow matplotlib scikit-image jinja2 pip python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
-  - conda install --yes numpy scipy nose pillow matplotlib scikit-image jinja2  # install required deps fast
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
-  - export LD_LIBRARY_PATH=/usr/local/lib LIBRARY=ffmpeg
-  - wget https://raw.githubusercontent.com/mikeboers/PyAV/master/scripts/test-setup
-  - bash ./test-setup  # install libraries needed by PyAV
-  - pip install av
+  - if [ $BUILD_MODE == "pyav" ]; 
+    then 
+        export LD_LIBRARY_PATH=/usr/local/lib LIBRARY=ffmpeg;
+        wget https://raw.githubusercontent.com/mikeboers/PyAV/master/scripts/test-setup;
+        bash ./test-setup;
+        rm ~/miniconda/envs/testenv/lib/libm.so.6;
+        rm ~/miniconda3/envs/testenv/lib/libm.so.6;
+        pip install av;
+    fi
   - python setup.py build_ext install
 
 
 before_install:
-  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then wget http://repo.continuum.io/miniconda/Miniconda-3.7.3-Linux-x86_64.sh -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-3.7.3-Linux-x86_64.sh -O miniconda.sh; fi
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; 
+    then 
+        wget http://repo.continuum.io/miniconda/Miniconda-3.7.3-Linux-x86_64.sh -O miniconda.sh; 
+    else 
+        wget http://repo.continuum.io/miniconda/Miniconda3-3.7.3-Linux-x86_64.sh -O miniconda.sh; 
+    fi
   - chmod +x miniconda.sh
   - ./miniconda.sh -b
   - export PATH=/home/travis/miniconda/bin:$PATH
   - export PATH=/home/travis/miniconda3/bin:$PATH
   - conda update --yes --no-deps conda
+  - conda update --yes conda
 
-script: nosetests
+script: nosetests --nologcapture
