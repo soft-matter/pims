@@ -4,7 +4,7 @@ matrix:
   include: 
     - python: "2.7"
       env: BUILD_MODE="pyav"
-    - python: "3.3"
+    - python: "3.4"
       env: BUILD_MODE="pyav"
 
 install:
