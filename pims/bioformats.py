@@ -224,35 +224,29 @@ class BioformatsReaderRaw(FramesSequence):
                 java_out;""")
         javabridge.attach()
 
-        # Initialize reader
+        # Initialize reader and metadata
         self.filename = str(filename)
-        self._reader = bioformats.get_image_reader(self.filename,
-                                                   self.filename)
-        # Initialize metadata
         if meta:
-            jmd = self._reader.rdr.getMetadataStore()
-            self.metadata = MetadataRetrieve(jmd,
+            self.reader = bioformats.ImageReader(path=self.filename)
+            self.metadata = MetadataRetrieve(self.reader.rdr.getMetadataStore(),
                                              self._java_log)
+        else:  # skip built-in metadata initialization
+            self.reader = bioformats.ImageReader(path=self.filename,
+                                                 perform_init=False)
+            self.reader.rdr.setId(self.filename)
+        self.rdr = self.reader.rdr  # define shorthand
 
         # Set the correct series and initialize the sizes
-        self._size_series = self._reader.rdr.getSeriesCount()
-        try:
-            self._series = series
-        except:
-            self._series = 0
+        self._size_series = self.rdr.getSeriesCount()
+        if series >= self._size_series or series < 0:
+            self.close()
+            raise IndexError('Series index out of bounds.')
+        self._series = series
+        self._forced_dtype = dtype
         self._change_series()
 
-        # Make use of bioformats to determine datatype and shape
-        # Assumes equal image shapes and dtype for every series.
-        # TODO: make this different for each series (also for as_grey)
-        im = self._reader.read(series=series, index=0, rescale=False)
-        self._first_frame_shape = [int(x) for x in im.shape]
-        if dtype is None:
-            self._pixel_type = im.dtype
-        else:
-            self._pixel_type = dtype
-
         # Define a process func, if applicable
+        # TODO: check if as grey works with series with different dimensions
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
@@ -265,23 +259,61 @@ class BioformatsReaderRaw(FramesSequence):
         When pixelsize Y is not found, pixels are assumed to be square.
         """
         series = self._series
-        self._reader.rdr.setSeries(series)
-        self.isRGB = self._reader.rdr.isRGB()
-        self._sizeC = self._reader.rdr.getSizeC()
-        self._sizeT = self._reader.rdr.getSizeT()
-        self._sizeZ = self._reader.rdr.getSizeZ()
-        self._sizeY = self._reader.rdr.getSizeY()
-        self._sizeX = self._reader.rdr.getSizeX()
-        self._planes = self._reader.rdr.getImageCount()
+        self.rdr.setSeries(series)
+        self.isRGB = self.rdr.isRGB()
+        self.isInterleaved = self.rdr.isInterleaved()
+        self._sizeC = self.rdr.getSizeC()
+        self._sizeT = self.rdr.getSizeT()
+        self._sizeZ = self.rdr.getSizeZ()
+        self._sizeY = self.rdr.getSizeY()
+        self._sizeX = self.rdr.getSizeX()
+        self._planes = self.rdr.getImageCount()
+
+        # determine pixel type using bioformats
+        pixel_type = self.rdr.getPixelType()
+        little_endian = self.rdr.isLittleEndian()
+        FormatTools = bioformats.formatreader.make_format_tools_class()
+        if pixel_type == FormatTools.INT8:
+            self._source_dtype = np.int8
+        elif pixel_type == FormatTools.UINT8:
+            self._source_dtype = np.uint8
+        elif pixel_type == FormatTools.UINT16:
+            self._source_dtype = '<u2' if little_endian else '>u2'
+        elif pixel_type == FormatTools.INT16:
+            self._source_dtype = '<i2' if little_endian else '>i2'
+        elif pixel_type == FormatTools.UINT32:
+            self._source_dtype = '<u4' if little_endian else '>u4'
+        elif pixel_type == FormatTools.INT32:
+            self._source_dtype = '<i4' if little_endian else '>i4'
+        elif pixel_type == FormatTools.FLOAT:
+            self._source_dtype = '<f4' if little_endian else '>f4'
+        elif pixel_type == FormatTools.DOUBLE:
+            self._source_dtype = '<f8' if little_endian else '>f8'
+
+        if self._forced_dtype is None:
+            self._pixel_type = self._source_dtype
+        else:
+            self._pixel_type = self._forced_dtype
+
+        # Set image shape
+        if self.isRGB:
+            image = np.frombuffer(self.rdr.openBytes(0), self._source_dtype)
+            self._sizeRGB = int(len(image) / (self._sizeX * self._sizeY))
+            self._first_frame_shape = (self._sizeY, self._sizeX, self._sizeRGB)
+        else:
+            self._first_frame_shape = (self._sizeY, self._sizeX)
 
     def __len__(self):
         return self._planes
 
     def close(self, is_last=False):
-        bioformats.release_image_reader(self.filename)
+        self.reader.close()
         javabridge.detach()
         if is_last:
             javabridge.kill_vm()
+
+    def __del__(self):
+        self.close()
 
     @property
     def sizes(self):
@@ -295,7 +327,7 @@ class BioformatsReaderRaw(FramesSequence):
 
     @series.setter
     def series(self, value):
-        if value >= self._size_series:
+        if value >= self._size_series or value < 0:
             raise IndexError('Series index out of bounds.')
         else:
             if value != self._series:
@@ -322,9 +354,22 @@ class BioformatsReaderRaw(FramesSequence):
         return im, metadataproc
 
     def _get_frame_2D(self, series, j):
-        """Actual reader, returns image as 2D numpy array and metadata as tuple.
+        """Actual reader, returns image as 2D numpy array and metadata as 
+        tuple. The image reader is a reduced version from the read function
+        in bioformats.formatreader.ImageReader.
         """
-        im = self._reader.read(series=series, index=j, rescale=False)
+        self.series = series  # use property setter & error reporting
+
+        im = np.frombuffer(self.rdr.openBytes(j), self._source_dtype)
+        if self.isRGB:
+            if self.isInterleaved:
+                im.shape = (self._sizeY, self._sizeX, self._sizeRGB)
+            else:
+                im.shape = (self._sizeRGB, self._sizeY, self._sizeX)
+                im = im.transpose(1, 2, 0)
+        else:
+            im.shape = (self._sizeY, self._sizeX)
+
         if im.dtype != self._pixel_type:
             im = im.astype(self._pixel_type)
 
@@ -363,7 +408,7 @@ class BioformatsReaderRaw(FramesSequence):
                     return jobject
             return javabridge.jutil.call(jobject, 'toString',
                                          '()Ljava/lang/String;')
-        hashtable = self._reader.rdr.getMetadata()
+        hashtable = self.rdr.getMetadata()
         jhashtable = javabridge.jutil.get_dictionary_wrapper(hashtable)
         jenumeration = javabridge.jutil.get_enumeration_wrapper(jhashtable.keys())
         keys = []
@@ -384,7 +429,7 @@ class BioformatsReaderRaw(FramesSequence):
         return result
 
     def get_index(self, z, c, t):
-        return self._reader.rdr.getIndex(z, c, t)
+        return self.rdr.getIndex(z, c, t)
 
     @property
     def java_log(self):
@@ -392,7 +437,7 @@ class BioformatsReaderRaw(FramesSequence):
 
     @property
     def reader_class_name(self):
-        return self._reader.rdr.get_class_name()
+        return self.rdr.get_class_name()
 
     @property
     def pixel_type(self):

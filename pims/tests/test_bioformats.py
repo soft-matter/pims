@@ -9,9 +9,8 @@ import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 
-import sys
-sys.path.append(r'E:\Documents\Scripts\GitHub\pims')
 import pims
+
 try:
     import javabridge
     import bioformats
