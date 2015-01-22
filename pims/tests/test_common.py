@@ -36,30 +36,9 @@ def assert_image_equal(actual, expected):
         assert_allclose(actual, expected, atol=1/256.)
 
 
-class _base_klass(unittest.TestCase):
+class _image_single(unittest.TestCase):
     def check_skip(self):
         pass
-
-    def test_getting_slice(self):
-        self.check_skip()
-        tmp = list(self.v[0:2])
-        frame0, frame1 = tmp
-        assert_image_equal(frame0, self.frame0)
-        assert_image_equal(frame1, self.frame1)
-
-    def test_getting_single_frame(self):
-        self.check_skip()
-        assert_image_equal(self.v[0], self.frame0)
-        assert_image_equal(self.v[0], self.frame0)
-        assert_image_equal(self.v[1], self.frame1)
-        assert_image_equal(self.v[1], self.frame1)
-
-    def test_getting_list(self):
-        self.check_skip()
-        actual = list(self.v[[1, 0, 0, 1, 1]])
-        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
-                    self.frame1]
-        [assert_image_equal(a, b) for a, b in zip(actual, expected)]
 
     def test_bool(self):
         self.check_skip()
@@ -68,9 +47,9 @@ class _base_klass(unittest.TestCase):
     def test_integer_attributes(self):
         self.check_skip()
         assert_equal(len(self.v.frame_shape), len(self.expected_shape))
-        self.assertTrue(isinstance(self.v.frame_shape[0], int))
-        self.assertTrue(isinstance(self.v.frame_shape[1], int))
-        self.assertTrue(isinstance(len(self.v), int))
+        self.assertTrue(isinstance(self.v.frame_shape[0], six.integer_types))
+        self.assertTrue(isinstance(self.v.frame_shape[1], six.integer_types))
+        self.assertTrue(isinstance(len(self.v), six.integer_types))
 
     def test_shape(self):
         self.check_skip()
@@ -80,27 +59,10 @@ class _base_klass(unittest.TestCase):
         self.check_skip()
         assert_equal(len(self.v), self.expected_len)
 
-    def test_simple_negative_index(self):
-        self.check_skip()
-        self.v[-1]
-        list(self.v[[0, -1]])
-
     def test_repr(self):
         self.check_skip()
         # simple smoke test, values not checked
         repr(self.v)
-
-    def test_frame_number_present(self):
-        self.check_skip()
-        for frame_no in [0, 1, 2, 1]:
-            self.assertTrue(hasattr(self.v[frame_no], 'frame_no'))
-            not_none = self.v[frame_no].frame_no is not None
-            self.assertTrue(not_none)
-
-    def test_frame_number_accurate(self):
-        self.check_skip()
-        for frame_no in [0, 1, 2, 1]:
-            self.assertEqual(self.v[frame_no].frame_no, frame_no)
 
     def test_dtype_conversion(self):
         self.check_skip()
@@ -156,15 +118,53 @@ class _base_klass(unittest.TestCase):
         self.assertEqual(ndim, 2)
 
 
-class _frame_base_klass(_base_klass):
+class _image_series(_image_single):
     def test_iterator(self):
         self.check_skip()
         i = iter(self.v)
         assert_image_equal(next(i), self.frame0)
         assert_image_equal(next(i), self.frame1)
 
+    def test_getting_slice(self):
+        self.check_skip()
+        tmp = list(self.v[0:2])
+        frame0, frame1 = tmp
+        assert_image_equal(frame0, self.frame0)
+        assert_image_equal(frame1, self.frame1)
 
-class TestVideo(_frame_base_klass):
+    def test_getting_single_frame(self):
+        self.check_skip()
+        assert_image_equal(self.v[0], self.frame0)
+        assert_image_equal(self.v[0], self.frame0)
+        assert_image_equal(self.v[1], self.frame1)
+        assert_image_equal(self.v[1], self.frame1)
+
+    def test_getting_list(self):
+        self.check_skip()
+        actual = list(self.v[[1, 0, 0, 1, 1]])
+        expected = [self.frame1, self.frame0, self.frame0, self.frame1,
+                    self.frame1]
+        [assert_image_equal(a, b) for a, b in zip(actual, expected)]
+
+    def test_frame_number_present(self):
+        self.check_skip()
+        for frame_no in [0, 1, 2, 1]:
+            self.assertTrue(hasattr(self.v[frame_no], 'frame_no'))
+            not_none = self.v[frame_no].frame_no is not None
+            self.assertTrue(not_none)
+
+    def test_frame_number_accurate(self):
+        self.check_skip()
+        for frame_no in [0, 1, 2, 1]:
+            self.assertEqual(self.v[frame_no].frame_no, frame_no)
+
+    def test_simple_negative_index(self):
+        self.check_skip()
+        self.v[-1]
+        list(self.v[[0, -1]])
+
+
+class TestVideo(_image_series):
     def check_skip(self):
         _skip_if_no_PyAV()
 
@@ -180,7 +180,7 @@ class TestVideo(_frame_base_klass):
         self.expected_len = 480
 
 
-class TestTiffStack_libtiff(_base_klass):
+class TestTiffStack_libtiff(_image_series):
     def check_skip(self):
         _skip_if_no_libtiff()
 
@@ -196,9 +196,9 @@ class TestTiffStack_libtiff(_base_klass):
         self.expected_len = 5
 
 
-class TestImageSequenceWithPIL(_frame_base_klass):
+class TestImageSequenceWithPIL(_image_series):
     def setUp(self):
-        self.filename = os.path.join(path, 'image_sequence')
+        self.filename = os.path.join(path, 'image_sequence', '*.png')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
         self.kwargs = dict(plugin='pil')
@@ -212,9 +212,9 @@ class TestImageSequenceWithPIL(_frame_base_klass):
         self.assertRaises(IOError, raises)
 
 
-class TestImageSequenceWithMPL(_frame_base_klass):
+class TestImageSequenceWithMPL(_image_series):
     def setUp(self):
-        self.filename = os.path.join(path, 'image_sequence')
+        self.filename = os.path.join(path, 'image_sequence', '*.png')
         self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
         self.kwargs = dict(plugin='matplotlib')
@@ -224,7 +224,7 @@ class TestImageSequenceWithMPL(_frame_base_klass):
         self.expected_len = 5
 
 
-class TestImageSequenceAcceptsList(_frame_base_klass):
+class TestImageSequenceAcceptsList(_image_series):
     def setUp(self):
         filenames = ['T76S3F00001.png', 'T76S3F00002.png', 'T76S3F00003.png',
                      'T76S3F00004.png', 'T76S3F00005.png']
@@ -239,7 +239,7 @@ class TestImageSequenceAcceptsList(_frame_base_klass):
         self.expected_len = len(filenames)
 
 
-class TestTiffStack_pil(_base_klass):
+class TestTiffStack_pil(_image_series):
     def check_skip(self):
         pass
 
@@ -254,7 +254,7 @@ class TestTiffStack_pil(_base_klass):
         self.expected_len = 5
 
 
-class TestTiffStack_tifffile(_base_klass):
+class TestTiffStack_tifffile(_image_series):
     def check_skip(self):
         pass
 
@@ -269,14 +269,18 @@ class TestTiffStack_tifffile(_base_klass):
         self.expected_len = 5
 
 
-def test_open_pngs():
-    pims.open(os.path.join(path, 'image_sequence', '*.png'))
+class TestOpenFiles(unittest.TestCase):
+    def test_open_pngs(self):
+        pims.open(os.path.join(path, 'image_sequence', '*.png'))
+    
+    def test_open_mov(self):
+        _skip_if_no_PyAV()
+        pims.open(os.path.join(path, 'bulk-water.mov'))
+    
+    def test_open_tiff(self):
+        pims.open(os.path.join(path, 'stuck.tif'))
 
 
-def test_open_mov():
-    _skip_if_no_PyAV()
-    pims.open(os.path.join(path, 'bulk-water.mov'))
-
-
-def test_open_tiff():
-    pims.open(os.path.join(path, 'stuck.tif'))
+if __name__ == '__main__':
+    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+                   exit=False)
