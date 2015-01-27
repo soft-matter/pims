@@ -4,6 +4,7 @@ import numpy as np
 
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
+from warnings import warn
 
 
 try:
@@ -86,19 +87,25 @@ class MetadataRetrieve():
                 try:
                     fn = getattr(jmd, name)
                     field = fn(*((0,) * len(params)))
-                    # If there is no exception, wrap the function and bind.
-                    def fnw(fn1=fn, naame=name, paramcount=len(params)):
-                        return (lambda *args: wrap_md(fn1, naame,
-                                                      paramcount, *args))
-                    fnw = fnw()
-                    fnw.__doc__ = fn.__doc__
-                    setattr(self, name, fnw)
+                    if field is not None:
+                        # If there is no exception, wrap the function and bind.
+                        def fnw(fn1=fn, naame=name, paramcount=len(params)):
+                            return (lambda *args: wrap_md(fn1, naame,
+                                                          paramcount, *args))
+                        fnw = fnw()
+                        fnw.__doc__ = fn.__doc__
+                        setattr(self, name, fnw)
                 except javabridge.JavaException:
                     # function is not supported by this specific reader
                     pass
 
         if log is not None:
             javabridge.call(log, 'reset', '()V')
+
+    def __repr__(self):
+        listing = list(filter(lambda x: x[:2] != '__', dir(self)))
+        return '<MetadataRetrieve> Available loci.formats.meta.' + \
+               'MetadataRetrieve functions: ' + ', '.join(listing)
 
 
 class BioformatsReaderRaw(FramesSequence):
@@ -107,7 +114,7 @@ class BioformatsReaderRaw(FramesSequence):
 
     Parameters
     ----------
-    filename: str
+    filename : str
     process_func : function, optional
         callable with signature `proc_img = process_func(img)`,
         which will be applied to the data from each frame
@@ -116,8 +123,12 @@ class BioformatsReaderRaw(FramesSequence):
     as_grey : boolean, optional
         Convert color images to greyscale. False by default.
         May not be used in conjunction with process_func.
-    meta: bool, optional
+    meta : bool, optional
         When true, the metadata object is generated. Takes time to build.
+    java_memory : str, optional
+        The max heap size of the java virtual machine, default 512m. As soon as
+        the virtual machine is started, python has to be restarted to change
+        the max heap size.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
@@ -130,6 +141,11 @@ class BioformatsReaderRaw(FramesSequence):
     metadata : MetadataRetrieve object
         This object contains loci.formats.meta.MetadataRetrieve functions for
         metadata reading. Not available when meta == False.
+    frame_metadata : dict
+        This dictionary sets which metadata fields are read and passed into the
+        Frame.metadata field obtained by get_frame. This will only work if
+        meta=True. Only MetadataRetrieve methods with signature (series, plane)
+        will be accepted.
     sizes : dict of int
         Number of series and for active series: X, Y, Z, C, T sizes
     frame_shape : tuple of int
@@ -172,7 +188,7 @@ class BioformatsReaderRaw(FramesSequence):
 
     Notes
     ----------
-    Be sure to kill the java VM with pims.kill_vm() the end of the day. It
+    Be sure to kill the java VM with pims.kill_vm() the end of the script. It
     cannot be restarted from the same python console, however. You can also
     kill the vm by calling frame.close(is_last=True).
 
@@ -210,9 +226,10 @@ class BioformatsReaderRaw(FramesSequence):
     class_priority = 2
 
     def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False, meta=True, series=0):
+                 as_grey=False, meta=True, java_memory='512m', series=0):
         # Start java VM and initialize logger
-        javabridge.start_vm(class_path=bioformats.JARS, max_heap_size='512m')
+        javabridge.start_vm(class_path=bioformats.JARS, 
+                            max_heap_size=java_memory)
         self._java_log = javabridge.run_script("""
                 org.apache.log4j.BasicConfigurator.configure();
                 log4j_logger = org.apache.log4j.Logger.getRootLogger();
@@ -251,8 +268,22 @@ class BioformatsReaderRaw(FramesSequence):
         self._as_grey(as_grey, process_func)
 
         # Define the names of the standard per frame metadata.
-        self._metadatacolumns = ['plane', 'series', 'indexC', 'indexZ',
-                                 'indexT', 'X', 'Y', 'Z', 'T']
+        self.frame_metadata = {}
+        if meta:    
+            if hasattr(self.metadata, 'getPlaneTheT'):
+                self.frame_metadata['indexT'] = 'getPlaneTheT'
+            if hasattr(self.metadata, 'getPlaneTheZ'):
+                self.frame_metadata['indexZ'] = 'getPlaneTheZ'
+            if hasattr(self.metadata, 'getPlaneTheC'):
+                self.frame_metadata['indexC'] = 'getPlaneTheC'
+            if hasattr(self.metadata, 'getPlaneDeltaT'):
+                self.frame_metadata['T'] = 'getPlaneDeltaT'
+            if hasattr(self.metadata, 'getPlanePositionX'):
+                self.frame_metadata['X'] = 'getPlaneDeltaT'
+            if hasattr(self.metadata, 'getPlanePositionY'):
+                self.frame_metadata['Y'] = 'getPlanePositionY'
+            if hasattr(self.metadata, 'getPlanePositionZ'):
+                self.frame_metadata['Z'] = 'getPlanePositionZ'
 
     def _change_series(self):
         """Changes series and rereads dtype, sizes and pixelsizes.
@@ -261,7 +292,7 @@ class BioformatsReaderRaw(FramesSequence):
         series = self._series
         self.rdr.setSeries(series)
         self.isRGB = self.rdr.isRGB()
-        self.isInterleaved = self.rdr.isInterleaved()
+        self._isInterleaved = self.rdr.isInterleaved()
         self._sizeC = self.rdr.getSizeC()
         self._sizeT = self.rdr.getSizeT()
         self._sizeZ = self.rdr.getSizeZ()
@@ -308,9 +339,12 @@ class BioformatsReaderRaw(FramesSequence):
 
     def close(self, is_last=False):
         self.reader.close()
-        javabridge.detach()
-        if is_last:
-            javabridge.kill_vm()
+        try:
+            javabridge.detach()
+            if is_last:
+                javabridge.kill_vm()
+        except AttributeError:  # java_vm was already killed
+            pass
 
     def __del__(self):
         self.close()
@@ -339,53 +373,34 @@ class BioformatsReaderRaw(FramesSequence):
         return self._first_frame_shape
 
     def get_frame(self, j):
-        """Wrapper for _get_frame, additionally applies the process_func and
-        converts the numpy array and metadata to a Frame object.
+        """Returns image in current series specific as a Frame object with
+        specified frame_no and metadata attributes.
         """
-        im, metadata = self._get_frame(self.series, j)
-        im = self.process_func(im)
-        return Frame(im, frame_no=j, metadata=metadata)
+        im, metadata = self._get_frame_2D(self.series, j)
+        return Frame(self.process_func(im), frame_no=j, metadata=metadata)
 
     def _get_frame(self, series, j):
-        """Returns image as 2D numpy array and metadata as dictionary.
-        """
-        im, metadata = self._get_frame_2D(series, j)
-        metadataproc = dict(zip(self._metadatacolumns, metadata))
-        return im, metadataproc
-
-    def _get_frame_2D(self, series, j):
-        """Actual reader, returns image as 2D numpy array and metadata as 
-        tuple. The image reader is a reduced version from the read function
-        in bioformats.formatreader.ImageReader.
+        """Actual reader, returns image as 2D numpy array and metadata as
+        dict. It changes the series property if necessary.
         """
         self.series = series  # use property setter & error reporting
 
         im = np.frombuffer(self.rdr.openBytes(j), self._source_dtype)
         if self.isRGB:
-            if self.isInterleaved:
+            if self._isInterleaved:
                 im.shape = (self._sizeY, self._sizeX, self._sizeRGB)
             else:
                 im.shape = (self._sizeRGB, self._sizeY, self._sizeX)
-                im = im.transpose(1, 2, 0)
+                im = im.transpose(1, 2, 0)  # put RGB in inner dimension
         else:
             im.shape = (self._sizeY, self._sizeX)
 
         if im.dtype != self._pixel_type:
             im = im.astype(self._pixel_type)
 
-        # TODO: make the metadatafields user-defined.
-        try:
-            metadata = (j,
-                        series,
-                        self.metadata.getPlaneTheC(series, j),
-                        self.metadata.getPlaneTheZ(series, j),
-                        self.metadata.getPlaneTheT(series, j),
-                        self.metadata.getPlanePositionX(series, j),
-                        self.metadata.getPlanePositionY(series, j),
-                        self.metadata.getPlanePositionZ(series, j),
-                        self.metadata.getPlaneDeltaT(series, j))
-        except AttributeError:
-            metadata = (j, series, 0, 0, 0, 0, 0, 0, 0)
+        metadata = {'frame': j, 'series': series}
+        for key, method in self.frame_metadata.iteritems():
+            metadata[key] = getattr(self.metadata, method)(series, j)
 
         return im, metadata
 
@@ -431,7 +446,6 @@ class BioformatsReaderRaw(FramesSequence):
     def get_index(self, z, c, t):
         return self.rdr.getIndex(z, c, t)
 
-    @property
     def java_log(self):
         return javabridge.to_string(self._java_log)
 
@@ -464,8 +478,11 @@ Frame Shape: {w} x {h}""".format(w=self._sizeX,
 
 
 class BioformatsReader(BioformatsReaderRaw):
-    """Reads 3D images from the frames of a file supported by bioformats into an
-    iterable object that returns images as numpy arrays, indexed by T index.
+    """Reads multidimensional images from the frames of a file supported by
+    bioformats into an iterable object that returns images as numpy arrays
+    indexed by t. The numpy array dimensions are CZYX, ZYX, CYX or YX,
+    depending on the contents of the file and the setting of the channel
+    property.
 
     Parameters
     ----------
@@ -480,6 +497,10 @@ class BioformatsReader(BioformatsReaderRaw):
         May not be used in conjunction with process_func.
     meta: bool, optional
         When true, the metadata object is generated. Takes time to build.
+    java_memory : str, optional
+        The max heap size of the java virtual machine, default 512m. As soon as
+        the virtual machine is started, python has to be restarted to change
+        the max heap size.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
@@ -494,6 +515,11 @@ class BioformatsReader(BioformatsReaderRaw):
     metadata : MetadataRetrieve object
         This object contains loci.formats.meta.MetadataRetrieve functions for
         metadata reading. Not available when meta == False.
+    frame_metadata : dict
+        This dictionary sets which metadata fields are read and passed into the
+        Frame.metadata field obtained by get_frame. This will only work if
+        meta=True. Only MetadataRetrieve methods with signature (series, plane)
+        will be accepted.
     sizes : dict of int
         Number of series and for active series: X, Y, Z, C, T sizes
     frame_shape : tuple of int
@@ -512,6 +538,9 @@ class BioformatsReader(BioformatsReaderRaw):
         contains everything printed to java system.out and system.err
     isRGB : boolean
         True if the image is an RGB image
+    channel_RGB : list of rgb values (floats)
+        The rgb values of all active channels set by the channels property. If
+        not supported by the underlying reader, this returns an empty list
 
     Methods
     ----------
@@ -538,7 +567,7 @@ class BioformatsReader(BioformatsReaderRaw):
 
     Notes
     ----------
-    Be sure to kill the java VM with pims.kill_vm() the end of the day. It
+    Be sure to kill the java VM with pims.kill_vm() the end of the script. It
     cannot be restarted from the same python console, however. You can also
     kill the vm by calling frame.close(is_last=True).
 
@@ -567,17 +596,12 @@ class BioformatsReader(BioformatsReaderRaw):
     """
     class_priority = 5
 
-    def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False, meta=True, series=0, C=None):
+    def __init__(self, filename, process_func=None, dtype=None, as_grey=False,
+                 meta=True, java_memory='512m', series=0, C=None):
+        self._channel = C
         super(BioformatsReader, self).__init__(filename, process_func, dtype,
-                                               as_grey, meta, series)
-        if self.isRGB:
-            self._channel = (0,)
-        else:
-            try:
-                self.channel = C
-            except IndexError:
-                self._channel = tuple(range(self._sizeC))
+                                               as_grey, meta, java_memory,
+                                               series)
 
     def __len__(self):
         return self._sizeT
@@ -602,28 +626,58 @@ class BioformatsReader(BioformatsReaderRaw):
                              'than the number of channels ' +
                              '({})'.format(self._sizeC + 1))
         self._channel = channel
+        rgbvalues = []
+        try:
+            for c in channel:
+                rgba = self.metadata.getChannelColor(self.series, c)
+                rgbvalues.append([(rgba >> 24 & 255) / 255,
+                                  (rgba >> 16 & 255) / 255,
+                                  (rgba >> 8 & 255) / 255])
+        except:  # a lot could happen, use catch all here
+            self.channel_RGB = []
+        else:
+            self.channel_RGB = rgbvalues
 
-    def _get_frame(self, series, t):
-        """Builds array of images and DataFrame of metadata.
-        """
+    def _change_series(self):
+        super(BioformatsReader, self)._change_series()
+
+        if self.isRGB:
+            self._channel = (0,)
+            self.channel_RGB = []
+        elif self._channel is None:
+            self.channel = tuple(range(self._sizeC))
+        else:
+            try:
+                self.channel = self._channel
+            except IndexError:
+                warn("Channel index out of range. Resetting to all channels.",
+                     UserWarning)
+                self.channel = tuple(range(self._sizeC))
+
+    def get_frame(self, t):
+        """Returns image in current series at specified T index. The image is
+        wrapped in a Frame object with specified frame_no and metadata."""
         shape = (len(self._channel), self._sizeZ, self._sizeY, self._sizeX)
         if self.isRGB:
             shape = shape + (self._sizeC,)
         imlist = np.zeros(shape, dtype=self.pixel_type)
-        metadata = []
 
+        mdlist = []
         for (Nc, c) in enumerate(self._channel):
             for z in range(self._sizeZ):
                 index = self.get_index(z, c, t)
-                imlist[Nc, z], md = self._get_frame_2D(series, index)
-                metadata.append(md)
+                imlist[Nc, z], md = self._get_frame(self.series, index)
+                mdlist.append(md)
 
-        """The following block produces a dataframe, which is incompatible with
-        the pims.Frame object. Instead, here metadata is converted to a dict.
-        if DataFrame is not None:
-            metadata = DataFrame(metadata, columns=self._metadatacolumns)
-            metadata.set_index(['indexC', 'indexZ'], drop=False, inplace=True)
-        """
-        metadata = np.asarray(metadata).squeeze()
-        metadata = dict(zip(self._metadatacolumns, metadata.T))
-        return imlist.squeeze(), metadata
+        keys = mdlist[0].keys()
+        metadata = {}
+        for k in keys:
+            metadata[k] = [row[k] for row in mdlist]
+            if metadata[k][1:] == metadata[k][:-1]:
+                metadata[k] = metadata[k][0]
+
+        if len(self.channel_RGB) > 0:
+            metadata['colors'] = self.channel_RGB
+
+        return Frame(self.process_func(imlist.squeeze()), frame_no=t,
+                     metadata=metadata)
