@@ -310,9 +310,13 @@ def to_rgb(image, colors=None, normalize=True):
         so that values lay between 0 and 255. When normalize = True (default),
         datatype is np.uint8, else it is float.
     """
+    # identify whether the image has a (leading) channel axis
+    if colors == None:
+        has_channel_axis = image.ndim > 2 and image.shape[0] < 5
+    else:
+        has_channel_axis = len(colors) == image.shape[0]
     # identify number of channels and resulting shape
-    is_multichannel = image.ndim > 2 and image.shape[0] < 5
-    if is_multichannel:
+    if has_channel_axis:
         channels = image.shape[0]
         shape_rgb = image.shape[1:] + (3,)
     else:
@@ -339,7 +343,7 @@ def to_rgb(image, colors=None, normalize=True):
         rgbs = (ColorConverter().to_rgba_array(colors)*255).astype('uint8')
         rgbs = rgbs[:channels, :3]
 
-    if is_multichannel:
+    if has_channel_axis:
         result = np.zeros(shape_rgb)
         for i in range(channels):
             result += _monochannel_to_rgb(image[i], rgbs[i])

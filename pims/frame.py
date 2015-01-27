@@ -75,16 +75,20 @@ class Frame(ndarray):
     def _repr_html_(self):
         from jinja2 import Template
         # Identify whether image is multichannel, convert to rgb if necessary
-        if self.ndim > 2 and self.shape[0] < 5:
-            try:
-                colors = self.metadata['colors']
-            except KeyError or AttributeError:
-                colors = None
+        try:
+            # if colors field exists, check if size agrees with image shape
+            colors = self.metadata['colors']
+            is_multichannel = len(colors) == 1 or len(colors) == self.shape[0]         
+        except KeyError or AttributeError:
+            # if colors field does not exist, guess from image shape
+            colors = None
+            is_multichannel = self.ndim > 2 and self.shape[0] < 5
+        if is_multichannel:
             image = to_rgb(self, colors, False)
             has_color_channels = True
         else:
             image = self
-            has_color_channels = (3 in image.shape) or (4 in image.shape)
+            has_color_channels = image.shape[-1] == 3 or image.shape[-1] == 4
         # If Frame is 2D, display as a plain image.
         # We have to build the image tag ourselves; _repr_html_ expects HTML.
         if image.ndim == 2 or (image.ndim == 3 and has_color_channels):
