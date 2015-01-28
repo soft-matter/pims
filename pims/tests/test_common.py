@@ -9,6 +9,7 @@ import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 import pims
+from PIL import Image
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -34,6 +35,25 @@ def assert_image_equal(actual, expected):
         if np.issubdtype(expected.dtype, np.integer):
             expected = expected/float(np.iinfo(expected.dtype).max)
         assert_allclose(actual, expected, atol=1/256.)
+
+
+def save_dummy_png(filepath, filenames, shape):
+    if not os.path.isdir(filepath):
+        os.mkdir(filepath)
+    frames = []
+    for f in filenames:
+        dummy = np.random.randint(0, 255, shape).astype('uint8')
+        im = Image.fromarray(dummy)
+        im.save(os.path.join(filepath, f), 'png')
+        frames.append(dummy)
+    return frames
+
+
+def clean_dummy_png(filepath, filenames):  
+    for f in filenames:
+        os.remove(os.path.join(filepath, f))
+    if os.listdir(filepath) == []:
+        os.rmdir(filepath)
 
 
 class _image_single(unittest.TestCase):
@@ -97,26 +117,6 @@ class _image_single(unittest.TestCase):
         v = self.klass(self.filename, invert, **self.kwargs)
         assert_image_equal(v[0], invert(v_raw[0]))
 
-    def test_greyscale_process_func(self):
-        self.check_skip()
-        # Note: Some, but not all, of the files are already greyscale
-        # so in some cases this function does nothing.
-        def greyscale(image):
-            if image.ndim == 3:
-                image = image[:, :, 0]
-                assert image.ndim == 2
-            return image
-
-        v_raw = self.klass(self.filename, **self.kwargs)
-        v = self.klass(self.filename, greyscale, **self.kwargs)
-        assert_image_equal(v[0], greyscale(v_raw[0]))
-
-    def test_as_grey(self):
-        self.check_skip()
-        v = self.klass(self.filename, as_grey=True, **self.kwargs)
-        ndim = v[0].ndim
-        self.assertEqual(ndim, 2)
-
 
 class _image_series(_image_single):
     def test_iterator(self):
@@ -164,7 +164,28 @@ class _image_series(_image_single):
         list(self.v[[0, -1]])
 
 
-class TestVideo(_image_series):
+class _image_rgb(unittest.TestCase):
+    # Only include these tests for 2D RGB files.
+    def test_greyscale_process_func(self):
+        self.check_skip()
+        def greyscale(image):
+            assert image.ndim == 3
+            image = image[:, :, 0]
+            assert image.ndim == 2
+            return image
+
+        v_raw = self.klass(self.filename, **self.kwargs)
+        v = self.klass(self.filename, greyscale, **self.kwargs)
+        assert_image_equal(v[0], greyscale(v_raw[0]))
+
+    def test_as_grey(self):
+        self.check_skip()
+        v = self.klass(self.filename, as_grey=True, **self.kwargs)
+        ndim = v[0].ndim
+        self.assertEqual(ndim, 2)
+
+
+class TestVideo(_image_series, _image_rgb):
     def check_skip(self):
         _skip_if_no_PyAV()
 
@@ -198,46 +219,71 @@ class TestTiffStack_libtiff(_image_series):
 
 class TestImageSequenceWithPIL(_image_series):
     def setUp(self):
-        self.filename = os.path.join(path, 'image_sequence', '*.png')
-        self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
-        self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
+                          'T76S3F00003.png', 'T76S3F00004.png',
+                          'T76S3F00005.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = os.path.join(self.filepath, '*.png')
+        self.frame0 = frames[0]
+        self.frame1 = frames[1]
         self.kwargs = dict(plugin='pil')
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (424, 640)
+        self.expected_shape = shape
         self.expected_len = 5
 
     def test_bad_path_raises(self):
         raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
         self.assertRaises(IOError, raises)
+        
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
 
 
 class TestImageSequenceWithMPL(_image_series):
     def setUp(self):
-        self.filename = os.path.join(path, 'image_sequence', '*.png')
-        self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
-        self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
+                          'T76S3F00003.png', 'T76S3F00004.png',
+                          'T76S3F00005.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+        self.filename = os.path.join(self.filepath, '*.png')
+        self.frame0 = frames[0]
+        self.frame1 = frames[1]
         self.kwargs = dict(plugin='matplotlib')
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (424, 640)
+        self.expected_shape = shape
         self.expected_len = 5
 
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
 
 class TestImageSequenceAcceptsList(_image_series):
     def setUp(self):
-        filenames = ['T76S3F00001.png', 'T76S3F00002.png', 'T76S3F00003.png',
-                     'T76S3F00004.png', 'T76S3F00005.png']
-        self.filename = [os.path.join(path, 'image_sequence', fn)
-                         for fn in filenames]
-        self.frame0 = np.load(os.path.join(path, 'seq_frame0.npy'))
-        self.frame1 = np.load(os.path.join(path, 'seq_frame1.npy'))
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
+                          'T76S3F00003.png', 'T76S3F00004.png',
+                          'T76S3F00005.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = [os.path.join(self.filepath, fn)
+                         for fn in self.filenames]
+        self.frame0 = frames[0]
+        self.frame1 = frames[1]
         self.kwargs = dict(plugin='matplotlib')
         self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (424, 640)
-        self.expected_len = len(filenames)
+        self.expected_shape = shape
+        self.expected_len = len(self.filenames)
 
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
 
 class TestTiffStack_pil(_image_series):
     def check_skip(self):
@@ -271,14 +317,91 @@ class TestTiffStack_tifffile(_image_series):
 
 class TestOpenFiles(unittest.TestCase):
     def test_open_pngs(self):
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
+                          'T76S3F00003.png', 'T76S3F00004.png',
+                          'T76S3F00005.png']
+        shape = (10, 11)
+        save_dummy_png(self.filepath, self.filenames, shape)
         pims.open(os.path.join(path, 'image_sequence', '*.png'))
-    
+        clean_dummy_png(self.filepath, self.filenames)
+
     def test_open_mov(self):
         _skip_if_no_PyAV()
         pims.open(os.path.join(path, 'bulk-water.mov'))
-    
+
     def test_open_tiff(self):
         pims.open(os.path.join(path, 'stuck.tif'))
+
+
+class ImageSequence3D(_image_series):
+    def check_skip(self):
+        pass
+
+    def setUp(self):
+        self.filepath = os.path.join(path, 'image_sequence3d')
+        self.filenames = ['file_t001_z001_c1.png',
+                          'file_t001_z001_c2.png',
+                          'file_t001_z002_c1.png',
+                          'file_t001_z002_c2.png',
+                          'file_t002_z001_c1.png',
+                          'file_t002_z001_c2.png',
+                          'file_t002_z002_c1.png',
+                          'file_t002_z002_c2.png',
+                          'file_t003_z001_c1.png',
+                          'file_t003_z001_c2.png',
+                          'file_t003_z002_c1.png',
+                          'file_t003_z002_c2.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = os.path.join(self.filepath, '*.png')
+        self.frame0 = [frames[0], frames[2]]
+        self.frame1 = [frames[4], frames[6]]
+        self.klass = pims.ImageSequence3D
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.v.channel = 0
+        self.expected_shape = shape
+        self.expected_len = 3
+        self.expected_Z = 2
+        self.expected_C = 2
+ 
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
+
+    def test_filename_tzc(self):
+        tzc = pims.image_sequence.filename_to_tzc('file_t01_z005_c4.png')
+        self.assertEqual(tzc, [1, 5, 4])
+        tzc = pims.image_sequence.filename_to_tzc('t01file_t01_z005_c4.png')
+        self.assertEqual(tzc, [1, 5, 4])
+        tzc = pims.image_sequence.filename_to_tzc('file_z005_c4_t01.png')
+        self.assertEqual(tzc, [1, 5, 4])
+        tzc = pims.image_sequence.filename_to_tzc(u'file\u03BC_z05_c4_t01.png')
+        self.assertEqual(tzc, [1, 5, 4])
+        tzc = pims.image_sequence.filename_to_tzc('file_t9415_z005.png')
+        self.assertEqual(tzc, [9415, 5, 0])
+        tzc = pims.image_sequence.filename_to_tzc('file_t47_c34.png')
+        self.assertEqual(tzc, [47, 0, 34])
+        tzc = pims.image_sequence.filename_to_tzc('file_z4_c2.png')
+        self.assertEqual(tzc, [0, 4, 2])
+        tzc = pims.image_sequence.filename_to_tzc('file_x4_c2_y5_z1.png',
+                                                  ['x', 'y', 'z'])
+        self.assertEqual(tzc, [4, 5, 1])
+
+    def test_sizeZ(self):
+        self.check_skip()
+        assert_equal(self.v.sizes['Z'], self.expected_Z)
+
+    def test_sizeC(self):
+        self.check_skip()
+        assert_equal(self.v.sizes['C'], self.expected_C)
+
+    def test_change_channels(self):
+        self.check_skip()
+        self.v.channel = (0, 1)
+        assert_equal(self.v[0].shape, (2, 2, self.expected_shape[0], 
+                                       self.expected_shape[1]))
 
 
 if __name__ == '__main__':
