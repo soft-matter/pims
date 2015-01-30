@@ -5,7 +5,7 @@ import numpy as np
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
 from warnings import warn
-
+from os.path import isfile
 
 try:
     import javabridge
@@ -227,10 +227,17 @@ class BioformatsReaderRaw(FramesSequence):
 
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False, meta=True, java_memory='512m', series=0):
-        # Start java VM and initialize logger
-        javabridge.start_vm(class_path=bioformats.JARS, 
-                            max_heap_size=java_memory)
-        self._java_log = javabridge.run_script("""
+        global _java_log
+
+        # Make sure that file exists before starting java
+        if not isfile(filename):
+            raise IOError('The file "{}" does not exist.'.format(filename))
+
+        # Start java VM and initialize logger (globally)
+        if not javabridge._javabridge.get_vm().is_active():
+            javabridge.start_vm(class_path=bioformats.JARS, run_headless=True,
+                                max_heap_size=java_memory)
+            _java_log = javabridge.run_script("""
                 org.apache.log4j.BasicConfigurator.configure();
                 log4j_logger = org.apache.log4j.Logger.getRootLogger();
                 log4j_logger.setLevel(org.apache.log4j.Level.WARN);
@@ -239,14 +246,16 @@ class BioformatsReaderRaw(FramesSequence):
                 java.lang.System.setOut(out_printstream);
                 java.lang.System.setErr(out_printstream);
                 java_out;""")
-        javabridge.attach()
+        # If there are no JVMs attached to this thread, attach one
+        if javabridge._javabridge.get_thread_local("attach_count", 0) == 0:
+            javabridge.attach()
 
         # Initialize reader and metadata
         self.filename = str(filename)
         if meta:
             self.reader = bioformats.ImageReader(path=self.filename)
             self.metadata = MetadataRetrieve(self.reader.rdr.getMetadataStore(),
-                                             self._java_log)
+                                             log=_java_log)
         else:  # skip built-in metadata initialization
             self.reader = bioformats.ImageReader(path=self.filename,
                                                  perform_init=False)
@@ -293,7 +302,6 @@ class BioformatsReaderRaw(FramesSequence):
         self.rdr.setSeries(series)
         self.isRGB = self.rdr.isRGB()
         self._isInterleaved = self.rdr.isInterleaved()
-        self._sizeC = self.rdr.getSizeC()
         self._sizeT = self.rdr.getSizeT()
         self._sizeZ = self.rdr.getSizeZ()
         self._sizeY = self.rdr.getSizeY()
@@ -331,20 +339,21 @@ class BioformatsReaderRaw(FramesSequence):
             image = np.frombuffer(self.rdr.openBytes(0), self._source_dtype)
             self._sizeRGB = int(len(image) / (self._sizeX * self._sizeY))
             self._first_frame_shape = (self._sizeY, self._sizeX, self._sizeRGB)
+            self._sizeC = 1
         else:
             self._first_frame_shape = (self._sizeY, self._sizeX)
+            self._sizeC = self.rdr.getSizeC()
 
     def __len__(self):
         return self._planes
 
     def close(self, is_last=False):
         self.reader.close()
-        try:
-            javabridge.detach()
-            if is_last:
+        if is_last:
+            try:
                 javabridge.kill_vm()
-        except AttributeError:  # java_vm was already killed
-            pass
+            except AttributeError:  # java_vm was already killed
+                pass
 
     def __del__(self):
         self.close()
@@ -447,7 +456,7 @@ class BioformatsReaderRaw(FramesSequence):
         return self.rdr.getIndex(z, c, t)
 
     def java_log(self):
-        return javabridge.to_string(self._java_log)
+        return javabridge.to_string(_java_log)
 
     @property
     def reader_class_name(self):
@@ -659,7 +668,7 @@ class BioformatsReader(BioformatsReaderRaw):
         wrapped in a Frame object with specified frame_no and metadata."""
         shape = (len(self._channel), self._sizeZ, self._sizeY, self._sizeX)
         if self.isRGB:
-            shape = shape + (self._sizeC,)
+            shape = shape + (self._sizeRGB,)
         imlist = np.zeros(shape, dtype=self.pixel_type)
 
         mdlist = []
