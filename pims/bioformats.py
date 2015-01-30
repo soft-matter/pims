@@ -288,7 +288,7 @@ class BioformatsReaderRaw(FramesSequence):
             if hasattr(self.metadata, 'getPlaneDeltaT'):
                 self.frame_metadata['T'] = 'getPlaneDeltaT'
             if hasattr(self.metadata, 'getPlanePositionX'):
-                self.frame_metadata['X'] = 'getPlaneDeltaT'
+                self.frame_metadata['X'] = 'getPlanePositionX'
             if hasattr(self.metadata, 'getPlanePositionY'):
                 self.frame_metadata['Y'] = 'getPlanePositionY'
             if hasattr(self.metadata, 'getPlanePositionZ'):
