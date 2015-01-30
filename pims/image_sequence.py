@@ -194,10 +194,40 @@ def filename_to_tzc(filename, identifiers=None):
 class ImageSequence3D(ImageSequence):
     """Read a directory of (t, z, c) numbered image files into an
     iterable that returns images as numpy arrays, indexed by t.
+
+    Parameters
+    ----------
+    path_spec : string or iterable of strings
+       a directory or, safer, a pattern like path/to/images/*.png
+       which will ignore extraneous files or a list of files to open
+       in the order they should be loaded. The filenames should contain the
+       indices of T, Z and C, preceded by a dimension identifier such as:
+       'file_t001c05z32'.
+    process_func : function, optional
+        callable with signalture `proc_img = process_func(img)`,
+        which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Not implemented for 3D images.
+    plugin : string
+        Passed on to skimage.io.imread if scikit-image is available.
+        If scikit-image is not available, this will be ignored and a warning
+        will be issued.
+    tzc_identifiers : list of string, optional
+        3 strings preceding t, z, c indices. Default ['t', 'z', 'c'].
+
     """
+    def __init__(self, path_spec, process_func=None, dtype=None,
+                 as_grey=False, plugin=None, tzc_identifiers=None):
+        self.tzc_identifiers = tzc_identifiers
+        super(ImageSequence3D, self).__init__(path_spec, process_func,
+                                              dtype, as_grey, plugin)
+
     def _get_files(self, path_spec):
         super(ImageSequence3D, self)._get_files(path_spec)
-        self._toc = np.array([filename_to_tzc(f) for f in self._filepaths])
+        self._toc = np.array([filename_to_tzc(f, self.tzc_identifiers) \
+                              for f in self._filepaths])
         for n in range(3):
             self._toc[:, n] = self._toc[:, n] - min(self._toc[:, n])
         self._filepaths = np.array(self._filepaths)
