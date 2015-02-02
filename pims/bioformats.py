@@ -33,7 +33,7 @@ def available():
         return True
 
 
-class MetadataRetrieve():
+class MetadataRetrieve(object):
     """This class is an interface to loci.formats.meta.MetadataRetrieve. At
     initialization, it tests all the MetadataRetrieve functions and it only
     binds the ones that do not raise a java exception.
@@ -278,7 +278,7 @@ class BioformatsReaderRaw(FramesSequence):
 
         # Define the names of the standard per frame metadata.
         self.frame_metadata = {}
-        if meta:    
+        if meta:
             if hasattr(self.metadata, 'getPlaneTheT'):
                 self.frame_metadata['indexT'] = 'getPlaneTheT'
             if hasattr(self.metadata, 'getPlaneTheZ'):
