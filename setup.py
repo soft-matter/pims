@@ -26,7 +26,8 @@ setup_parameters = dict(
     install_requires=['six>=1.8', 'numpy>=1.7', 'tifffile>=0.3.1'],
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",
-    packages=['pims'],
+    packages=['pims',
+              'pims.utils'],
     long_description=read('README.md'))
 
 setup(**setup_parameters)

@@ -49,7 +49,7 @@ def save_dummy_png(filepath, filenames, shape):
     return frames
 
 
-def clean_dummy_png(filepath, filenames):  
+def clean_dummy_png(filepath, filenames):
     for f in filenames:
         os.remove(os.path.join(filepath, f))
     if os.listdir(filepath) == []:
@@ -238,7 +238,7 @@ class TestImageSequenceWithPIL(_image_series):
     def test_bad_path_raises(self):
         raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
         self.assertRaises(IOError, raises)
-        
+
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
@@ -281,6 +281,37 @@ class TestImageSequenceAcceptsList(_image_series):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = shape
         self.expected_len = len(self.filenames)
+
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
+
+class TestImageSequenceNaturalSorting(_image_series):
+    def setUp(self):
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F1.png', 'T76S3F20.png',
+                     'T76S3F3.png', 'T76S3F4.png',
+                     'T76S3F50.png', 'T76S3F10.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = [os.path.join(self.filepath, fn)
+                         for fn in self.filenames]
+        self.frame0 = frames[0]
+        self.frame1 = frames[2]
+        self.kwargs = dict(plugin='matplotlib')
+        self.klass = pims.ImageSequence
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = shape
+        self.expected_len = len(self.filenames)
+
+        sorted_files = ['T76S3F1.png',
+                        'T76S3F3.png',
+                        'T76S3F4.png',
+                        'T76S3F10.png',
+                        'T76S3F20.png',
+                        'T76S3F50.png']
+
+        assert sorted_files == [x.split(os.path.sep)[-1] for x in self.v._filepaths]
 
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
@@ -366,7 +397,7 @@ class ImageSequence3D(_image_series):
         self.expected_len = 3
         self.expected_Z = 2
         self.expected_C = 2
- 
+
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
@@ -400,7 +431,7 @@ class ImageSequence3D(_image_series):
     def test_change_channels(self):
         self.check_skip()
         self.v.channel = (0, 1)
-        assert_equal(self.v[0].shape, (2, 2, self.expected_shape[0], 
+        assert_equal(self.v[0].shape, (2, 2, self.expected_shape[0],
                                        self.expected_shape[1]))
 
 
