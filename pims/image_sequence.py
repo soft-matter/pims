@@ -6,10 +6,13 @@ from six.moves import map
 import os
 import glob
 from warnings import warn
+import re
+
+import numpy as np
+
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
-import re
-import numpy as np
+from pims.utils.sort import natural_keys
 
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
@@ -95,7 +98,7 @@ class ImageSequence(FramesSequence):
         # deal with if input is _not_ a string
         if not isinstance(path_spec, six.string_types):
             # assume it is iterable and off we go!
-            self._filepaths = list(path_spec)
+            self._filepaths = sorted(list(path_spec), key=natural_keys)
             self._count = len(path_spec)
             return
 
@@ -111,7 +114,7 @@ class ImageSequence(FramesSequence):
             filepaths = list(map(make_full_path, filenames))
         else:
             filepaths = glob.glob(path_spec)
-        filepaths.sort()  # listdir returns arbitrary order
+        filepaths = sorted(filepaths, key=natural_keys)  # listdir returns arbitrary order
         self._filepaths = filepaths
         self._count = len(self._filepaths)
 
