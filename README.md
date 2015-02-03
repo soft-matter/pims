@@ -1,4 +1,4 @@
-pims: Python Image Sequence 
+pims: Python Image Sequence
 =========================
 
 [![build status](https://travis-ci.org/soft-matter/pims.png?branch=master)](https://travis-ci.org/soft-matter/pims)
@@ -27,7 +27,7 @@ Depending on what file formats you want to read, you will also need:
 * [ffmpeg](https://www.ffmpeg.org/) and [PyAV](http://mikeboers.github.io/PyAV/) (video formats such as AVI, MOV)
 * [Pillow](http://pillow.readthedocs.org/en/latest/) (improved TIFF support)
 * [libtiff](https://code.google.com/p/pylibtiff/) (alternative TIFF support)
-* Tifffile, which is included in PIMS
+* [tifffile](http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html) (alterative TIFF support)
 
 Basic Installation
 ------------------
@@ -38,10 +38,10 @@ To get started with Python on any platform, download and install
 [Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with the
 common scientific Python packages built in.
 
-If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit. 
+If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
 (One of the optional dependencies is not yet compatible with 64-bit Python.)
 
-Open a command prompt. That's "Terminal" on a Mac, and 
+Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
 
@@ -67,7 +67,7 @@ you files `(open('my_tiff_file.tif')` and revisit this section if you
 encounter an error. Many camera and software manufacturers have their
 own special variants of the TIFF format. Our default reader, built around
 [Christoph Gohlke's tifffile.py](http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html), handles all the formats we have personally enountered. But we have
-alternative TIFF readers built around 
+alternative TIFF readers built around
 Pillow (see above) and libtiff, which can be installed like so:
 
     pip install libtiff
@@ -117,7 +117,7 @@ Contributors
 
 Supporting Grant
 ----------------
-This package was originally developed and maintained by Daniel Allan, as part 
+This package was originally developed and maintained by Daniel Allan, as part
 of his
 PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
 University in Baltimore, MD. The work was supported by the National Science Foundation under grant number CBET-1033985.
