@@ -70,6 +70,13 @@ class MetadataRetrieve(object):
                 return None
             # convert value to int, float, or string
             jw = str(jw)
+            try:  # deal with values hidden inside 'value[number]'
+                temp = jw[jw.index('value[') + 6:]
+                temp = temp[:temp.index(']')]
+            except ValueError:
+                pass  # do nothing when 'value[' or ']' were not found
+            else:
+                jw = temp
             try:
                 return int(jw)
             except ValueError:
