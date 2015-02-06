@@ -154,6 +154,8 @@ class BioformatsReaderRaw(FramesSequence):
         active series that is read by get_frame. Writeable.
     channel : int or list of int
         channel(s) that are read by get_frame. Writeable.
+    crop : tuple of int (y offset, x offset, height, width) or None
+        when set, reader only reads part of the image
     pixel_type : numpy.dtype
         numpy datatype of pixels
     reader_class_name : string
@@ -269,6 +271,7 @@ class BioformatsReaderRaw(FramesSequence):
             raise IndexError('Series index out of bounds.')
         self._series = series
         self._forced_dtype = dtype
+        self._crop = None        
         self._change_series()
 
         # Define a process func, if applicable
@@ -343,6 +346,13 @@ class BioformatsReaderRaw(FramesSequence):
         else:
             self._first_frame_shape = (self._sizeY, self._sizeX)
             self._sizeC = self.rdr.getSizeC()
+            
+        # Reassert crop area
+        crop_area = self.crop
+        try:
+            self.crop = crop_area
+        except ValueError:
+            self._crop = None
 
     def __len__(self):
         return self._planes
@@ -379,7 +389,25 @@ class BioformatsReaderRaw(FramesSequence):
 
     @property
     def frame_shape(self):
-        return self._first_frame_shape
+        if self.crop is None:
+            return (self._sizeY, self._sizeX)
+        else:
+            return (self._crop[2], self._crop[3])
+
+    @property
+    def crop(self):
+        return self._crop  # YXHW order
+
+    @crop.setter
+    def crop(self, value):
+        if value is None:
+            self._crop = None
+        else:
+            Y, X, H, W = value
+            if X < 0 or Y < 0 or X + W > self._sizeX or W < 0 or \
+               Y + H > self._sizeY or H < 0:
+                raise ValueError('Crop range out of bounds')
+            self._crop = (Y, X, H, W)
 
     def get_frame(self, j):
         """Returns image in current series specific as a Frame object with
@@ -394,15 +422,20 @@ class BioformatsReaderRaw(FramesSequence):
         """
         self.series = series  # use property setter & error reporting
 
-        im = np.frombuffer(self.rdr.openBytes(j), self._source_dtype)
+        if self._crop is None:
+            im = np.frombuffer(self.rdr.openBytes(j), self._source_dtype)
+        else:
+            Y, X, H, W = self._crop
+            im = np.frombuffer(self.rdr.openBytesXYWH(j, X, Y, W, H),
+                               self._source_dtype)
         if self.isRGB:
             if self._isInterleaved:
-                im.shape = (self._sizeY, self._sizeX, self._sizeRGB)
+                im.shape = self.frame_shape + (self._sizeRGB,)
             else:
-                im.shape = (self._sizeRGB, self._sizeY, self._sizeX)
+                im.shape = (self._sizeRGB,) + self.frame_shape
                 im = im.transpose(1, 2, 0)  # put RGB in inner dimension
         else:
-            im.shape = (self._sizeY, self._sizeX)
+            im.shape = self.frame_shape
 
         if im.dtype != self._pixel_type:
             im = im.astype(self._pixel_type)
@@ -539,6 +572,8 @@ class BioformatsReader(BioformatsReaderRaw):
         active series that is read by get_frame. Writeable.
     channel : int or list of int
         channel(s) that are read by get_frame. Writeable.
+    crop : tuple of int (y offset, x offset, height, width) or None
+        when set, reader only reads part of the image
     pixel_type : numpy.dtype
         numpy datatype of pixels
     reader_class_name : string
@@ -666,7 +701,7 @@ class BioformatsReader(BioformatsReaderRaw):
     def get_frame(self, t):
         """Returns image in current series at specified T index. The image is
         wrapped in a Frame object with specified frame_no and metadata."""
-        shape = (len(self._channel), self._sizeZ, self._sizeY, self._sizeX)
+        shape = (len(self._channel), self._sizeZ) + self.frame_shape
         if self.isRGB:
             shape = shape + (self._sizeRGB,)
         imlist = np.zeros(shape, dtype=self.pixel_type)
