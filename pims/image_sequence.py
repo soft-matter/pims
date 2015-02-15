@@ -17,9 +17,9 @@ from pims.base_frames import FramesSequence
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
+from PIL import Image
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
-from PIL import Image
 try:
     from skimage.io import imread
 except ImportError:
@@ -86,6 +86,8 @@ class ImageSequence(FramesSequence):
         else:
             self.kwargs = dict(plugin=plugin)
 
+        self._is_zipfile = False
+        self._zipfile = None
         self._get_files(path_spec)
 
         tmp = imread(self._filepaths[0], **self.kwargs)
@@ -100,18 +102,18 @@ class ImageSequence(FramesSequence):
             self._dtype = dtype
 
     def close(self):
-        if self.is_zipfile:
-            self.zipfile.close()
+        if self._is_zipfile:
+            self._zipfile.close()
 
     def __del__(self):
         self.close()
 
     def imread(self, filename, **kwargs):
-        if self.is_zipfile:
-            img = StringIO(self.zipfile.read(filename))
-            return Image.open(img, **kwargs)
+        if self._is_zipfile:
+            img = StringIO(self._zipfile.read(filename))
+            return Image.open(img)
         else:
-            return imread(filename)
+            return imread(filename, **kwargs)
 
     def _get_files(self, path_spec):
         # deal with if input is _not_ a string
@@ -122,16 +124,18 @@ class ImageSequence(FramesSequence):
             return
 
         if zipfile.is_zipfile(path_spec):
-            self.is_zipfile = True
+            self._is_zipfile = True
             self.pathname = os.path.abspath(path_spec)
-            self.zipfile = zipfile.ZipFile(path_spec, 'r')
-            filepaths = [fn for fn in self.zipfile.namelist()
+            self._zipfile = zipfile.ZipFile(path_spec, 'r')
+            filepaths = [fn for fn in self._zipfile.namelist()
                          if fnmatch.fnmatch(fn, '*.*')]
             self._filepaths = sorted(filepaths, key=natural_keys)
             self._count = len(self._filepaths)
+            if 'plugin' in self.kwargs and self.kwargs['plugin'] is not None:
+                warn("A plugin cannot be combined with reading from an "
+                     "archive. Extract it if you want to use the plugin.")
             return
 
-        self.is_zipfile = False
         self.pathname = os.path.abspath(path_spec)  # used by __repr__
         if os.path.isdir(path_spec):
             warn("Loading ALL files in this directory. To ignore extraneous "
