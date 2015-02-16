@@ -9,7 +9,7 @@ import fnmatch
 from warnings import warn
 import re
 import zipfile
-from StringIO import StringIO
+from six.moves import StringIO
 
 import numpy as np
 
