@@ -5,8 +5,11 @@ import six
 from six.moves import map
 import os
 import glob
+import fnmatch
 from warnings import warn
 import re
+import zipfile
+from six.moves import StringIO
 
 import numpy as np
 
@@ -14,6 +17,7 @@ from pims.base_frames import FramesSequence
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
+from PIL import Image
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
 try:
@@ -32,9 +36,10 @@ class ImageSequence(FramesSequence):
     Parameters
     ----------
     path_spec : string or iterable of strings
-       a directory or, safer, a pattern like path/to/images/*.png
-       which will ignore extraneous files or a list of files to open
-       in the order they should be loaded.
+        a directory or, safer, a pattern like path/to/images/*.png
+        which will ignore extraneous files or a list of files to open
+        in the order they should be loaded. When a path to a zipfile is
+        specified, all files in the zipfile will be loaded.
     process_func : function, optional
         callable with signalture `proc_img = process_func(img)`,
         which will be applied to the data from each frame
@@ -46,7 +51,7 @@ class ImageSequence(FramesSequence):
     plugin : string
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
-        will be issued.
+        will be issued. Not available in combination with zipfiles.
 
     Examples
     --------
@@ -81,9 +86,11 @@ class ImageSequence(FramesSequence):
         else:
             self.kwargs = dict(plugin=plugin)
 
+        self._is_zipfile = False
+        self._zipfile = None
         self._get_files(path_spec)
 
-        tmp = imread(self._filepaths[0], **self.kwargs)
+        tmp = self.imread(self._filepaths[0], **self.kwargs)
         self._first_frame_shape = tmp.shape
 
         self._validate_process_func(process_func)
@@ -94,12 +101,40 @@ class ImageSequence(FramesSequence):
         else:
             self._dtype = dtype
 
+    def close(self):
+        if self._is_zipfile:
+            self._zipfile.close()
+        super(ImageSequence, self).close()
+
+    def __del__(self):
+        self.close()
+
+    def imread(self, filename, **kwargs):
+        if self._is_zipfile:
+            img = StringIO(self._zipfile.read(filename))
+            return np.array(Image.open(img))
+        else:
+            return imread(filename, **kwargs)
+
     def _get_files(self, path_spec):
         # deal with if input is _not_ a string
         if not isinstance(path_spec, six.string_types):
             # assume it is iterable and off we go!
             self._filepaths = sorted(list(path_spec), key=natural_keys)
             self._count = len(path_spec)
+            return
+
+        if zipfile.is_zipfile(path_spec):
+            self._is_zipfile = True
+            self.pathname = os.path.abspath(path_spec)
+            self._zipfile = zipfile.ZipFile(path_spec, 'r')
+            filepaths = [fn for fn in self._zipfile.namelist()
+                         if fnmatch.fnmatch(fn, '*.*')]
+            self._filepaths = sorted(filepaths, key=natural_keys)
+            self._count = len(self._filepaths)
+            if 'plugin' in self.kwargs and self.kwargs['plugin'] is not None:
+                warn("A plugin cannot be combined with reading from an "
+                     "archive. Extract it if you want to use the plugin.")
             return
 
         self.pathname = os.path.abspath(path_spec)  # used by __repr__
@@ -114,8 +149,7 @@ class ImageSequence(FramesSequence):
             filepaths = list(map(make_full_path, filenames))
         else:
             filepaths = glob.glob(path_spec)
-        filepaths = sorted(filepaths, key=natural_keys)  # listdir returns arbitrary order
-        self._filepaths = filepaths
+        self._filepaths = sorted(filepaths, key=natural_keys)
         self._count = len(self._filepaths)
 
         # If there were no matches, this was probably a user typo.
@@ -125,7 +159,7 @@ class ImageSequence(FramesSequence):
     def get_frame(self, j):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
-        res = imread(self._filepaths[j], **self.kwargs)
+        res = self.imread(self._filepaths[j], **self.kwargs)
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
         res = Frame(self.process_func(res), frame_no=j)
@@ -201,11 +235,12 @@ class ImageSequence3D(ImageSequence):
     Parameters
     ----------
     path_spec : string or iterable of strings
-       a directory or, safer, a pattern like path/to/images/*.png
-       which will ignore extraneous files or a list of files to open
-       in the order they should be loaded. The filenames should contain the
-       indices of T, Z and C, preceded by a dimension identifier such as:
-       'file_t001c05z32'.
+        a directory or, safer, a pattern like path/to/images/*.png
+        which will ignore extraneous files or a list of files to open
+        in the order they should be loaded. When a path to a zipfile is
+        specified, all files in the zipfile will be loaded. The filenames
+        should contain the indices of T, Z and C, preceded by a dimension
+        identifier such as: 'file_t001c05z32'.
     process_func : function, optional
         callable with signalture `proc_img = process_func(img)`,
         which will be applied to the data from each frame
@@ -216,7 +251,7 @@ class ImageSequence3D(ImageSequence):
     plugin : string
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
-        will be issued.
+        will be issued. Not available in combination with zipfiles.
     tzc_identifiers : list of string, optional
         3 strings preceding t, z, c indices. Default ['t', 'z', 'c'].
 
@@ -251,7 +286,7 @@ class ImageSequence3D(ImageSequence):
                                       self._toc[:, 2] == c)
             filelist = self._filepaths[selector]
             for (z, loc) in enumerate(filelist):
-                res[Nc, z] = imread(loc, **self.kwargs)
+                res[Nc, z] = self.imread(loc, **self.kwargs)
 
         return Frame(self.process_func(res.squeeze()), frame_no=j)
 
