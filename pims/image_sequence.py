@@ -90,7 +90,7 @@ class ImageSequence(FramesSequence):
         self._zipfile = None
         self._get_files(path_spec)
 
-        tmp = imread(self._filepaths[0], **self.kwargs)
+        tmp = self.imread(self._filepaths[0], **self.kwargs)
         self._first_frame_shape = tmp.shape
 
         self._validate_process_func(process_func)
@@ -104,6 +104,7 @@ class ImageSequence(FramesSequence):
     def close(self):
         if self._is_zipfile:
             self._zipfile.close()
+        super(ImageSequence, self).close()
 
     def __del__(self):
         self.close()
@@ -111,7 +112,7 @@ class ImageSequence(FramesSequence):
     def imread(self, filename, **kwargs):
         if self._is_zipfile:
             img = StringIO(self._zipfile.read(filename))
-            return Image.open(img)
+            return np.array(Image.open(img))
         else:
             return imread(filename, **kwargs)
 
