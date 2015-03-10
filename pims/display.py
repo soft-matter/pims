@@ -158,7 +158,7 @@ Use Google Chrome browser.</video>""".format(mimetype, video_encoded)
     return HTML(data=video_tag)
 
 
-def _scrollable_stack(sequence, width, normalize=True):
+def _scrollable_stack(sequence, width, normed=True):
     # See the public function, scrollable_stack, below.
     # This does all the work, and it returns a string of HTML and JS code,
     # as expected by Frame._repr_html_(). The public function wraps this
@@ -207,17 +207,17 @@ $('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
     js = SCROLL_STACK_JS.render(length=len(sequence), stack_id=stack_id)
     output = '<script>{0}</script>'.format(js)
     output += WRAPPER.render(width=width, stack_id=stack_id)
-    if normalize:
-        sequence = _normalize(np.asarray(sequence))
+    if normed:
+        sequence = normalize(np.asarray(sequence))
     for i, s in enumerate(sequence):
         output += TAG.render(
-            data=base64.b64encode(_as_png(s, width, normalize=False)),
+            data=base64.b64encode(_as_png(s, width, normed=False)),
             stack_id=stack_id, i=i)
     output += "</div>"
     return output
 
 
-def scrollable_stack(sequence, width=512, normalize=True):
+def scrollable_stack(sequence, width=512, normed=True):
     """Display a sequence or 3D stack of frames as an interactive image
     that responds to scrolling.
 
@@ -226,7 +226,7 @@ def scrollable_stack(sequence, width=512, normalize=True):
     sequence: a 3D Frame (or any array) or an iterable of 2D Frames (or arrays)
     width: integer
         Optional, defaults to 512. The height is auto-scaled.
-    normalize : Rescale the brightness to fill the gamut. All pixels in the
+    normed : Rescale the brightness to fill the gamut. All pixels in the
         stack rescaled uniformly.
 
     Returns
@@ -234,23 +234,34 @@ def scrollable_stack(sequence, width=512, normalize=True):
     an interactive image, contained in a IPython.display.HTML object
     """
     from IPython.display import HTML
-    return HTML(_scrollable_stack(sequence, width=width, normalize=normalize))
+    return HTML(_scrollable_stack(sequence, width=width, normed=normed))
 
 
-def _as_png(arr, width, normalize=True):
+def _as_png(arr, width, normed=True):
     "Create a PNG image buffer from an array."
     from PIL import Image
     w = width  # for brevity
     h = arr.shape[0] * w // arr.shape[1]
     if normalize:
-        arr = _normalize(arr)
+        arr = normalize(arr)
     img = Image.fromarray((arr * 255).astype('uint8')).resize((w, h))
     img_buffer = BytesIO()
     img.save(img_buffer, format='png')
     return img_buffer.getvalue()
 
 
-def _normalize(arr):
+def normalize(arr):
+    """This normalizes an array to values between 0 and 1.
+
+    Parameters
+    ----------
+    arr : ndarray
+
+    Returns
+    -------
+    ndarray of float
+        normalized array
+    """
     ptp = arr.max() - arr.min()
     # Handle edge case of a flat image.
     if ptp == 0:
@@ -281,12 +292,12 @@ def _monochannel_to_rgb(image, rgb):
         rgb image, with extra inner dimension of length 3
 
     """
-    image_rgb = _normalize(image).reshape(*(image.shape + (1,)))
+    image_rgb = normalize(image).reshape(*(image.shape + (1,)))
     image_rgb = image_rgb * np.asarray(rgb).reshape(*((1,)*image.ndim + (3,)))
     return image_rgb
 
 
-def to_rgb(image, colors=None, normalize=True):
+def to_rgb(image, colors=None, normed=True):
     """This converts a greyscale or multichannel image to an RGB image, with
     given channel colors.
 
@@ -299,7 +310,7 @@ def to_rgb(image, colors=None, normalize=True):
         List of either single letters, or rgb(a) as lists of floats. The sum
         of these lists should equal (1.0, 1.0, 1.0), when clipping needs to
         be avoided.
-    normalize : bool, optional
+    normed : bool, optional
         Multichannel images will be downsampled to 8-bit RGB, if normalize is
         True. Greyscale images will always give 8-bit RGB.
 
@@ -307,7 +318,7 @@ def to_rgb(image, colors=None, normalize=True):
     -------
     ndarray
         RGB image, with inner dimension of length 3. The RGB image is clipped
-        so that values lay between 0 and 255. When normalize = True (default),
+        so that values lay between 0 and 255. When normed = True (default),
         datatype is np.uint8, else it is float.
     """
     # identify number of channels and resulting shape
@@ -349,6 +360,6 @@ def to_rgb(image, colors=None, normalize=True):
     result = result.clip(0, 255)
 
     if normalize:
-        result = (_normalize(result) * 255).astype('uint8')
+        result = (normalize(result) * 255).astype('uint8')
 
     return result
