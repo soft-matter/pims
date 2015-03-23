@@ -3,7 +3,8 @@ from __future__ import (absolute_import, division, print_function,
 
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
-from pims.display import export, play, scrollable_stack, to_rgb, normalize
+from pims.display import (export, play, scrollable_stack, to_rgb, normalize,
+                          plot_to_frame, plots_to_frame)
 
 import six
 import glob
@@ -12,7 +13,6 @@ from warnings import warn
 
 # has to be here for API stuff
 from pims.image_sequence import ImageSequence, ImageSequence3D  # noqa
-from pims.matplotlib import plot_to_frame, plots_to_frame  # noqa
 from .cine import Cine  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
 
