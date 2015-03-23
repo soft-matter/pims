@@ -10,7 +10,7 @@ matrix:
       env: BUILD_MODE="pyav"
 
 install:
-  - conda install --yes -c conda conda-env
+  - conda update --yes conda
   - conda create -n testenv --yes numpy scipy nose pillow matplotlib scikit-image jinja2 pip python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
@@ -40,10 +40,7 @@ before_install:
         wget http://repo.continuum.io/miniconda/Miniconda3-3.7.3-Linux-x86_64.sh -O miniconda.sh; 
     fi
   - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda/bin:$PATH
-  - export PATH=/home/travis/miniconda3/bin:$PATH
-  - conda update --yes --no-deps conda
-  - conda update --yes conda
+  - ./miniconda.sh -b -p /home/travis/mc
+  - export PATH=/home/travis/mc/bin:$PATH
 
 script: nosetests --nologcapture
