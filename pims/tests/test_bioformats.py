@@ -190,6 +190,14 @@ class TestBioformatsTiff(_image_series):
         assert_image_equal(self.v[0], self.frame0)
         assert_image_equal(self.v[1], self.frame1)
 
+    def test_cropping(self):
+        self.v.crop = (0, 60, 10, 20)  # YXHW
+        assert_image_equal(self.v[0], self.frame0[:10, 60:80])
+        assert_image_equal(self.v[1], self.frame1[:10, 60:80])
+        self.v.crop = None
+        assert_image_equal(self.v[0], self.frame0)
+        assert_image_equal(self.v[1], self.frame1)
+
     def tearDown(self):
         self.v.close()
 
