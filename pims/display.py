@@ -311,7 +311,7 @@ def to_rgb(image, colors=None, normalize=True):
         datatype is np.uint8, else it is float.
     """
     # identify whether the image has a (leading) channel axis
-    if colors == None:
+    if colors is None:
         has_channel_axis = image.ndim > 2 and image.shape[0] < 5
     else:
         has_channel_axis = len(colors) == image.shape[0]
