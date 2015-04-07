@@ -10,9 +10,11 @@ import base64
 try:
     from matplotlib.colors import ColorConverter
     import matplotlib as mpl
+    import matplotlib.pyplot as plt
 except ImportError:
     ColorConverter = None
     mpl = None
+    plt = None
 from PIL import Image
 
 
@@ -395,7 +397,7 @@ def plot_to_frame(fig, dpi, **imsave_kwargs):
     return Frame(im)
 
 
-def plots_to_frame(figures, width=512, **imsave_kwargs):
+def plots_to_frame(figures, width=512, close_fig=False, **imsave_kwargs):
     """ Renders an iterable of matplotlib figures or axes objects into a
     pims Frame object, that will be displayed as scrollable stack in IPython.
 
@@ -403,6 +405,7 @@ def plots_to_frame(figures, width=512, **imsave_kwargs):
     ----------
     figures : iterable of matplotlib Figure or Axes objects
     width : integer, width in pixels
+    close_fig : boolean, when True, closes figures after drawing
     imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
 
     Returns
@@ -427,6 +430,8 @@ def plots_to_frame(figures, width=512, **imsave_kwargs):
     frames = []
     for n, fig in enumerate(figures):
         im = plot_to_frame(fig, dpi, **imsave_kwargs)
+        if close_fig:
+            plt.close(fig)
         # make the image the same size as the first image
         if (im.shape[0] != h) or (im.shape[1] != width):
             im = np.pad(im[:h, :width], ((0, max(0, h - im.shape[0])),
