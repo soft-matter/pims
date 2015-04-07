@@ -210,8 +210,6 @@ class TiffStack_libtiff(FramesSequence):
 
         self._im_sz = tmp.shape
 
-        self._byte_swap = bool(self._tiff.IsByteSwapped())
-
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
@@ -219,7 +217,7 @@ class TiffStack_libtiff(FramesSequence):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
         self._tiff.SetDirectory(j)
-        res = self._tiff.read_image().byteswap(self._byte_swap)
+        res = self._tiff.read_image()
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
 
