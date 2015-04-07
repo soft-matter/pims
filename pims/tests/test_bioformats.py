@@ -14,20 +14,13 @@ from numpy.testing import (assert_equal, assert_almost_equal, assert_allclose)
 
 import pims
 
-try:
-    import javabridge
-    import bioformats
-    BIOFORMATS_INSTALLED = True
-except ImportError:
-    BIOFORMATS_INSTALLED = False
-
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
 
 def _skip_if_no_bioformats():
-    if not BIOFORMATS_INSTALLED:
-        raise nose.SkipTest('Bioformats and/or javabridge not installed. Skipping.')
+    if not pims.bioformats.available():
+        raise nose.SkipTest('JPype is not installed. Skipping.')
 
 
 def assert_image_equal(actual, expected):
@@ -230,7 +223,7 @@ class TestBioformatsMOV(_image_series):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (240, 320, 3)
+        self.expected_shape = (240, 320)
         self.expected_len = 108
         self.expected_C = 3
 
@@ -367,7 +360,7 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel)
 
 
 class TestBioformatsIPL(_image_single):
-    # IPLab format, 650 x 515 pixels, 8 bits per sample, RGB
+    # IPLab format, 650 x 515 pixels, 8 bits per sample, 3 channels
     # Scanalytics has provided a sample multi-channel image in IPLab format.
     def check_skip(self):
         _skip_if_no_bioformats()
@@ -380,7 +373,7 @@ class TestBioformatsIPL(_image_single):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (515, 650, 3)
+        self.expected_shape = (515, 650)
         self.expected_len = 1
 
     def tearDown(self):
@@ -474,9 +467,9 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         # amount of log output.
         self.v = self.klass(self.filename, meta=True, C=0)
         # test fields directly
-        assert_equal(self.v.metadata.getChannelCount(0), 2)
-        assert_equal(self.v.metadata.getChannelName(0, 0), '5-FAM/pH 9.0')
-        assert_almost_equal(self.v.metadata.getPixelsPhysicalSizeX(0),
+        assert_equal(self.v.metadata.ChannelCount(0), 2)
+        assert_equal(self.v.metadata.ChannelName(0, 0), '5-FAM/pH 9.0')
+        assert_almost_equal(self.v.metadata.PixelsPhysicalSizeX(0),
                             0.167808983)
         # test metadata in Frame objects
         assert_almost_equal(self.v[0].metadata['T'], 0.445083498)
@@ -484,7 +477,7 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         # test changing frame_metadata
         del self.v.frame_metadata['T']
         assert 'T' not in self.v[0].metadata
-        self.v.frame_metadata['T'] = 'getPlaneDeltaT'
+        self.v.frame_metadata['T'] = 'PlaneDeltaT'
         assert 'T' in self.v[0].metadata
         # test colors field
         assert_allclose(self.v[0].metadata['colors'][0], [0.47, 0.91, 0.06],
@@ -496,21 +489,6 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         assert_equal(metadata['ChannelCount'], '2')
         assert_equal(metadata['CH2ChannelDyeName'], '5-FAM/pH 9.0')
         assert_equal(metadata['dCalibration'], '0.16780898323268245')
-
-    def test_metadata_omexml(self):
-        self.v = self.klass(self.filename, meta=False, C=0)
-        omexml = self.v.get_metadata_omexml()
-        assert_equal(omexml.image().Pixels.SizeC, 2)
-        assert_equal(omexml.image().Pixels.Channel(0).Name, '5-FAM/pH 9.0')
-
-
-class zzzBioformatsKillVM(unittest.TestCase):
-    def check_skip(self):
-        _skip_if_no_bioformats()
-
-    def test_kill_javaVM(self):
-        self.check_skip()
-        pims.kill_vm()
 
 
 if __name__ == '__main__':

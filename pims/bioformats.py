@@ -5,32 +5,30 @@ import numpy as np
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
 from warnings import warn
-from os.path import isfile
+import os
 
 try:
-    import javabridge
+    import jpype
 except ImportError:
-    javabridge = None
-
-try:
-    import bioformats
-except ImportError:
-    bioformats = None
-
-try:
-    from pandas import DataFrame
-except ImportError:
-    DataFrame = None
-
+    jpype = None
+    
+LOCI_TOOLS_PATH = os.path.join(os.path.dirname(__file__),
+                               'loci_tools.jar')
 
 def available():
-    try:
-        import javabridge
-        import bioformats
-    except ImportError:
-        return False
-    else:
-        return True
+    return jpype is not None 
+
+
+def download_jar(url=None, overwrite=False):
+    from six.moves.urllib.request import urlretrieve
+    if not overwrite and os.path.isfile(LOCI_TOOLS_PATH):
+        raise IOError('File {} already exists, please backup the file or set '
+                      'parameter `overwrite = True`'.format(LOCI_TOOLS_PATH))
+    if url is None:
+        url = 'http://downloads.openmicroscopy.org/bio-formats/5.1.0/artifacts/loci_tools.jar'
+    urlretrieve(url, LOCI_TOOLS_PATH)
+    print('Downloaded loci_tools.jar to {}'.format(LOCI_TOOLS_PATH))
+    return LOCI_TOOLS_PATH
 
 
 class MetadataRetrieve(object):
@@ -40,36 +38,34 @@ class MetadataRetrieve(object):
 
     Parameters
     ----------
-    jmd: _javabridge.JB_Object
-        java MetadataStore, retrieved with reader.rdr.getMetadataStore()
-    log: _javabridge.JB_Object, optional
-        java OutputStream to which java system.err and system.out are printing.
+    jmd: jpype._jclass.loci.formats.ome.OMEXMLMetadataImpl
+        java MetadataStore, instanciated with:
+            jmd = loci.formats.MetadataTools.createOMEXMLMetadata()
+        and coupled to reader with `rdr.setMetadataStore(metadata)`
 
     Methods
     ----------
     <loci.formats.meta.MetadataRetrieve.function>(*args) : float or int or str
-        see http://downloads.openmicroscopy.org/bio-formats/5.0.6/api/loci/
-                                             formats/meta/MetadataRetrieve.html
+        see loci.formats.meta.MetadataRetrieve API on openmicroscopy.org
     """
-    def __init__(self, jmd, log=None):
-        jmd = javabridge.JWrapper(jmd)
-
+    def __init__(self, md):
         def wrap_md(fn, name=None, paramcount=None, *args):
             if len(args) != paramcount:
                 # raise sensible error for wrong number of arguments
                 raise TypeError(('{0}() takes exactly {1} arguments ({2} ' +
                                  'given)').format(name, paramcount, len(args)))
-            try:
-                jw = fn(*args)
-            except javabridge.JavaException as e:
-                if log is not None:
-                    print(javabridge.to_string(log))
-                    javabridge.call(log, 'reset', '()V')
-                raise e
+            jw = fn(*args)
             if jw is None or jw == '':
                 return None
             # convert value to int, float, or string
-            jw = str(jw)
+            jw = unicode(jw)
+            try:  # deal with values hidden inside 'value[number]'
+                temp = jw[jw.index('value[') + 6:]
+                temp = temp[:temp.index(']')]
+            except ValueError:
+                pass  # do nothing when 'value[' or ']' were not found
+            else:
+                jw = temp
             try:
                 return int(jw)
             except ValueError:
@@ -78,29 +74,28 @@ class MetadataRetrieve(object):
                 except ValueError:
                     return jw
 
-        env = javabridge.get_env()
-        for name, method in jmd.methods.iteritems():
-            if name[:3] == 'get':
-                if name in ['getRoot', 'getClass']:
-                    continue
-                params = env.get_object_array_elements(method[0].getParameterTypes())
+        for name in dir(md):
+            if (name[:3] != 'get') or (name in ['getRoot', 'getClass']):
+                continue
+            fn = getattr(md, name)
+            for paramcount in range(5):
                 try:
-                    fn = getattr(jmd, name)
-                    field = fn(*((0,) * len(params)))
-                    if field is not None:
-                        # If there is no exception, wrap the function and bind.
-                        def fnw(fn1=fn, naame=name, paramcount=len(params)):
-                            return (lambda *args: wrap_md(fn1, naame,
-                                                          paramcount, *args))
-                        fnw = fnw()
-                        fnw.__doc__ = fn.__doc__
-                        setattr(self, name, fnw)
-                except javabridge.JavaException:
+                    field = fn(*((0,) * paramcount))
+                    if field is None:
+                        continue
+                    # If there is no exception, wrap the function and bind.
+                    def fnw(fn1=fn, naame=name, paramcount=paramcount):
+                        return (lambda *args: wrap_md(fn1, naame,
+                                                      paramcount, *args))
+                    fnw = fnw()
+                    fnw.__doc__ = ('loci.formats.meta.MetadataRetrieve.'
+                                   + name + ' wrapped\nby JPype and an '
+                                   'additional automatic typeconversion.\n\n')
+                    setattr(self, name[3:], fnw)
+                    continue
+                except:
                     # function is not supported by this specific reader
                     pass
-
-        if log is not None:
-            javabridge.call(log, 'reset', '()V')
 
     def __repr__(self):
         listing = list(filter(lambda x: x[:2] != '__', dir(self)))
@@ -156,10 +151,6 @@ class BioformatsReaderRaw(FramesSequence):
         channel(s) that are read by get_frame. Writeable.
     pixel_type : numpy.dtype
         numpy datatype of pixels
-    reader_class_name : string
-        classname of bioformats imagereader (loci.formats.in.*)
-    java_log : string
-        contains everything printed to java system.out and system.err
     isRGB : boolean
         True if the image is an RGB image
 
@@ -172,30 +163,21 @@ class BioformatsReaderRaw(FramesSequence):
     get_metadata_raw(form) : dict or list or string
         returns the raw metadata from the file. Form defaults to 'dict', other
         options are 'list' and 'string'.
-    get_metadata_xml() : string
-        returns the metadata in xml format
-    get_metadata_omexml() : bioformats.OMEXML object
-        parses the xml metadata to an omexml object
-    close(is_last) :
-        closes the reader. When is_last is true, java VM is stopped. Be sure
-        to do that only at the last image, because the VM cannot be restarted
-        unless you restart python console. The same as pims.kill_vm()
+    close() :
+        closes the reader
 
     Examples
     ----------
-    >>> frames.metadata.getPlaneDeltaT(0, 50)
+    >>> frames.metadata.PlaneDeltaT(0, 50)
     ...    # evaluates loci.formats.meta.MetadataRetrieve.getPlaneDeltaT(0, 50)
 
     Notes
     ----------
-    Be sure to kill the java VM with pims.kill_vm() the end of the script. It
-    cannot be restarted from the same python console, however. You can also
-    kill the vm by calling frame.close(is_last=True).
+    It is not necessary to shutdown the JVM at end. This will be automatically
+    done when JPype is unloaded at python exit.
 
     Dependencies:
-    https://github.com/CellProfiler/python-bioformats
-    https://github.com/CellProfiler/python-javabridge
-    or (windows compiled) http://www.lfd.uci.edu/~gohlke/pythonlibs/#javabridge
+    http://sourceforge.net/projects/jpype/files/JPype/
 
     Tested with files from http://loci.wisc.edu/software/sample-data
     Working for:
@@ -219,7 +201,8 @@ class BioformatsReaderRaw(FramesSequence):
     @classmethod
     def class_exts(cls):
         try:
-            return set(bioformats.READABLE_FORMATS)
+            return {'.lsm', '.ipl', '.dm3', '.seq', '.nd2', '.ics', '.ids',
+                    '.mov', '.ipw', '.tif', '.tiff', '.jpg', '.bmp', '.lif'}
         except AttributeError:
             return {}
 
@@ -227,45 +210,51 @@ class BioformatsReaderRaw(FramesSequence):
 
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False, meta=True, java_memory='512m', series=0):
-        global _java_log
-
         # Make sure that file exists before starting java
-        if not isfile(filename):
+        if not os.path.isfile(filename):
             raise IOError('The file "{}" does not exist.'.format(filename))
 
+        if not os.path.isfile(LOCI_TOOLS_PATH):
+            print('loci_tools.jar not found, downloading')
+            download_jar()
+
         # Start java VM and initialize logger (globally)
-        if not javabridge._javabridge.get_vm().is_active():
-            javabridge.start_vm(class_path=bioformats.JARS, run_headless=True,
-                                max_heap_size=java_memory)
-            _java_log = javabridge.run_script("""
-                org.apache.log4j.BasicConfigurator.configure();
-                log4j_logger = org.apache.log4j.Logger.getRootLogger();
-                log4j_logger.setLevel(org.apache.log4j.Level.WARN);
-                java_out = new java.io.ByteArrayOutputStream();
-                out_printstream = new java.io.PrintStream(java_out);
-                java.lang.System.setOut(out_printstream);
-                java.lang.System.setErr(out_printstream);
-                java_out;""")
-        # If there are no JVMs attached to this thread, attach one
-        if javabridge._javabridge.get_thread_local("attach_count", 0) == 0:
-            javabridge.attach()
+        if not jpype.isJVMStarted():
+            jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
+                           '-Djava.class.path=' + LOCI_TOOLS_PATH,
+                           '-Xmx' + java_memory)
+            log4j = jpype.JPackage('org.apache.log4j')
+            log4j.BasicConfigurator.configure()
+            log4j_logger = log4j.Logger.getRootLogger()
+            log4j_logger.setLevel(log4j.Level.ERROR)
+
+        if not jpype.isThreadAttachedToJVM():
+            jpype.attachThreadToJVM()
+
+        loci = jpype.JPackage('loci')
 
         # Initialize reader and metadata
         self.filename = str(filename)
+        self.rdr = loci.formats.ChannelSeparator(loci.formats.ChannelFiller())
         if meta:
-            self.reader = bioformats.ImageReader(path=self.filename)
-            self.metadata = MetadataRetrieve(self.reader.rdr.getMetadataStore(),
-                                             log=_java_log)
-        else:  # skip built-in metadata initialization
-            self.reader = bioformats.ImageReader(path=self.filename,
-                                                 perform_init=False)
-            self.reader.rdr.setId(self.filename)
-        self.rdr = self.reader.rdr  # define shorthand
+            self._metadata = loci.formats.MetadataTools.createOMEXMLMetadata()
+            self.rdr.setMetadataStore(self._metadata)
+        self.rdr.setId(self.filename)
+
+        FormatTools = loci.formats.FormatTools
+        self._dtype_dict = {FormatTools.INT8: 'i1',
+                            FormatTools.UINT8: 'u1',
+                            FormatTools.INT16: 'i2',
+                            FormatTools.UINT16: 'u2',
+                            FormatTools.INT32: 'i4',
+                            FormatTools.UINT32: 'u4',
+                            FormatTools.FLOAT: 'f4',
+                            FormatTools.DOUBLE: 'f8'}
 
         # Set the correct series and initialize the sizes
         self._size_series = self.rdr.getSeriesCount()
         if series >= self._size_series or series < 0:
-            self.close()
+            self.rdr.close()
             raise IndexError('Series index out of bounds.')
         self._series = series
         self._forced_dtype = dtype
@@ -279,20 +268,21 @@ class BioformatsReaderRaw(FramesSequence):
         # Define the names of the standard per frame metadata.
         self.frame_metadata = {}
         if meta:
-            if hasattr(self.metadata, 'getPlaneTheT'):
-                self.frame_metadata['indexT'] = 'getPlaneTheT'
-            if hasattr(self.metadata, 'getPlaneTheZ'):
-                self.frame_metadata['indexZ'] = 'getPlaneTheZ'
-            if hasattr(self.metadata, 'getPlaneTheC'):
-                self.frame_metadata['indexC'] = 'getPlaneTheC'
-            if hasattr(self.metadata, 'getPlaneDeltaT'):
-                self.frame_metadata['T'] = 'getPlaneDeltaT'
-            if hasattr(self.metadata, 'getPlanePositionX'):
-                self.frame_metadata['X'] = 'getPlanePositionX'
-            if hasattr(self.metadata, 'getPlanePositionY'):
-                self.frame_metadata['Y'] = 'getPlanePositionY'
-            if hasattr(self.metadata, 'getPlanePositionZ'):
-                self.frame_metadata['Z'] = 'getPlanePositionZ'
+            self.metadata = MetadataRetrieve(self._metadata)
+            if hasattr(self.metadata, 'PlaneTheT'):
+                self.frame_metadata['indexT'] = 'PlaneTheT'
+            if hasattr(self.metadata, 'PlaneTheZ'):
+                self.frame_metadata['indexZ'] = 'PlaneTheZ'
+            if hasattr(self.metadata, 'PlaneTheC'):
+                self.frame_metadata['indexC'] = 'PlaneTheC'
+            if hasattr(self.metadata, 'PlaneDeltaT'):
+                self.frame_metadata['T'] = 'PlaneDeltaT'
+            if hasattr(self.metadata, 'PlanePositionX'):
+                self.frame_metadata['X'] = 'PlanePositionX'
+            if hasattr(self.metadata, 'PlanePositionY'):
+                self.frame_metadata['Y'] = 'PlanePositionY'
+            if hasattr(self.metadata, 'PlanePositionZ'):
+                self.frame_metadata['Z'] = 'PlanePositionZ'
 
     def _change_series(self):
         """Changes series and rereads dtype, sizes and pixelsizes.
@@ -301,59 +291,37 @@ class BioformatsReaderRaw(FramesSequence):
         series = self._series
         self.rdr.setSeries(series)
         self.isRGB = self.rdr.isRGB()
+        self._sizeRGB = self.rdr.getRGBChannelCount()
         self._isInterleaved = self.rdr.isInterleaved()
         self._sizeT = self.rdr.getSizeT()
         self._sizeZ = self.rdr.getSizeZ()
         self._sizeY = self.rdr.getSizeY()
         self._sizeX = self.rdr.getSizeX()
+        if self.isRGB:
+            self._sizeC = 1
+            self._first_frame_shape = (self._sizeY, self._sizeX, self._sizeRGB)
+        else:
+            self._sizeC = self.rdr.getSizeC()
+            self._first_frame_shape = (self._sizeY, self._sizeX)
         self._planes = self.rdr.getImageCount()
 
-        # determine pixel type using bioformats
-        pixel_type = self.rdr.getPixelType()
-        little_endian = self.rdr.isLittleEndian()
-        FormatTools = bioformats.formatreader.make_format_tools_class()
-        if pixel_type == FormatTools.INT8:
-            self._source_dtype = np.int8
-        elif pixel_type == FormatTools.UINT8:
-            self._source_dtype = np.uint8
-        elif pixel_type == FormatTools.UINT16:
-            self._source_dtype = '<u2' if little_endian else '>u2'
-        elif pixel_type == FormatTools.INT16:
-            self._source_dtype = '<i2' if little_endian else '>i2'
-        elif pixel_type == FormatTools.UINT32:
-            self._source_dtype = '<u4' if little_endian else '>u4'
-        elif pixel_type == FormatTools.INT32:
-            self._source_dtype = '<i4' if little_endian else '>i4'
-        elif pixel_type == FormatTools.FLOAT:
-            self._source_dtype = '<f4' if little_endian else '>f4'
-        elif pixel_type == FormatTools.DOUBLE:
-            self._source_dtype = '<f8' if little_endian else '>f8'
+        # determine pixel type
+        self._source_dtype = self._dtype_dict[self.rdr.getPixelType()]
+        if self.rdr.isLittleEndian():
+            self._source_dtype = '<' + self._source_dtype
+        else:
+            self._source_dtype = '>' + self._source_dtype
 
         if self._forced_dtype is None:
             self._pixel_type = self._source_dtype
         else:
             self._pixel_type = self._forced_dtype
 
-        # Set image shape
-        if self.isRGB:
-            image = np.frombuffer(self.rdr.openBytes(0), self._source_dtype)
-            self._sizeRGB = int(len(image) / (self._sizeX * self._sizeY))
-            self._first_frame_shape = (self._sizeY, self._sizeX, self._sizeRGB)
-            self._sizeC = 1
-        else:
-            self._first_frame_shape = (self._sizeY, self._sizeX)
-            self._sizeC = self.rdr.getSizeC()
-
     def __len__(self):
         return self._planes
 
-    def close(self, is_last=False):
-        self.reader.close()
-        if is_last:
-            try:
-                javabridge.kill_vm()
-            except AttributeError:  # java_vm was already killed
-                pass
+    def close(self):
+        self.rdr.close()
 
     def __del__(self):
         self.close()
@@ -385,7 +353,7 @@ class BioformatsReaderRaw(FramesSequence):
         """Returns image in current series specific as a Frame object with
         specified frame_no and metadata attributes.
         """
-        im, metadata = self._get_frame_2D(self.series, j)
+        im, metadata = self._get_frame(self.series, j)
         return Frame(self.process_func(im), frame_no=j, metadata=metadata)
 
     def _get_frame(self, series, j):
@@ -394,7 +362,12 @@ class BioformatsReaderRaw(FramesSequence):
         """
         self.series = series  # use property setter & error reporting
 
-        im = np.frombuffer(self.rdr.openBytes(j), self._source_dtype)
+        # see https://github.com/originell/jpype/issues/71
+        Jbyte = self.rdr.openBytes(j)
+        Jstr = jpype._jclass.JClass('java.lang.String')(Jbyte, 'ISO-8859-1')
+        Pbyte = np.array(np.frombuffer(Jstr.toString(), dtype='uint16'),
+                         dtype='uint8')
+        im = np.frombuffer(buffer(Pbyte), dtype=self._source_dtype)
         if self.isRGB:
             if self._isInterleaved:
                 im.shape = (self._sizeY, self._sizeX, self._sizeRGB)
@@ -404,8 +377,7 @@ class BioformatsReaderRaw(FramesSequence):
         else:
             im.shape = (self._sizeY, self._sizeX)
 
-        if im.dtype != self._pixel_type:
-            im = im.astype(self._pixel_type)
+        im = im.astype(self._pixel_type, copy=False)
 
         metadata = {'frame': j, 'series': series}
         for key, method in self.frame_metadata.iteritems():
@@ -413,54 +385,25 @@ class BioformatsReaderRaw(FramesSequence):
 
         return im, metadata
 
-    def get_metadata_xml(self):
-        # bioformats.get_omexml_metadata opens and closes a new reader
-        return bioformats.get_omexml_metadata(self.filename)
-
-    def get_metadata_omexml(self):
-        return bioformats.OMEXML(self.get_metadata_xml())
-
     def get_metadata_raw(self, form='dict'):
-        # code based on javabridge.jutil.to_string,
-        # .jdictionary_to_string_dictionary and .jenumeration_to_string_list
-        # addition is that it deals with UnicodeErrors
-        def to_string(jobject):
-            if not isinstance(jobject, javabridge.jutil._javabridge.JB_Object):
-                try:
-                    return str(jobject)
-                except UnicodeError:
-                    return jobject
-            return javabridge.jutil.call(jobject, 'toString',
-                                         '()Ljava/lang/String;')
-        hashtable = self.rdr.getMetadata()
-        jhashtable = javabridge.jutil.get_dictionary_wrapper(hashtable)
-        jenumeration = javabridge.jutil.get_enumeration_wrapper(jhashtable.keys())
-        keys = []
-        while jenumeration.hasMoreElements():
-            keys.append(jenumeration.nextElement())
+        hashtable = self.rdr.getGlobalMetadata()
         if form == 'dict':
-            result = {}
-            for key in keys:
-                result[key] = to_string(jhashtable.get(key))
+            result = {key: unicode(hashtable[key]) for key in hashtable.keys()}
         elif form == 'list':
-            result = []
-            for key in keys:
-                result.append(key + ': ' + to_string(jhashtable.get(key)))
+            result = [key + ': ' + unicode(hashtable[key])
+                      for key in hashtable.keys()]
         elif form == 'string':
             result = ''
-            for key in keys:
-                result += key + ': ' + to_string(jhashtable.get(key)) + '\n'
+            for key in hashtable.keys():
+                result += key + ': ' + unicode(hashtable[key]) + '\n'
         return result
 
     def get_index(self, z, c, t):
         return self.rdr.getIndex(z, c, t)
 
-    def java_log(self):
-        return javabridge.to_string(_java_log)
-
     @property
     def reader_class_name(self):
-        return self.rdr.get_class_name()
+        return self.rdr.getFormat()
 
     @property
     def pixel_type(self):
@@ -541,8 +484,6 @@ class BioformatsReader(BioformatsReaderRaw):
         channel(s) that are read by get_frame. Writeable.
     pixel_type : numpy.dtype
         numpy datatype of pixels
-    reader_class_name : string
-        classname of bioformats imagereader (loci.formats.in.*)
     java_log : string
         contains everything printed to java system.out and system.err
     isRGB : boolean
@@ -560,30 +501,21 @@ class BioformatsReader(BioformatsReaderRaw):
     get_metadata_raw(form) : dict or list or string
         returns the raw metadata from the file. Form defaults to 'dict', other
         options are 'list' and 'string'.
-    get_metadata_xml() : string
-        returns the metadata in xml format
-    get_metadata_omexml() : bioformats.OMEXML object
-        parses the xml metadata to an omexml object
-    close(is_last) :
-        closes the reader. When is_last is true, java VM is stopped. Be sure
-        to do that only at the last image, because the VM cannot be restarted
-        unless you restart python console. The same as pims.kill_vm()
+    close() :
+        closes the reader
 
     Examples
     ----------
-    >>> frames.metadata.getPlaneDeltaT(0, 50)
+    >>> frames.metadata.PlaneDeltaT(0, 50)
     ...    # evaluates loci.formats.meta.MetadataRetrieve.getPlaneDeltaT(0, 50)
 
     Notes
     ----------
-    Be sure to kill the java VM with pims.kill_vm() the end of the script. It
-    cannot be restarted from the same python console, however. You can also
-    kill the vm by calling frame.close(is_last=True).
+    It is not necessary to shutdown the JVM at end. It will be automatically
+    done when JPype is unloaded at python exit.
 
     Dependencies:
-    https://github.com/CellProfiler/python-bioformats
-    https://github.com/CellProfiler/python-javabridge
-    or (windows compiled) http://www.lfd.uci.edu/~gohlke/pythonlibs/#javabridge
+    http://sourceforge.net/projects/jpype/files/JPype/
 
     Tested with files from http://loci.wisc.edu/software/sample-data
     Working for:
@@ -611,6 +543,17 @@ class BioformatsReader(BioformatsReaderRaw):
         super(BioformatsReader, self).__init__(filename, process_func, dtype,
                                                as_grey, meta, java_memory,
                                                series)
+        rgbvalues = []
+        try:
+            for c in range(self._sizeC):
+                rgba = self.metadata.ChannelColor(self.series, c)
+                rgbvalues.append([(rgba >> 24 & 255) / 255,
+                                  (rgba >> 16 & 255) / 255,
+                                  (rgba >> 8 & 255) / 255])
+        except:  # a lot could happen, use catch all here
+            self.channel_RGB_all = []
+        else:
+            self.channel_RGB_all = rgbvalues
 
     def __len__(self):
         return self._sizeT
@@ -635,17 +578,11 @@ class BioformatsReader(BioformatsReaderRaw):
                              'than the number of channels ' +
                              '({})'.format(self._sizeC + 1))
         self._channel = channel
-        rgbvalues = []
-        try:
-            for c in channel:
-                rgba = self.metadata.getChannelColor(self.series, c)
-                rgbvalues.append([(rgba >> 24 & 255) / 255,
-                                  (rgba >> 16 & 255) / 255,
-                                  (rgba >> 8 & 255) / 255])
-        except:  # a lot could happen, use catch all here
-            self.channel_RGB = []
-        else:
-            self.channel_RGB = rgbvalues
+ 
+    @property
+    def channel_RGB(self):
+        if len(self.channel_RGB_all) == self._sizeC:
+            return [self.channel_RGB_all[c] for c in self.channel]
 
     def _change_series(self):
         super(BioformatsReader, self)._change_series()
@@ -685,7 +622,7 @@ class BioformatsReader(BioformatsReaderRaw):
             if metadata[k][1:] == metadata[k][:-1]:
                 metadata[k] = metadata[k][0]
 
-        if len(self.channel_RGB) > 0:
+        if self.channel_RGB is not None:
             metadata['colors'] = self.channel_RGB
 
         return Frame(self.process_func(imlist.squeeze()), frame_no=t,

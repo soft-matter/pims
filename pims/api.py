@@ -48,12 +48,11 @@ try:
     if pims.bioformats.available():
         BioformatsRaw = pims.bioformats.BioformatsReaderRaw
         Bioformats = pims.bioformats.BioformatsReader
-        from javabridge import kill_vm
     else:
         raise ImportError()
 except (ImportError, IOError):
-    BioformatsRaw = not_available("javabridge and bioformats")
-    Bioformats = not_available("javabridge and bioformats")
+    BioformatsRaw = not_available("JPype")
+    Bioformats = not_available("JPype")
 
 
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):

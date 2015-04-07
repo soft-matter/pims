@@ -3,15 +3,12 @@ source: http://loci.wisc.edu/software/sample-data
 
 Approx. download size: 311 MB"""
 
-
 def download_bioformats_tstfiles():
-    try:
-        import bioformats
-        import javabridge
-    except ImportError:
-        raise ImportError("Bioformats and/or javabridge were not found, these "
-                          "are required for running tests on these files.")
     import os
+    try:
+        import jpype
+    except ImportError:
+        raise ImportError("JPype is required for running tests on these files.")
     from six.moves.urllib.request import urlretrieve
     from zipfile import ZipFile
 

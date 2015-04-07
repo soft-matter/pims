@@ -17,8 +17,7 @@ install:
   - if [ $BUILD_MODE == "bioformats" ]; 
     then 
         sudo apt-get install default-jdk;
-        pip install javabridge;
-        pip install https://github.com/CellProfiler/python-bioformats/archive/master.zip;
+        pip install https://github.com/originell/jpype/archive/master.zip;
     fi
   - if [ $BUILD_MODE == "pyav" ]; 
     then 
