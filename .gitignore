@@ -12,15 +12,14 @@ pims/loci_tools.jar
 examples/.ipynb_checkpoints
 pims/tests/data/bulk-water.mov.pims_buffer
 pims/tests/data/bulk-water.mov.pims_meta
+pims/tests/data/bioformats/10-31 E1.tif
 pims/tests/data/bioformats/2chZT.lsm
 pims/tests/data/bioformats/Blend_Final.IPL
 pims/tests/data/bioformats/dnasample1.dm3
 pims/tests/data/bioformats/HEART.SEQ
-pims/tests/data/bioformats/leica_stack.lei
-pims/tests/data/bioformats/leica_stack.txt
-pims/tests/data/bioformats/leica_stack_Series014_z000_ch00.tif
-pims/tests/data/bioformats/leica_stack_Series014_z001_ch00.tif
-pims/tests/data/bioformats/leica_stack_Series014_z002_ch00.tif
+pims/tests/data/bioformats/KEVIN2-3*
+pims/tests/data/bioformats/leica_stack*
+pims/tests/data/bioformats/MF-2CH-Z-T.tif
 pims/tests/data/bioformats/mitosis-test.ipw
 pims/tests/data/bioformats/mouse-kidney.lif
 pims/tests/data/bioformats/qdna1.ics

@@ -301,6 +301,54 @@ class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel):
     def tearDown(self):
         self.v.close()
 
+class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel):
+    # Andor Bio-imaging Division TIFF format, 256 x 256 pixels, 16 bits per sample
+    # 5 time points, 4 focal planes, 2 channels
+    # Mark Browne of Andor Technology's Bio-imaging Division has provided a
+    # multifield, 2-channel Z-T series in ABD TIFF format.
+    def check_skip(self):
+        _skip_if_no_bioformats()
+        if not os.path.isfile(self.filename):
+            raise nose.SkipTest('File missing. Skipping.')
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'bioformats', 'MF-2CH-Z-T.tif')
+        self.check_skip()
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (256, 256)
+        self.expected_len = 5
+        self.expected_C = 2
+        self.expected_Z = 4
+
+    def tearDown(self):
+        self.v.close()
+
+
+class TestBioformatsOlympusTiff(_image_series, _image_stack):
+    # Olympus Fluoview TIFF format, 512 x 512 pixels, 16 bits per sample
+    # 16 time points, 21 focal planes
+    # Timothy Gomez of the Department of Anatomy at the UW-Madison has provided
+    # a 4D series in Fluoview TIFF format.
+    def check_skip(self):
+        _skip_if_no_bioformats()
+        if not os.path.isfile(self.filename):
+            raise nose.SkipTest('File missing. Skipping.')
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'bioformats', '10-31 E1.tif')
+        self.check_skip()
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (512, 512)
+        self.expected_len = 16
+        self.expected_Z = 21
+
+    def tearDown(self):
+        self.v.close()
+
 
 class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel):
     # Leica LIF format, 512 x 512 pixels, 16 bits per sample
@@ -445,6 +493,30 @@ class TestBioformatsICS(_image_single):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (256, 256)
         self.expected_len = 1
+
+    def tearDown(self):
+        self.v.close()
+
+
+class TestBioformatsZPO(_image_stack, _image_multichannel):
+    # PerkinElmer format, 672 x 512 pixels
+    # 1 time point, 29 focal planes, 3 channels
+    # Kevin O'Connell of NIH/NIDDK's Laboratory of Biochemistry and Genetics
+    # has provided a multichannel 4D series in PerkinElmer format.
+    def check_skip(self):
+        _skip_if_no_bioformats()
+        if not os.path.isfile(self.filename):
+            raise nose.SkipTest('File missing. Skipping.')
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'bioformats', 'KEVIN2-3.zpo')
+        self.check_skip()
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (672, 512)
+        self.expected_C = 3
+        self.expected_Z = 29
 
     def tearDown(self):
         self.v.close()

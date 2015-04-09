@@ -1,7 +1,5 @@
 """This script downloads the necessary files for bioformats unittests
-source: http://loci.wisc.edu/software/sample-data
-
-Approx. download size: 311 MB"""
+source: http://loci.wisc.edu/software/sample-data"""
 
 def download_bioformats_tstfiles():
     import os
@@ -23,16 +21,19 @@ def download_bioformats_tstfiles():
         with ZipFile(fn) as zf:
             zf.extractall(filepath)
         os.remove(fn)
+        if os.path.isfile('readme.txt'):
+            os.remove('readme.txt')
 
     passing = ['qdna1.zip', 'leica_stack.zip', 'Blend_Final.zip', 'HEART.zip',
                'wtembryo.zip', 'mitosis-test.zip', 'dnasample1.zip',
-               '2chZT.zip', 'mouse-kidney.zip']
+               '2chZT.zip', 'mouse-kidney.zip', 'MF-2CH-Z-T.zip',
+               '10-31%20E1.zip', 'KEVIN2-3.zip']
 
-    # failing = ['MF-2CH-Z-T.zip', 'sdub.zip', 'NESb.zip', 'TAABA.zip',
-    #            '10-31%20E1.zip', 'KEVIN2-3.zip', 'embryo2.zip', 'dub.zip']
+    #failing = ['sdub.zip', 'NESb.zip', 'TAABA.zip', 'embryo2.zip', 'dub.zip']
 
     for fn in passing:
         get_bioformats_file(fn, path)
+        print('Downloaded {}'.format(fn))
 
 if __name__ == '__main__':
     download_bioformats_tstfiles()

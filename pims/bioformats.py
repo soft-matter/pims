@@ -205,16 +205,16 @@ class BioformatsReaderRaw(FramesSequence):
     done when JPype is unloaded at python exit.
 
     Dependencies:
-    http://sourceforge.net/projects/jpype/files/JPype/
+    https://pypi.python.org/pypi/JPype1
 
     Tested with files from http://loci.wisc.edu/software/sample-data
     Working for:
         Zeiss Laser Scanning Microscopy, IPLab, Gatan Digital Micrograph,
         Image-Pro sequence, Leica, Image-Pro workspace, Nikon NIS-Elements ND2,
-        Image Cytometry Standard, QuickTime movie
-    Not (fully) working for:
-        Olympus Fluoview TIFF, Bio-Rad PIC, Openlab LIFF, PerkinElmer,
-        Andor Bio-imaging Division TIFF, Leica LIF, BIo-Rad PIC
+        Image Cytometry Standard, QuickTime movie, Olympus Fluoview TIFF,
+        Andor Bio-imaging Division TIFF, PerkinElmer, Leica LIF
+
+    Bio-Rad PIC and Openlab LIFF can only be loaded as single frames
 
     For files larger than 4GB, 64 bits Python is required
 
@@ -576,16 +576,16 @@ class BioformatsReader(BioformatsReaderRaw):
     done when JPype is unloaded at python exit.
 
     Dependencies:
-    http://sourceforge.net/projects/jpype/files/JPype/
+    https://pypi.python.org/pypi/JPype1
 
     Tested with files from http://loci.wisc.edu/software/sample-data
     Working for:
         Zeiss Laser Scanning Microscopy, IPLab, Gatan Digital Micrograph,
         Image-Pro sequence, Leica, Image-Pro workspace, Nikon NIS-Elements ND2,
-        Image Cytometry Standard, QuickTime movie
-    Not (fully) working for:
-        Olympus Fluoview TIFF, Bio-Rad PIC, Openlab LIFF, PerkinElmer,
-        Andor Bio-imaging Division TIFF, Leica LIF, BIo-Rad PIC
+        Image Cytometry Standard, QuickTime movie, Olympus Fluoview TIFF,
+        Andor Bio-imaging Division TIFF, PerkinElmer, Leica LIF
+
+    Bio-Rad PIC and Openlab LIFF can only be loaded as single frames
 
     For files larger than 4GB, 64 bits Python is required
 
