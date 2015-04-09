@@ -20,6 +20,15 @@ def available():
 
 
 def download_jar(url=None, overwrite=False):
+    """Downloads loci_tools.jar from openmicroscopy into the pims root folder.
+
+    Parameters
+    ----------
+    url: string
+        specifies a custom loci_tools.jar url, for instance to change version
+    overwrite: boolean
+        set overwrite=True to overwrite the existing loci_tools without notice
+    """
     from six.moves.urllib.request import urlretrieve
     if not overwrite and os.path.isfile(LOCI_TOOLS_PATH):
         raise IOError('File {} already exists, please backup the file or set '
@@ -32,12 +41,15 @@ def download_jar(url=None, overwrite=False):
 
 
 def _jbytearr_fast(arr, dtype):
+    # see https://github.com/originell/jpype/issues/71 and
+    # https://github.com/originell/jpype/pull/73
     Jstr = jpype.java.lang.String(arr, 'ISO-8859-1').toString()
     bytearr = np.array(np.frombuffer(Jstr, dtype=np.uint16), dtype=np.byte)
     return np.frombuffer(buffer(bytearr), dtype=dtype)
 
 
 def _jbytearr_slow(arr, dtype, bpp, fp, little_endian):
+    # let java do the type conversion
     Jconv = loci.common.DataTools.makeDataArray(arr, bpp, fp, little_endian)
     return np.array(Jconv, dtype=dtype)
 
