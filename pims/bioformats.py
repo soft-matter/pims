@@ -11,7 +11,7 @@ try:
     import jpype
 except ImportError:
     jpype = None
-    
+
 LOCI_TOOLS_PATH = os.path.join(os.path.dirname(__file__),
                                'loci_tools.jar')
 
@@ -29,6 +29,17 @@ def download_jar(url=None, overwrite=False):
     urlretrieve(url, LOCI_TOOLS_PATH)
     print('Downloaded loci_tools.jar to {}'.format(LOCI_TOOLS_PATH))
     return LOCI_TOOLS_PATH
+
+
+def _jbytearr_fast(arr, dtype):
+    Jstr = jpype.java.lang.String(arr, 'ISO-8859-1').toString()
+    bytearr = np.array(np.frombuffer(Jstr, dtype=np.uint16), dtype=np.byte)
+    return np.frombuffer(buffer(bytearr), dtype=dtype)
+
+
+def _jbytearr_slow(arr, dtype, bpp, fp, little_endian):
+    Jconv = loci.common.DataTools.makeDataArray(arr, bpp, fp, little_endian)
+    return np.array(Jconv, dtype=dtype)
 
 
 class MetadataRetrieve(object):
@@ -124,6 +135,9 @@ class BioformatsReaderRaw(FramesSequence):
         The max heap size of the java virtual machine, default 512m. As soon as
         the virtual machine is started, python has to be restarted to change
         the max heap size.
+    read_mode : {'auto', 'fast', 'slow'}
+        Fast mode is approx. 10x faster, but may not work for all dtypes and/or
+        platforms. Default 'auto'.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
@@ -153,6 +167,8 @@ class BioformatsReaderRaw(FramesSequence):
         numpy datatype of pixels
     isRGB : boolean
         True if the image is an RGB image
+    read_mode : {'auto', 'fast', 'slow'}
+        See parameter
 
     Methods
     ----------
@@ -208,8 +224,13 @@ class BioformatsReaderRaw(FramesSequence):
 
     class_priority = 2
 
-    def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False, meta=True, java_memory='512m', series=0):
+    def __init__(self, filename, process_func=None, dtype=None, as_grey=False,
+                 meta=True, java_memory='512m', read_mode='auto', series=0):
+        global loci
+
+        if read_mode not in ['auto', 'fast', 'slow']:
+            raise ValueError('read_mode must have values auto, fast or slow')
+
         # Make sure that file exists before starting java
         if not os.path.isfile(filename):
             raise IOError('The file "{}" does not exist.'.format(filename))
@@ -241,15 +262,24 @@ class BioformatsReaderRaw(FramesSequence):
             self.rdr.setMetadataStore(self._metadata)
         self.rdr.setId(self.filename)
 
+        # Checkout reader dtype and define read mode
+        isLittleEndian = self.rdr.isLittleEndian()
+        LE_prefix = ['>', '<'][isLittleEndian]
         FormatTools = loci.formats.FormatTools
         self._dtype_dict = {FormatTools.INT8: 'i1',
                             FormatTools.UINT8: 'u1',
-                            FormatTools.INT16: 'i2',
-                            FormatTools.UINT16: 'u2',
-                            FormatTools.INT32: 'i4',
-                            FormatTools.UINT32: 'u4',
-                            FormatTools.FLOAT: 'f4',
-                            FormatTools.DOUBLE: 'f8'}
+                            FormatTools.INT16: LE_prefix + 'i2',
+                            FormatTools.UINT16: LE_prefix + 'u2',
+                            FormatTools.INT32: LE_prefix + 'i4',
+                            FormatTools.UINT32: LE_prefix + 'u4',
+                            FormatTools.FLOAT: LE_prefix + 'f4',
+                            FormatTools.DOUBLE: LE_prefix + 'f8'}
+        self._dtype_dict_java = {}
+        for loci_format in self._dtype_dict.keys():
+            self._dtype_dict_java[loci_format] = \
+                (FormatTools.getBytesPerPixel(loci_format),
+                 FormatTools.isFloatingPoint(loci_format),
+                 isLittleEndian)
 
         # Set the correct series and initialize the sizes
         self._size_series = self.rdr.getSeriesCount()
@@ -259,6 +289,17 @@ class BioformatsReaderRaw(FramesSequence):
         self._series = series
         self._forced_dtype = dtype
         self._change_series()
+
+        # Set read mode. When auto, tryout fast and check the image size.
+        if read_mode == 'auto':
+            im = self._jbytearr_fast(self.rdr.openBytes(0))
+            if im.size == self._sizeRGB*self._sizeX*self._sizeY:
+                read_mode = 'fast'
+            else:
+                warn('Fast read mode results in wrong image shape. Going to '
+                     'slow read mode.')
+                read_mode = 'slow'
+        self.read_mode = read_mode
 
         # Define a process func, if applicable
         # TODO: check if as grey works with series with different dimensions
@@ -306,11 +347,14 @@ class BioformatsReaderRaw(FramesSequence):
         self._planes = self.rdr.getImageCount()
 
         # determine pixel type
-        self._source_dtype = self._dtype_dict[self.rdr.getPixelType()]
-        if self.rdr.isLittleEndian():
-            self._source_dtype = '<' + self._source_dtype
-        else:
-            self._source_dtype = '>' + self._source_dtype
+        pixel_type = self.rdr.getPixelType()
+        dtype = self._dtype_dict[pixel_type]
+        java_dtype = self._dtype_dict_java[pixel_type]
+
+        self._jbytearr_slow = lambda arr: _jbytearr_slow(arr, dtype,
+                                                         *java_dtype)
+        self._jbytearr_fast = lambda arr: _jbytearr_fast(arr, dtype)
+        self._source_dtype = dtype
 
         if self._forced_dtype is None:
             self._pixel_type = self._source_dtype
@@ -363,11 +407,11 @@ class BioformatsReaderRaw(FramesSequence):
         self.series = series  # use property setter & error reporting
 
         # see https://github.com/originell/jpype/issues/71
-        Jbyte = self.rdr.openBytes(j)
-        Jstr = jpype._jclass.JClass('java.lang.String')(Jbyte, 'ISO-8859-1')
-        Pbyte = np.array(np.frombuffer(Jstr.toString(), dtype='uint16'),
-                         dtype='uint8')
-        im = np.frombuffer(buffer(Pbyte), dtype=self._source_dtype)
+        if self.read_mode == 'fast':
+            im = self._jbytearr_fast(self.rdr.openBytes(j))
+        elif self.read_mode == 'slow':
+            im = self._jbytearr_slow(self.rdr.openBytes(j))
+
         if self.isRGB:
             if self._isInterleaved:
                 im.shape = (self._sizeY, self._sizeX, self._sizeRGB)
@@ -388,14 +432,14 @@ class BioformatsReaderRaw(FramesSequence):
     def get_metadata_raw(self, form='dict'):
         hashtable = self.rdr.getGlobalMetadata()
         if form == 'dict':
-            result = {key: unicode(hashtable[key]) for key in hashtable.keys()}
+            result = {key: unicode(hashtable.get(key)) for key in hashtable}
         elif form == 'list':
-            result = [key + ': ' + unicode(hashtable[key])
-                      for key in hashtable.keys()]
+            result = [key + ': ' + unicode(hashtable.get(key))
+                      for key in hashtable]
         elif form == 'string':
             result = ''
-            for key in hashtable.keys():
-                result += key + ': ' + unicode(hashtable[key]) + '\n'
+            for key in hashtable:
+                result += key + ': ' + unicode(hashtable.get(key)) + '\n'
         return result
 
     def get_index(self, z, c, t):
@@ -453,6 +497,9 @@ class BioformatsReader(BioformatsReaderRaw):
         The max heap size of the java virtual machine, default 512m. As soon as
         the virtual machine is started, python has to be restarted to change
         the max heap size.
+    read_mode : {'auto', 'fast', 'slow'}
+        Fast mode is approx. 10x faster, but may not work for all dtypes and/or
+        platforms. Default 'auto'.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
@@ -488,6 +535,8 @@ class BioformatsReader(BioformatsReaderRaw):
         contains everything printed to java system.out and system.err
     isRGB : boolean
         True if the image is an RGB image
+    read_mode : {'auto', 'fast', 'slow'}
+        See parameter
     channel_RGB : list of rgb values (floats)
         The rgb values of all active channels set by the channels property. If
         not supported by the underlying reader, this returns an empty list
@@ -538,11 +587,12 @@ class BioformatsReader(BioformatsReaderRaw):
     class_priority = 5
 
     def __init__(self, filename, process_func=None, dtype=None, as_grey=False,
-                 meta=True, java_memory='512m', series=0, C=None):
+                 meta=True, java_memory='512m', read_mode='auto', series=0,
+                 C=None):
         self._channel = C
         super(BioformatsReader, self).__init__(filename, process_func, dtype,
                                                as_grey, meta, java_memory,
-                                               series)
+                                               read_mode, series)
         rgbvalues = []
         try:
             for c in range(self._sizeC):
@@ -578,7 +628,7 @@ class BioformatsReader(BioformatsReaderRaw):
                              'than the number of channels ' +
                              '({})'.format(self._sizeC + 1))
         self._channel = channel
- 
+
     @property
     def channel_RGB(self):
         if len(self.channel_RGB_all) == self._sizeC:
