@@ -12,32 +12,69 @@ try:
 except ImportError:
     jpype = None
 
-LOCI_TOOLS_PATH = os.path.join(os.path.dirname(__file__),
-                               'loci_tools.jar')
 
 def available():
-    return jpype is not None 
+    return jpype is not None
 
 
-def download_jar(url=None, overwrite=False):
-    """Downloads loci_tools.jar from openmicroscopy into the pims root folder.
-
-    Parameters
-    ----------
-    url: string
-        specifies a custom loci_tools.jar url, for instance to change version
-    overwrite: boolean
-        set overwrite=True to overwrite the existing loci_tools without notice
+def _gen_jar_locations():
     """
+    Generator that yields optional locations of loci_tools.jar.
+    The precedence order is (highest priority first):
+
+    1. pims package location
+    2. /etc/loci_tools.jar
+    3. CONDA_ENV/etc/loci_tools.jar
+    4. PROGRAMDATA/pims/loci_tools.jar
+    5. LOCALAPPDATA/pims/loci_tools.jar
+    6. APPDATA/pims/loci_tools.jar
+    7. ~/.config/pims/loci_tools.jar
+    """
+    yield os.path.dirname(__file__)
+    yield '/etc'
+    if 'CONDA_ETC_' in os.environ:
+        yield os.environ['CONDA_ETC_']
+    if 'PROGRAMDATA' in os.environ:
+        yield os.path.join(os.environ['PROGRAMDATA'], 'pims')
+    if 'LOCALAPPDATA' in os.environ:
+        yield os.path.join(os.environ['LOCALAPPDATA'], 'pims')
+    if 'APPDATA' in os.environ:
+        yield os.path.join(os.environ['APPDATA'], 'pims')
+    yield os.path.join(os.path.expanduser('~'), '.config', 'pims')
+
+
+def _find_jar(url=None):
+    """
+    Finds the location of loci_tools.jar, if necessary download it to a
+    writeable location.
+    """
+    for loc in _gen_jar_locations():
+        if os.path.isfile(os.path.join(loc, 'loci_tools.jar')):
+            return os.path.join(loc, 'loci_tools.jar')
+
+    warn('loci_tools.jar not found, downloading')
+    for loc in _gen_jar_locations():
+        # check if dir exists and has write access:
+        if os.path.exists(loc) and os.access(loc, os.W_OK):
+            break
+        # if directory is pims and it does not exist, so make it (if allowed)
+        if os.path.basename(loc) == 'pims' and \
+           os.access(os.path.dirname(loc), os.W_OK):
+            os.mkdir(loc)
+            break
+    else:
+        raise IOError('No writeable location found. In order to use the '
+                      'Bioformats reader, please download '
+                      'loci_tools.jar to the pims program folder or one of '
+                      'the locations provided by _gen_jar_locations().')
+
     from six.moves.urllib.request import urlretrieve
-    if not overwrite and os.path.isfile(LOCI_TOOLS_PATH):
-        raise IOError('File {} already exists, please backup the file or set '
-                      'parameter `overwrite = True`'.format(LOCI_TOOLS_PATH))
     if url is None:
-        url = 'http://downloads.openmicroscopy.org/bio-formats/5.1.0/artifacts/loci_tools.jar'
-    urlretrieve(url, LOCI_TOOLS_PATH)
-    print('Downloaded loci_tools.jar to {}'.format(LOCI_TOOLS_PATH))
-    return LOCI_TOOLS_PATH
+        url = ('http://downloads.openmicroscopy.org/bio-formats/5.1.0/' +
+               'artifacts/loci_tools.jar')
+    urlretrieve(url, os.path.join(loc, 'loci_tools.jar'))
+
+    return os.path.join(loc, 'loci_tools.jar')
 
 
 def _jbytearr_fast(arr, dtype):
@@ -247,14 +284,11 @@ class BioformatsReaderRaw(FramesSequence):
         if not os.path.isfile(filename):
             raise IOError('The file "{}" does not exist.'.format(filename))
 
-        if not os.path.isfile(LOCI_TOOLS_PATH):
-            print('loci_tools.jar not found, downloading')
-            download_jar()
-
         # Start java VM and initialize logger (globally)
         if not jpype.isJVMStarted():
+            loci_path = _find_jar()
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
-                           '-Djava.class.path=' + LOCI_TOOLS_PATH,
+                           '-Djava.class.path=' + loci_path,
                            '-Xmx' + java_memory)
             log4j = jpype.JPackage('org.apache.log4j')
             log4j.BasicConfigurator.configure()
