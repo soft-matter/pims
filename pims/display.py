@@ -247,7 +247,7 @@ def _as_png(arr, width, normed=True):
     from PIL import Image
     w = width  # for brevity
     h = arr.shape[0] * w // arr.shape[1]
-    if normalize:
+    if normed:
         arr = normalize(arr)
     img = Image.fromarray((arr * 255).astype('uint8')).resize((w, h))
     img_buffer = BytesIO()
@@ -316,7 +316,7 @@ def to_rgb(image, colors=None, normed=True):
         of these lists should equal (1.0, 1.0, 1.0), when clipping needs to
         be avoided.
     normed : bool, optional
-        Multichannel images will be downsampled to 8-bit RGB, if normalize is
+        Multichannel images will be downsampled to 8-bit RGB, if normed is
         True. Greyscale images will always give 8-bit RGB.
 
     Returns
@@ -364,7 +364,7 @@ def to_rgb(image, colors=None, normed=True):
 
     result = result.clip(0, 255)
 
-    if normalize:
+    if normed:
         result = (normalize(result) * 255).astype('uint8')
 
     return result
