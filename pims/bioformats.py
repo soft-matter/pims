@@ -1,4 +1,5 @@
-from __future__ import (absolute_import, division, print_function)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import numpy as np
 
@@ -77,18 +78,25 @@ def _find_jar(url=None):
     return os.path.join(loc, 'loci_tools.jar')
 
 
+def _maybe_tostring(field):
+    if hasattr(field, 'toString'):
+        return field.toString()
+    else:
+        return field
+
+
 def _jbytearr_fast(arr, dtype):
     # see https://github.com/originell/jpype/issues/71 and
     # https://github.com/originell/jpype/pull/73
     Jstr = jpype.java.lang.String(arr, 'ISO-8859-1').toString()
     bytearr = np.array(np.frombuffer(Jstr, dtype=np.uint16), dtype=np.byte)
-    return np.frombuffer(buffer(bytearr), dtype=dtype)
+    return np.frombuffer(bytearr, dtype=dtype)
 
 
 def _jbytearr_slow(arr, dtype, bpp, fp, little_endian):
     # let java do the type conversion
     Jconv = loci.common.DataTools.makeDataArray(arr, bpp, fp, little_endian)
-    return np.array(Jconv, dtype=dtype)
+    return np.array(Jconv[:], dtype=dtype)
 
 
 class MetadataRetrieve(object):
@@ -114,25 +122,30 @@ class MetadataRetrieve(object):
                 # raise sensible error for wrong number of arguments
                 raise TypeError(('{0}() takes exactly {1} arguments ({2} ' +
                                  'given)').format(name, paramcount, len(args)))
-            jw = fn(*args)
-            if jw is None or jw == '':
-                return None
-            # convert value to int, float, or string
-            jw = unicode(jw)
-            try:  # deal with values hidden inside 'value[number]'
-                temp = jw[jw.index('value[') + 6:]
-                temp = temp[:temp.index(']')]
-            except ValueError:
-                pass  # do nothing when 'value[' or ']' were not found
+            field = fn(*args)
+
+            # deal with fields wrapped in a custom metadata type
+            if hasattr(field, 'value'):
+                field = field.value
+            try:  # some fields have to be called
+                field = field()
+            except TypeError:
+                pass
+
+            # check if it is already casted to a python type by jpype
+            if not hasattr(field, 'toString'):
+                return field
             else:
-                jw = temp
+                field = field.toString()
+
+            # convert to int or float if possible
             try:
-                return int(jw)
+                return int(field)
             except ValueError:
                 try:
-                    return float(jw)
+                    return float(field)
                 except ValueError:
-                    return jw
+                    return field
 
         for name in dir(md):
             if (name[:3] != 'get') or (name in ['getRoot', 'getClass']):
@@ -338,13 +351,15 @@ class BioformatsReaderRaw(FramesSequence):
 
         # Set read mode. When auto, tryout fast and check the image size.
         if read_mode == 'auto':
-            im = self._jbytearr_fast(self.rdr.openBytes(0))
-            if im.size == self._sizeRGB*self._sizeX*self._sizeY:
-                read_mode = 'fast'
-            else:
+            try:
+                im = self._jbytearr_fast(self.rdr.openBytes(0))
+                im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
+            except (AttributeError, ValueError):
                 warn('Fast read mode results in wrong image shape. Going to '
                      'slow read mode.')
                 read_mode = 'slow'
+            else:
+                read_mode = 'fast'
         self.read_mode = read_mode
 
         # Define a process func, if applicable
@@ -452,7 +467,6 @@ class BioformatsReaderRaw(FramesSequence):
         """
         self.series = series  # use property setter & error reporting
 
-        # see https://github.com/originell/jpype/issues/71
         if self.read_mode == 'fast':
             im = self._jbytearr_fast(self.rdr.openBytes(j))
         elif self.read_mode == 'slow':
@@ -470,22 +484,29 @@ class BioformatsReaderRaw(FramesSequence):
         im = im.astype(self._pixel_type, copy=False)
 
         metadata = {'frame': j, 'series': series}
-        for key, method in self.frame_metadata.iteritems():
+        for key, method in self.frame_metadata.items():
             metadata[key] = getattr(self.metadata, method)(series, j)
 
         return im, metadata
 
     def get_metadata_raw(self, form='dict'):
         hashtable = self.rdr.getGlobalMetadata()
+        keys = hashtable.keys()
         if form == 'dict':
-            result = {key: unicode(hashtable.get(key)) for key in hashtable}
+            result = {}
+            while keys.hasMoreElements():
+                key = keys.nextElement()
+                result[key] = _maybe_tostring(hashtable.get(key))
         elif form == 'list':
-            result = [key + ': ' + unicode(hashtable.get(key))
-                      for key in hashtable]
+            result = []
+            while keys.hasMoreElements():
+                key = keys.nextElement()
+                result.append(key + ': ' + _maybe_tostring(hashtable.get(key)))
         elif form == 'string':
-            result = ''
-            for key in hashtable:
-                result += key + ': ' + unicode(hashtable.get(key)) + '\n'
+            result = u''
+            while keys.hasMoreElements():
+                key = keys.nextElement()
+                result += key + ': ' + _maybe_tostring(hashtable.get(key)) + '\n'
         return result
 
     def get_index(self, z, c, t):
