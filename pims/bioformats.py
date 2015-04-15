@@ -24,23 +24,20 @@ def _gen_jar_locations():
     The precedence order is (highest priority first):
 
     1. pims package location
-    2. /etc/loci_tools.jar
-    3. CONDA_ENV/etc/loci_tools.jar
-    4. PROGRAMDATA/pims/loci_tools.jar
-    5. LOCALAPPDATA/pims/loci_tools.jar
-    6. APPDATA/pims/loci_tools.jar
-    7. ~/.config/pims/loci_tools.jar
+    2. PROGRAMDATA/pims/loci_tools.jar
+    3. LOCALAPPDATA/pims/loci_tools.jar
+    4. APPDATA/pims/loci_tools.jar
+    5. /etc/loci_tools.jar
+    6. ~/.config/pims/loci_tools.jar
     """
     yield os.path.dirname(__file__)
-    yield '/etc'
-    if 'CONDA_ETC_' in os.environ:
-        yield os.environ['CONDA_ETC_']
     if 'PROGRAMDATA' in os.environ:
         yield os.path.join(os.environ['PROGRAMDATA'], 'pims')
     if 'LOCALAPPDATA' in os.environ:
         yield os.path.join(os.environ['LOCALAPPDATA'], 'pims')
     if 'APPDATA' in os.environ:
         yield os.path.join(os.environ['APPDATA'], 'pims')
+    yield '/etc'
     yield os.path.join(os.path.expanduser('~'), '.config', 'pims')
 
 
