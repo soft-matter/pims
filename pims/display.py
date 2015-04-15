@@ -6,7 +6,7 @@ import uuid
 import numpy as np
 import tempfile
 from io import BytesIO
-import base64
+from base64 import b64encode
 try:
     from matplotlib.colors import ColorConverter
     import matplotlib as mpl
@@ -216,7 +216,7 @@ $('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
         sequence = normalize(np.asarray(sequence))
     for i, s in enumerate(sequence):
         output += TAG.render(
-            data=base64.b64encode(_as_png(s, width, normed=False)),
+            data=b64encode(_as_png(s, width, normed=False)).decode('utf-8'),
             stack_id=stack_id, i=i)
     output += "</div>"
     return output
