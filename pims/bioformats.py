@@ -82,15 +82,15 @@ def _maybe_tostring(field):
         return field
 
 
-def _jbytearr_fast(arr, dtype):
+def _jbytearr_stringbuffer(arr, dtype):
     # see https://github.com/originell/jpype/issues/71 and
     # https://github.com/originell/jpype/pull/73
-    Jstr = jpype.java.lang.String(arr, 'ISO-8859-1').toString()
-    bytearr = np.array(np.frombuffer(Jstr, dtype=np.uint16), dtype=np.byte)
+    Jstr = jpype.java.lang.String(arr, 'ISO-8859-1').toString().encode('UTF-16LE')
+    bytearr = np.array(np.frombuffer(Jstr, dtype='<u2'), dtype=np.byte)
     return np.frombuffer(bytearr, dtype=dtype)
 
 
-def _jbytearr_slow(arr, dtype, bpp, fp, little_endian):
+def _jbytearr_javacasting(arr, dtype, bpp, fp, little_endian):
     # let java do the type conversion
     Jconv = loci.common.DataTools.makeDataArray(arr, bpp, fp, little_endian)
     return np.array(Jconv[:], dtype=dtype)
@@ -194,9 +194,11 @@ class BioformatsReaderRaw(FramesSequence):
         The max heap size of the java virtual machine, default 512m. As soon as
         the virtual machine is started, python has to be restarted to change
         the max heap size.
-    read_mode : {'auto', 'fast', 'slow'}
-        Fast mode is approx. 10x faster, but may not work for all dtypes and/or
-        platforms. Default 'auto'.
+    read_mode : {'auto', 'jpype', 'stringbuffer', 'javacasting'}
+        JPype can automatically convert java arrays to numpy arrays. On some
+        installations, this will not work. In this case, using a Stringbuffer
+        is the preferred option. However this doesn't work on Py3 and Unix
+        systems. In that case, java can cast the type. Default 'auto'.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
@@ -226,7 +228,7 @@ class BioformatsReaderRaw(FramesSequence):
         numpy datatype of pixels
     isRGB : boolean
         True if the image is an RGB image
-    read_mode : {'auto', 'fast', 'slow'}
+    read_mode : {'auto', 'jpype', 'stringbuffer', 'javacasting'}
         See parameter
 
     Methods
@@ -287,8 +289,8 @@ class BioformatsReaderRaw(FramesSequence):
                  meta=True, java_memory='512m', read_mode='auto', series=0):
         global loci
 
-        if read_mode not in ['auto', 'fast', 'slow']:
-            raise ValueError('read_mode must have values auto, fast or slow')
+        if read_mode not in ['auto', 'jpype', 'stringbuffer', 'javacasting']:
+            raise ValueError('Invalid read_mode value.')
 
         # Make sure that file exists before starting java
         if not os.path.isfile(filename):
@@ -348,15 +350,19 @@ class BioformatsReaderRaw(FramesSequence):
 
         # Set read mode. When auto, tryout fast and check the image size.
         if read_mode == 'auto':
-            try:
-                im = self._jbytearr_fast(self.rdr.openBytes(0))
-                im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
-            except (AttributeError, ValueError):
-                warn('Fast read mode results in wrong image shape. Going to '
-                     'slow read mode.')
-                read_mode = 'slow'
+            Jarr = self.rdr.openBytes(0)
+            if isinstance(Jarr[:], np.ndarray):
+                read_mode = 'jpype'
             else:
-                read_mode = 'fast'
+                warn('JPype numpy conversion is not installed properly. '
+                     'Falling back to slower read modes.')
+                try:
+                    im = self._jbytearr_stringbuffer(Jarr)
+                    im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
+                except (AttributeError, ValueError):
+                    read_mode = 'javacasting'
+                else:
+                    read_mode = 'stringbuffer'
         self.read_mode = read_mode
 
         # Define a process func, if applicable
@@ -409,9 +415,10 @@ class BioformatsReaderRaw(FramesSequence):
         dtype = self._dtype_dict[pixel_type]
         java_dtype = self._dtype_dict_java[pixel_type]
 
-        self._jbytearr_slow = lambda arr: _jbytearr_slow(arr, dtype,
-                                                         *java_dtype)
-        self._jbytearr_fast = lambda arr: _jbytearr_fast(arr, dtype)
+        self._jbytearr_stringbuffer = \
+            lambda arr: _jbytearr_stringbuffer(arr, dtype)
+        self._jbytearr_javacasting = \
+            lambda arr: _jbytearr_javacasting(arr, dtype, *java_dtype)
         self._source_dtype = dtype
 
         if self._forced_dtype is None:
@@ -464,10 +471,13 @@ class BioformatsReaderRaw(FramesSequence):
         """
         self.series = series  # use property setter & error reporting
 
-        if self.read_mode == 'fast':
-            im = self._jbytearr_fast(self.rdr.openBytes(j))
-        elif self.read_mode == 'slow':
-            im = self._jbytearr_slow(self.rdr.openBytes(j))
+        if self.read_mode == 'jpype':
+            im = np.frombuffer(self.rdr.openBytes(j)[:],
+                               dtype=self._source_dtype)
+        elif self.read_mode == 'stringbuffer':
+            im = self._jbytearr_stringbuffer(self.rdr.openBytes(j))
+        elif self.read_mode == 'javacasting':
+            im = self._jbytearr_javacasting(self.rdr.openBytes(j))
 
         if self.isRGB:
             if self._isInterleaved:
@@ -561,9 +571,11 @@ class BioformatsReader(BioformatsReaderRaw):
         The max heap size of the java virtual machine, default 512m. As soon as
         the virtual machine is started, python has to be restarted to change
         the max heap size.
-    read_mode : {'auto', 'fast', 'slow'}
-        Fast mode is approx. 10x faster, but may not work for all dtypes and/or
-        platforms. Default 'auto'.
+    read_mode : {'auto', 'jpype', 'stringbuffer', 'javacasting'}
+        JPype can automatically convert java arrays to numpy arrays. On some
+        installations, this will not work. In this case, using a Stringbuffer
+        is the preferred option. However this doesn't work on Py3 and Unix
+        systems. In that case, java can cast the type. Default 'auto'.
     series: int, optional
         Active image series index, defaults to 0. Changeable via the `series`
         property.
@@ -599,7 +611,7 @@ class BioformatsReader(BioformatsReaderRaw):
         contains everything printed to java system.out and system.err
     isRGB : boolean
         True if the image is an RGB image
-    read_mode : {'auto', 'fast', 'slow'}
+    read_mode : {'auto', 'jpype', 'stringbuffer', 'javacasting'}
         See parameter
     channel_RGB : list of rgb values (floats)
         The rgb values of all active channels set by the channels property. If
