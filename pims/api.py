@@ -3,7 +3,8 @@ from __future__ import (absolute_import, division, print_function,
 
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
-from pims.display import export, play, scrollable_stack
+from pims.display import (export, play, scrollable_stack, to_rgb, normalize,
+                          plot_to_frame, plots_to_frame)
 
 import six
 import glob

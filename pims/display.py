@@ -6,11 +6,16 @@ import uuid
 import numpy as np
 import tempfile
 from io import BytesIO
-import base64
+from base64 import b64encode
 try:
     from matplotlib.colors import ColorConverter
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
 except ImportError:
     ColorConverter = None
+    mpl = None
+    plt = None
+from PIL import Image
 
 
 def export(sequence, filename, rate=30, bitrate=None,
@@ -158,7 +163,7 @@ Use Google Chrome browser.</video>""".format(mimetype, video_encoded)
     return HTML(data=video_tag)
 
 
-def _scrollable_stack(sequence, width, normalize=True):
+def _scrollable_stack(sequence, width, normed=True):
     # See the public function, scrollable_stack, below.
     # This does all the work, and it returns a string of HTML and JS code,
     # as expected by Frame._repr_html_(). The public function wraps this
@@ -207,17 +212,17 @@ $('#image-stack-{{stack_id}}').bind('mousewheel DOMMouseScroll', function(e) {
     js = SCROLL_STACK_JS.render(length=len(sequence), stack_id=stack_id)
     output = '<script>{0}</script>'.format(js)
     output += WRAPPER.render(width=width, stack_id=stack_id)
-    if normalize:
-        sequence = _normalize(np.asarray(sequence))
+    if normed:
+        sequence = normalize(np.asarray(sequence))
     for i, s in enumerate(sequence):
         output += TAG.render(
-            data=base64.b64encode(_as_png(s, width, normalize=False)),
+            data=b64encode(_as_png(s, width, normed=False)).decode('utf-8'),
             stack_id=stack_id, i=i)
     output += "</div>"
     return output
 
 
-def scrollable_stack(sequence, width=512, normalize=True):
+def scrollable_stack(sequence, width=512, normed=True):
     """Display a sequence or 3D stack of frames as an interactive image
     that responds to scrolling.
 
@@ -226,7 +231,7 @@ def scrollable_stack(sequence, width=512, normalize=True):
     sequence: a 3D Frame (or any array) or an iterable of 2D Frames (or arrays)
     width: integer
         Optional, defaults to 512. The height is auto-scaled.
-    normalize : Rescale the brightness to fill the gamut. All pixels in the
+    normed : Rescale the brightness to fill the gamut. All pixels in the
         stack rescaled uniformly.
 
     Returns
@@ -234,23 +239,34 @@ def scrollable_stack(sequence, width=512, normalize=True):
     an interactive image, contained in a IPython.display.HTML object
     """
     from IPython.display import HTML
-    return HTML(_scrollable_stack(sequence, width=width, normalize=normalize))
+    return HTML(_scrollable_stack(sequence, width=width, normed=normed))
 
 
-def _as_png(arr, width, normalize=True):
+def _as_png(arr, width, normed=True):
     "Create a PNG image buffer from an array."
     from PIL import Image
     w = width  # for brevity
     h = arr.shape[0] * w // arr.shape[1]
-    if normalize:
-        arr = _normalize(arr)
+    if normed:
+        arr = normalize(arr)
     img = Image.fromarray((arr * 255).astype('uint8')).resize((w, h))
     img_buffer = BytesIO()
     img.save(img_buffer, format='png')
     return img_buffer.getvalue()
 
 
-def _normalize(arr):
+def normalize(arr):
+    """This normalizes an array to values between 0 and 1.
+
+    Parameters
+    ----------
+    arr : ndarray
+
+    Returns
+    -------
+    ndarray of float
+        normalized array
+    """
     ptp = arr.max() - arr.min()
     # Handle edge case of a flat image.
     if ptp == 0:
@@ -281,12 +297,12 @@ def _monochannel_to_rgb(image, rgb):
         rgb image, with extra inner dimension of length 3
 
     """
-    image_rgb = _normalize(image).reshape(*(image.shape + (1,)))
+    image_rgb = normalize(image).reshape(*(image.shape + (1,)))
     image_rgb = image_rgb * np.asarray(rgb).reshape(*((1,)*image.ndim + (3,)))
     return image_rgb
 
 
-def to_rgb(image, colors=None, normalize=True):
+def to_rgb(image, colors=None, normed=True):
     """This converts a greyscale or multichannel image to an RGB image, with
     given channel colors.
 
@@ -299,15 +315,15 @@ def to_rgb(image, colors=None, normalize=True):
         List of either single letters, or rgb(a) as lists of floats. The sum
         of these lists should equal (1.0, 1.0, 1.0), when clipping needs to
         be avoided.
-    normalize : bool, optional
-        Multichannel images will be downsampled to 8-bit RGB, if normalize is
+    normed : bool, optional
+        Multichannel images will be downsampled to 8-bit RGB, if normed is
         True. Greyscale images will always give 8-bit RGB.
 
     Returns
     -------
     ndarray
         RGB image, with inner dimension of length 3. The RGB image is clipped
-        so that values lay between 0 and 255. When normalize = True (default),
+        so that values lay between 0 and 255. When normed = True (default),
         datatype is np.uint8, else it is float.
     """
     # identify whether the image has a (leading) channel axis
@@ -352,7 +368,79 @@ def to_rgb(image, colors=None, normalize=True):
 
     result = result.clip(0, 255)
 
-    if normalize:
-        result = (_normalize(result) * 255).astype('uint8')
+    if normed:
+        result = (normalize(result) * 255).astype('uint8')
 
     return result
+
+
+def plot_to_frame(fig, dpi, **imsave_kwargs):
+    """ Renders a matplotlib figure or axes object into a numpy array
+    containing RGBA data of the rendered image.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure or Axes object
+    dpi : number, dots per inch used in figure rendering
+    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
+
+    Returns
+    -------
+    pims.Frame object containing RGBA values (dtype uint8)
+    """
+    if mpl is None:
+        raise ImportError('Module matplotlib not found')
+    from pims import Frame
+    buffer = six.BytesIO()
+    if isinstance(fig, mpl.axes.Axes):
+        fig = fig.figure
+    fig.savefig(buffer, format='tif', dpi=dpi, **imsave_kwargs)
+    buffer.seek(0)
+    im = np.asarray(Image.open(buffer))
+    buffer.close()
+    return Frame(im)
+
+
+def plots_to_frame(figures, width=512, close_fig=False, **imsave_kwargs):
+    """ Renders an iterable of matplotlib figures or axes objects into a
+    pims Frame object, that will be displayed as scrollable stack in IPython.
+
+    Parameters
+    ----------
+    figures : iterable of matplotlib Figure or Axes objects
+    width : integer, width in pixels
+    close_fig : boolean, when True, closes figures after drawing
+    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
+
+    Returns
+    -------
+    pims.Frame object containing a stack of RGBA values (dtype uint8)
+    """
+    if mpl is None:
+        raise ImportError('Module matplotlib not found')
+    from pims import Frame
+    if 'dpi' in imsave_kwargs or 'format' in imsave_kwargs:
+        raise ValueError('Do not specify dpi or format imsave kwargs.')
+    if isinstance(figures, mpl.axes.Axes) or \
+       isinstance(figures, mpl.figure.Figure):
+        raise ValueError('Use plot_to_frame for single figures, or supply '
+                         'an iterable of figures to plots_to_frame.')
+
+    # render first image to calculate the correct dpi and image size
+    size = plot_to_frame(figures[0], 100, **imsave_kwargs).shape
+    dpi = width * 100 / size[1]
+    h = width * size[0] / size[1]
+
+    frames = []
+    for n, fig in enumerate(figures):
+        im = plot_to_frame(fig, dpi, **imsave_kwargs)
+        if close_fig:
+            plt.close(fig)
+        # make the image the same size as the first image
+        if (im.shape[0] != h) or (im.shape[1] != width):
+            im = np.pad(im[:h, :width], ((0, max(0, h - im.shape[0])),
+                                         (0, max(0, width - im.shape[1])),
+                                         (0, 0)), mode=b'constant')
+        frames.append(im)
+
+    return Frame(np.array(frames))
