@@ -14,20 +14,13 @@ from numpy.testing import (assert_equal, assert_almost_equal, assert_allclose)
 
 import pims
 
-try:
-    import javabridge
-    import bioformats
-    BIOFORMATS_INSTALLED = True
-except ImportError:
-    BIOFORMATS_INSTALLED = False
-
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
 
 
 def _skip_if_no_bioformats():
-    if not BIOFORMATS_INSTALLED:
-        raise nose.SkipTest('Bioformats and/or javabridge not installed. Skipping.')
+    if not pims.bioformats.available():
+        raise nose.SkipTest('JPype is not installed. Skipping.')
 
 
 def assert_image_equal(actual, expected):
@@ -230,7 +223,7 @@ class TestBioformatsMOV(_image_series):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (240, 320, 3)
+        self.expected_shape = (240, 320)
         self.expected_len = 108
         self.expected_C = 3
 
@@ -308,6 +301,54 @@ class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel):
     def tearDown(self):
         self.v.close()
 
+class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel):
+    # Andor Bio-imaging Division TIFF format, 256 x 256 pixels, 16 bits per sample
+    # 5 time points, 4 focal planes, 2 channels
+    # Mark Browne of Andor Technology's Bio-imaging Division has provided a
+    # multifield, 2-channel Z-T series in ABD TIFF format.
+    def check_skip(self):
+        _skip_if_no_bioformats()
+        if not os.path.isfile(self.filename):
+            raise nose.SkipTest('File missing. Skipping.')
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'bioformats', 'MF-2CH-Z-T.tif')
+        self.check_skip()
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (256, 256)
+        self.expected_len = 5
+        self.expected_C = 2
+        self.expected_Z = 4
+
+    def tearDown(self):
+        self.v.close()
+
+
+class TestBioformatsOlympusTiff(_image_series, _image_stack):
+    # Olympus Fluoview TIFF format, 512 x 512 pixels, 16 bits per sample
+    # 16 time points, 21 focal planes
+    # Timothy Gomez of the Department of Anatomy at the UW-Madison has provided
+    # a 4D series in Fluoview TIFF format.
+    def check_skip(self):
+        _skip_if_no_bioformats()
+        if not os.path.isfile(self.filename):
+            raise nose.SkipTest('File missing. Skipping.')
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'bioformats', '10-31 E1.tif')
+        self.check_skip()
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (512, 512)
+        self.expected_len = 16
+        self.expected_Z = 21
+
+    def tearDown(self):
+        self.v.close()
+
 
 class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel):
     # Leica LIF format, 512 x 512 pixels, 16 bits per sample
@@ -367,7 +408,7 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel)
 
 
 class TestBioformatsIPL(_image_single):
-    # IPLab format, 650 x 515 pixels, 8 bits per sample, RGB
+    # IPLab format, 650 x 515 pixels, 8 bits per sample, 3 channels
     # Scanalytics has provided a sample multi-channel image in IPLab format.
     def check_skip(self):
         _skip_if_no_bioformats()
@@ -380,7 +421,7 @@ class TestBioformatsIPL(_image_single):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (515, 650, 3)
+        self.expected_shape = (515, 650)
         self.expected_len = 1
 
     def tearDown(self):
@@ -457,6 +498,30 @@ class TestBioformatsICS(_image_single):
         self.v.close()
 
 
+class TestBioformatsZPO(_image_stack, _image_multichannel):
+    # PerkinElmer format, 672 x 512 pixels
+    # 1 time point, 29 focal planes, 3 channels
+    # Kevin O'Connell of NIH/NIDDK's Laboratory of Biochemistry and Genetics
+    # has provided a multichannel 4D series in PerkinElmer format.
+    def check_skip(self):
+        _skip_if_no_bioformats()
+        if not os.path.isfile(self.filename):
+            raise nose.SkipTest('File missing. Skipping.')
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'bioformats', 'KEVIN2-3.zpo')
+        self.check_skip()
+        self.klass = pims.Bioformats
+        self.kwargs = {'meta': False}
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (672, 512)
+        self.expected_C = 3
+        self.expected_Z = 29
+
+    def tearDown(self):
+        self.v.close()
+
+
 class TestBioformatsMetadataND2(unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
@@ -474,9 +539,9 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         # amount of log output.
         self.v = self.klass(self.filename, meta=True, C=0)
         # test fields directly
-        assert_equal(self.v.metadata.getChannelCount(0), 2)
-        assert_equal(self.v.metadata.getChannelName(0, 0), '5-FAM/pH 9.0')
-        assert_almost_equal(self.v.metadata.getPixelsPhysicalSizeX(0),
+        assert_equal(self.v.metadata.ChannelCount(0), 2)
+        assert_equal(self.v.metadata.ChannelName(0, 0), '5-FAM/pH 9.0')
+        assert_almost_equal(self.v.metadata.PixelsPhysicalSizeX(0),
                             0.167808983)
         # test metadata in Frame objects
         assert_almost_equal(self.v[0].metadata['T'], 0.445083498)
@@ -484,7 +549,7 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         # test changing frame_metadata
         del self.v.frame_metadata['T']
         assert 'T' not in self.v[0].metadata
-        self.v.frame_metadata['T'] = 'getPlaneDeltaT'
+        self.v.frame_metadata['T'] = 'PlaneDeltaT'
         assert 'T' in self.v[0].metadata
         # test colors field
         assert_allclose(self.v[0].metadata['colors'][0], [0.47, 0.91, 0.06],
@@ -496,21 +561,6 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         assert_equal(metadata['ChannelCount'], '2')
         assert_equal(metadata['CH2ChannelDyeName'], '5-FAM/pH 9.0')
         assert_equal(metadata['dCalibration'], '0.16780898323268245')
-
-    def test_metadata_omexml(self):
-        self.v = self.klass(self.filename, meta=False, C=0)
-        omexml = self.v.get_metadata_omexml()
-        assert_equal(omexml.image().Pixels.SizeC, 2)
-        assert_equal(omexml.image().Pixels.Channel(0).Name, '5-FAM/pH 9.0')
-
-
-class zzzBioformatsKillVM(unittest.TestCase):
-    def check_skip(self):
-        _skip_if_no_bioformats()
-
-    def test_kill_javaVM(self):
-        self.check_skip()
-        pims.kill_vm()
 
 
 if __name__ == '__main__':

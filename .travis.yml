@@ -1,34 +1,19 @@
 language: python
 
-matrix:
-  include: 
-    - python: "2.7"
-      env: BUILD_MODE="pyav"
-    - python: "2.7"
-      env: BUILD_MODE="bioformats"
-    - python: "3.4"
-      env: BUILD_MODE="pyav"
+python:
+  - 2.7
+  - 3.4
 
 install:
   - conda update --yes conda
   - conda create -n testenv --yes numpy scipy nose pillow matplotlib scikit-image jinja2 pip python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
-  - if [ $BUILD_MODE == "bioformats" ]; 
-    then 
-        sudo apt-get install default-jdk;
-        pip install javabridge;
-        pip install https://github.com/CellProfiler/python-bioformats/archive/master.zip;
-    fi
-  - if [ $BUILD_MODE == "pyav" ]; 
-    then 
-        export LD_LIBRARY_PATH=/usr/local/lib LIBRARY=ffmpeg;
-        wget https://raw.githubusercontent.com/mikeboers/PyAV/master/scripts/test-setup;
-        bash ./test-setup;
-        rm ~/miniconda/envs/testenv/lib/libm.so.6;
-        rm ~/miniconda3/envs/testenv/lib/libm.so.6;
-        pip install av;
-    fi
+  - pip install jpype1;
+  - export LD_LIBRARY_PATH=/usr/local/lib LIBRARY=ffmpeg;
+  - wget https://raw.githubusercontent.com/mikeboers/PyAV/master/scripts/test-setup;
+  - bash ./test-setup;
+  - pip install av;
   - python setup.py build_ext install
 
 

@@ -25,6 +25,7 @@ One of the following is required:
 Depending on what file formats you want to read, you will also need:
 
 * [ffmpeg](https://www.ffmpeg.org/) and [PyAV](http://mikeboers.github.io/PyAV/) (video formats such as AVI, MOV)
+* [jpype](http://jpype.readthedocs.org/en/latest/) (interface with bioformats to support [many](https://www.openmicroscopy.org/site/support/bio-formats5.1/supported-formats.html) microscopy formats)
 * [Pillow](http://pillow.readthedocs.org/en/latest/) (improved TIFF support)
 * [libtiff](https://code.google.com/p/pylibtiff/) (alternative TIFF support)
 * [tifffile](http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html) (alterative TIFF support)
@@ -83,6 +84,22 @@ But if either FFmpeg or libav is available, PIMS enables fast random access to
 video files. It relies on PyAV, which can be installed like so:
 
     pip install av
+
+### Reading microscopy files via Bio-Formats
+
+([List of supported formats](https://www.openmicroscopy.org/site/support/bio-formats5.1/supported-formats.html))
+
+Bio-Formats is an open-source java library for reading and writing
+multidimensional image data, especially from microscopy files. To interface
+with the java library, we use [JPype](https://github.com/originell/jpype) which
+allows fast and easy access to all java functions. JRE or JDK are not required.
+Install JPype as follows:
+
+    pip install jpype1
+
+On first use of `pims.Bioformats(filename)`, the required java library
+`loci_tools.jar` will be automatically downloaded from
+[openmicroscopy.org](http://downloads.openmicroscopy.org/bio-formats/).
 
 #### Troubleshooting
 
