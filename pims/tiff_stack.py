@@ -219,7 +219,9 @@ class TiffStack_libtiff(FramesSequence):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
         self._tiff.SetDirectory(j)
-        res = self._tiff.read_image().byteswap(self._byte_swap)
+        res = self._tiff.read_image()
+        if self._byte_swap:
+            res = res.newbyteorder()
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
 
