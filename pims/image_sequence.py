@@ -347,6 +347,12 @@ def customize_image_sequence(imread_func, name=None):
     Returns
     -------
     class : a subclass of ImageSequence
+
+    Example
+    -------
+    >>> # my_func accepts a filename and returns a numpy array
+    >>> MyImageSequence = customize_image_sequence(my_func)
+    >>> frames = MyImageSequence('path/to/my_weird_files*')
     """
     class CustomImageSequence(ImageSequence):
         def imread(self, filename, **kwargs):
