@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 from six import with_metaclass
-from six.moves import xrange
+from six.moves import range
 import os
 import numpy as np
 import collections
@@ -151,7 +151,7 @@ class FramesSequence(FramesStream):
         if isinstance(key, slice):
             # if input is a slice, return a generator
             return (self.get_frame(_k) for _k
-                    in xrange(*key.indices(_len)))
+                    in range(*key.indices(_len)))
         elif isinstance(key, collections.Iterable):
             # if the input is an iterable, doing 'fancy' indexing
 
