@@ -138,6 +138,9 @@ class SliceableIterable(object):
     def __init__(self, ancestor, indices, length):
         """A generator that support fancy indexing, returning another generator
 
+        Also, this retains the attributes of the "ancestor" object that
+        created it.
+
         Parameters
         ----------
         ancestor : object
@@ -164,12 +167,18 @@ class SliceableIterable(object):
         # slicing impossible.
         >>> v3 = v2((i for i in [0]))  # argument is a generator
         >>> type(v3)
-        UnsliceableIterable
+        generator
         """
         self._len = length
         self._ancestor = ancestor
         self._indices = indices
         self._counter = 0
+
+    def __repr__(self):
+        msg = "Sliced Subsection of {0}. Original repr:\n".format(
+                type(self._ancestor).__name__)
+        old = '\n'.join("    " + ln for ln in repr(self._ancestor).split('\n'))
+        return msg + old
 
     def __iter__(self):
         # Advancing indices won't affect this new copy of self._indices.
@@ -178,6 +187,11 @@ class SliceableIterable(object):
 
     def __len__(self):
         return self._len
+
+    def __getattr__(self, key):
+        # Remember this only gets called if __getattribute__ raises an
+        # AttributeError. Try the ancestor object.
+        return getattr(self._ancestor, key)
 
     def __getitem__(self, key):
         """for data access"""
