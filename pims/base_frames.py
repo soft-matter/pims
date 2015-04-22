@@ -172,6 +172,7 @@ class SliceableIterable(object):
         self._counter = 0
 
     def __iter__(self):
+        # Advancing indices won't affect this new copy of self._indices.
         indices, self._indices = itertools.tee(self._indices)
         return (self._ancestor[i] for i in indices)
 
@@ -212,7 +213,7 @@ class SliceableIterable(object):
                 new_length = len(self._indices)
             except TypeError:
                 # The key is a generator; return a plain old generator.
-                # Without knowing the length, we can't give a SliceableIterable.
+                # Without knowing the length, we can't give a SliceableIterable
                 gen = (self[_k if _k >= 0 else _len + _k] for _k in key)
                 return gen
             else:
