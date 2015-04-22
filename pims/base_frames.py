@@ -135,7 +135,7 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 
 class SliceableIterable(object):
 
-    def __init__(self, ancestor, indices, length):
+    def __init__(self, ancestor, indices, length=None):
         """A generator that support fancy indexing, returning another generator
 
         Also, this retains the attributes of the "ancestor" object that
@@ -149,7 +149,8 @@ class SliceableIterable(object):
             giving indices into `ancestor`
         length: integer
             length of indicies
-            (must be given explicitly because indices may be a generator)
+            This must be given explicitly if indices is a generator,
+            that is, if `len(indices)` is invalid
 
         Examples
         --------
@@ -169,6 +170,12 @@ class SliceableIterable(object):
         >>> type(v3)
         generator
         """
+        if length is None:
+            try:
+                length = len(indices)
+            except TypeError:
+                raise ValueError("The length parameter is required in this "
+                                 "case because len(indices) is not valid.")
         self._len = length
         self._ancestor = ancestor
         self._indices = indices
@@ -227,7 +234,8 @@ class SliceableIterable(object):
                 new_length = len(self._indices)
             except TypeError:
                 # The key is a generator; return a plain old generator.
-                # Without knowing the length, we can't give a SliceableIterable
+                # Without knowing the length of the *key*,
+                # we can't give a SliceableIterable
                 gen = (self[_k if _k >= 0 else _len + _k] for _k in key)
                 return gen
             else:
