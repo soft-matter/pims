@@ -11,3 +11,5 @@ def test_customize_image_sequence():
     assert_equal(actual_len, 3)
     for frame in result:
         assert_array_equal(frame, np.zeros((1, 1)))
+    reader2 = customize_image_sequence(dummy, 'my_name')
+    assert_equal(reader2.__name__, 'my_name')
