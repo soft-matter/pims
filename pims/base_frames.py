@@ -133,6 +133,101 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type)
 
 
+class SliceableIterable(object):
+
+    def __init__(self, ancestor, indices, length):
+        """A generator that support fancy indexing, returning another generator
+
+        Parameters
+        ----------
+        ancestor : object
+            must support __getitem__ with an integer argument
+        indices : iterable
+            giving indices into `ancestor`
+        length: integer
+            length of indicies
+            (must be given explicitly because indices may be a generator)
+
+        Examples
+        --------
+        # Slicing on a SliceableIterable returns another SliceableIterable...
+        >>> v = SliceableIterable([0, 1, 2, 3], range(4), 4)
+        >>> v1 = v[:2]
+        >>> type(v[:2])
+        SliceableIterable
+        >>> v2 = v[::2]
+        >>> type(v2)
+        SliceableIterable
+        >>> v2[0]
+        0
+        # ...unless the slice itself has an unknown length, which makes
+        # slicing impossible.
+        >>> v3 = v2((i for i in [0]))  # argument is a generator
+        >>> type(v3)
+        UnsliceableIterable
+        """
+        self._len = length
+        self._ancestor = ancestor
+        self._indices = indices
+        self._counter = 0
+
+    def __iter__(self):
+        indices, self._indices = itertools.tee(self._indices)
+        return (self._ancestor[i] for i in indices)
+
+    def __len__(self):
+        return self._len
+
+    def __getitem__(self, key):
+        """for data access"""
+        _len = len(self)
+        try:
+            # Advancing abs_indices won't affect this new copy of
+            # self._ancestor._indices.
+            abs_indices, self._ancestor._indices = itertools.tee(
+                    self._ancestor._indices)
+        except AttributeError:
+            abs_indices = range(len(self._ancestor))
+
+        if isinstance(key, slice):
+            # if input is a slice, return another SliceableIterable
+            rel_indices = range(*key.indices(_len))
+            indices = _index_generator(rel_indices, abs_indices)
+            start, stop, step = key.indices(_len)
+            new_length = (stop - start) // step
+            return SliceableIterable(self._ancestor, indices, new_length)
+        elif isinstance(key, collections.Iterable):
+            # if the input is an iterable, doing 'fancy' indexing
+
+            if isinstance(key, np.ndarray) and key.dtype == np.bool:
+                # if we have a bool array, set up masking but defer
+                # the actual computation, returning another SliceableIterable
+                rel_indices = np.arange(len(self))[key]
+                indices = index_generator(rel_indices, abs_indices)
+                new_length = key.sum()
+                return SliceableIterable(self._ancestor, indices, new_length)
+            if any(_k < -_len or _k >= _len for _k in key):
+                raise IndexError("Keys out of range")
+            try:
+                new_length = len(self._indices)
+            except TypeError:
+                # The key is a generator; return a plain old generator.
+                # Without knowing the length, we can't give a SliceableIterable.
+                gen = (self[_k if _k >= 0 else _len + _k] for _k in key)
+                return gen
+            else:
+                # The key is a list of in-range values. Build another
+                # SliceableIterable, again deferring computation.
+                rel_indices = ((_k if _k >= 0 else _len + _k) for _k in key)
+                indices = _index_generator(rel_indices, abs_indices)
+                return SliceableIterable(self._ancestor, indices, _len)
+        else:
+            if key < -_len or key >= _len:
+                raise IndexError("Key out of range")
+
+            return self._ancestor[key if key >= 0 else _len + key]
+
+
 class FramesSequence(FramesStream):
     """Baseclass for wrapping data buckets that have random access.
 
@@ -145,33 +240,15 @@ class FramesSequence(FramesStream):
 
     """
     def __getitem__(self, key):
-        """for data access"""
-        _len = len(self)
-
-        if isinstance(key, slice):
-            # if input is a slice, return a generator
-            return (self.get_frame(_k) for _k
-                    in range(*key.indices(_len)))
-        elif isinstance(key, collections.Iterable):
-            # if the input is an iterable, doing 'fancy' indexing
-
-            if isinstance(key, np.ndarray) and key.dtype == np.bool:
-                # if we have a bool array, do the right thing
-                return (self.get_frame(_k) for _k in np.arange(len(self))[key])
-            if any(_k < -_len or _k >= _len for _k in key):
-                raise IndexError("Keys out of range")
-            # else, return a generator looping over the keys
-            return (self.get_frame(_k if _k >= 0 else _len + _k)
-                    for _k in key)
+        """If getting a scalar, a specific frame, call get_frame. Otherwise,
+        be 'lazy' and defer to the slicing logic of SliceableIterable."""
+        if isinstance(key, int):
+            return self.get_frame(key)
         else:
-            if key < -_len or key >= _len:
-                raise IndexError("Key out of range")
-
-            # else, fall back to `get_frame`
-            return self.get_frame(key if key >= 0 else _len + key)
+            return SliceableIterable(self, range(len(self)), len(self))[key]
 
     def __iter__(self):
-        return self[:]
+        return iter(self[:])
 
     @abstractmethod
     def __len__(self):
@@ -306,3 +383,29 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   count = len(self),
                                   dtype=self.pixel_type)
+
+
+def _index_generator(new_indices, old_indices):
+    """Find locations of new_indicies in the ref. frame of the old_indices.
+    
+    Example: (1, 3), (1, 3, 5, 10) -> (3, 10)
+    
+    The point of all this trouble is that this is done lazily, returning
+    a generator without actually looping through the inputs."""
+    # Use iter() to be safe. On a generator, this returns an identical ref.
+    new_indices = iter(new_indices)
+    old_indices = iter(old_indices)
+    n = next(new_indices)
+    done = False
+    for i, o in enumerate(old_indices):
+        if done:
+            raise StopIteration
+        if i == n:
+            try:
+                n = next(new_indices)
+            except StopIteration:
+                done = True
+                # Don't stop yet; we still have one last thing to yield.
+            yield o
+        else:
+            continue
