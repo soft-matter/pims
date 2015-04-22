@@ -346,7 +346,9 @@ def customize_image_sequence(imread_func, name=None):
 
     Returns
     -------
-    class : a subclass of ImageSequence
+    type : a subclass of ImageSequence
+        This subclass has its image-opening method, imread, overriden
+        by the passed function.
 
     Example
     -------
