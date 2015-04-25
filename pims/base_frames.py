@@ -225,7 +225,7 @@ class SliceableIterable(object):
                 # if we have a bool array, set up masking but defer
                 # the actual computation, returning another SliceableIterable
                 rel_indices = np.arange(len(self))[key]
-                indices = index_generator(rel_indices, abs_indices)
+                indices = _index_generator(rel_indices, abs_indices)
                 new_length = key.sum()
                 return SliceableIterable(self._ancestor, indices, new_length)
             if any(_k < -_len or _k >= _len for _k in key):
