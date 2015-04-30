@@ -250,6 +250,10 @@ class SliceableIterable(object):
 
             return self._ancestor[key if key >= 0 else _len + key]
 
+    def close(self):
+        "Closing this child slice of the original reader does nothing."
+        pass
+
 
 class FramesSequence(FramesStream):
     """Baseclass for wrapping data buckets that have random access.
