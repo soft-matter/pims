@@ -270,7 +270,7 @@ class FramesSequence(FramesStream):
         """If getting a scalar, a specific frame, call get_frame. Otherwise,
         be 'lazy' and defer to the slicing logic of SliceableIterable."""
         if isinstance(key, int):
-            return self.get_frame(key)
+            return self.get_frame(key if key >= 0 else len(self) + key)
         else:
             return SliceableIterable(self, range(len(self)), len(self))[key]
 
