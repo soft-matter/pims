@@ -206,8 +206,7 @@ class SliceableIterable(object):
         try:
             # Advancing abs_indices won't affect this new copy of
             # self._ancestor._indices.
-            abs_indices, self._ancestor._indices = itertools.tee(
-                    self._ancestor._indices)
+            abs_indices, self._indices = itertools.tee(self._indices)
         except AttributeError:
             abs_indices = range(len(self._ancestor))
 
@@ -253,8 +252,8 @@ class SliceableIterable(object):
                 key = key if key >= 0 else _len + key
                 rel_indices, self._indices = itertools.tee(self._indices)
                 for _, i in zip(range(key + 1), rel_indices):
-                    new_key = i
-            return self._ancestor[new_key]
+                    abs_key = i
+            return self._ancestor[abs_key]
 
     def close(self):
         "Closing this child slice of the original reader does nothing."

@@ -4,10 +4,12 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
+import types
 import unittest
 import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
+from nose.tools import assert_true
 import pims
 from PIL import Image
 
@@ -117,12 +119,15 @@ class _image_single(unittest.TestCase):
         v = self.klass(self.filename, invert, **self.kwargs)
         assert_image_equal(v[0], invert(v_raw[0]))
 
+def box(letter):
+    return pims.Frame(np.array(letter).reshape(1, 1))
+
+def assert_letters_equal(actual, expected):
+    for actual_, expected_ in zip(actual, expected):
+        assert_equal(actual_, box(expected_))
+
 
 class TestRecursiveSlicing(unittest.TestCase):
-
-    @classmethod
-    def box(cls, letter):
-        return pims.Frame(np.array([[letter]]))
 
     def setUp(self):
         class DemoReader(pims.ImageSequence):
@@ -131,22 +136,69 @@ class TestRecursiveSlicing(unittest.TestCase):
 
         self.v = DemoReader(list('abcdefghij'))
 
-
     def test_slice_of_slice(self):
-        slice1 = self.v[5:]
-        assert_equal(slice1[2], self.box('h'))
+        slice1 = self.v[4:]
+        assert_letters_equal(slice1, list('efghij'))
 
         slice2 = slice1[-3:]
-        assert_equal(slice2[0], self.box('h'))
-        assert_equal(slice2[-1], self.box('j'))
+        assert_letters_equal(slice2, list('hij'))
 
     def test_slice_of_slice_of_slice(self):
-        slice1 = self.v[5:]
+        slice1 = self.v[4:]
+        assert_letters_equal(slice1, list('efghij'))
         slice2 = slice1[1:-1]
-        slice3 = slice2[1:]
-        for actual, expected in zip(slice2, list('hi')):
-            assert_equal(actual, self.box(expected))
+        assert_letters_equal(slice2, list('fghi'))
+        slice3 = slice2[1::2]  # gi
+        assert_letters_equal(slice3, list('gi'))
 
+    def test_slice_of_slice_of_slice_of_slice(self):
+        # Take the red pill. It's slices all the way down!
+        slice1 = self.v[4:]
+        assert_letters_equal(slice1, list('efghij'))
+        slice2 = slice1[1:-1]
+        assert_letters_equal(slice2, list('fghi'))
+        slice3 = slice2[1:]
+        assert_letters_equal(slice3, list('ghi'))
+        slice4 = slice3[1:]
+        assert_letters_equal(slice4, list('hi'))
+
+        # We should be able to iterate all these again.
+        assert_letters_equal(slice4, list('hi'))
+        assert_letters_equal(slice3, list('ghi'))
+        assert_letters_equal(slice2, list('fghi'))
+        assert_letters_equal(slice1, list('efghij'))
+        # ... in any order
+        assert_letters_equal(slice4, list('hi'))
+        assert_letters_equal(slice2, list('fghi'))
+        assert_letters_equal(slice3, list('ghi'))
+        assert_letters_equal(slice1, list('efghij'))
+        assert_letters_equal(slice3, list('ghi'))
+
+        # Give me another!
+        slice1 = self.v[2:]
+        assert_letters_equal(slice1, list('cdefghij'))
+        slice2 = slice1[0::2]
+        assert_letters_equal(slice2, list('cegi'))
+        slice3 = slice2[:]
+        assert_letters_equal(slice3, list('cegi'))
+        slice4 = slice3[:-1]
+        assert_letters_equal(slice4, list('ceg'))
+
+        assert_letters_equal(slice1, list('cdefghij'))
+        assert_letters_equal(slice2, list('cegi'))
+        assert_letters_equal(slice3, list('cegi'))
+        assert_letters_equal(slice4, list('ceg'))
+        assert_letters_equal(slice3, list('cegi'))
+        assert_letters_equal(slice4, list('ceg'))
+        assert_letters_equal(slice2, list('cegi'))
+        assert_letters_equal(slice1, list('cdefghij'))
+
+    def test_slice_with_generator(self):
+        slice1 = self.v[1:]
+        assert_letters_equal(slice1, list('bcdefghij'))
+        slice2 = slice1[(i for i in range(2,5))]
+        assert_letters_equal(slice2, list('def'))
+        assert_true(isinstance(slice2, types.GeneratorType))
 
 
 class _image_series(_image_single):
