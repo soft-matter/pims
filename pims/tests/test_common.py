@@ -118,6 +118,37 @@ class _image_single(unittest.TestCase):
         assert_image_equal(v[0], invert(v_raw[0]))
 
 
+class TestRecursiveSlicing(unittest.TestCase):
+
+    @classmethod
+    def box(cls, letter):
+        return pims.Frame(np.array([[letter]]))
+
+    def setUp(self):
+        class DemoReader(pims.ImageSequence):
+            def imread(self, filename, **kwargs):
+                return np.array([[filename]])
+
+        self.v = DemoReader(list('abcdefghij'))
+
+
+    def test_slice_of_slice(self):
+        slice1 = self.v[5:]
+        assert_equal(slice1[2], self.box('h'))
+
+        slice2 = slice1[-3:]
+        assert_equal(slice2[0], self.box('h'))
+        assert_equal(slice2[-1], self.box('j'))
+
+    def test_slice_of_slice_of_slice(self):
+        slice1 = self.v[5:]
+        slice2 = slice1[1:-1]
+        slice3 = slice2[1:]
+        for actual, expected in zip(slice2, list('hi')):
+            assert_equal(actual, self.box(expected))
+
+
+
 class _image_series(_image_single):
     def test_iterator(self):
         self.check_skip()
@@ -129,6 +160,32 @@ class _image_series(_image_single):
         self.check_skip()
         tmp = list(self.v[0:2])
         frame0, frame1 = tmp
+        assert_image_equal(frame0, self.frame0)
+        assert_image_equal(frame1, self.frame1)
+
+    def test_slice_of_slice(self):
+        # More thorough recursive slicing tests, making use of more than
+        # the two frames available for these tests, are elsewhere:
+        # see test_recursive_slicing.
+        self.check_skip()
+        tmp = self.v[0:2]
+        tmp1 = tmp[1:]
+        frame1 = tmp1[0]
+        assert_image_equal(frame1, self.frame1)
+
+        # Do the same thing again, show that the generators are not dead.
+        tmp1 = tmp[1:]
+        frame1 = tmp1[0]
+        assert_image_equal(frame1, self.frame1)
+
+        frame0 = tmp[0]
+        assert_image_equal(frame0, self.frame0)
+
+        # Show that we can listify the slice twice.
+        frame0, frame1 = list(tmp)
+        assert_image_equal(frame0, self.frame0)
+        assert_image_equal(frame1, self.frame1)
+        frame0, frame1 = list(tmp)
         assert_image_equal(frame0, self.frame0)
         assert_image_equal(frame1, self.frame1)
 

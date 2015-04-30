@@ -247,8 +247,14 @@ class SliceableIterable(object):
         else:
             if key < -_len or key >= _len:
                 raise IndexError("Key out of range")
-
-            return self._ancestor[key if key >= 0 else _len + key]
+            try:
+                new_key = self._indices[key]
+            except TypeError:
+                key = key if key >= 0 else _len + key
+                rel_indices, self._indices = itertools.tee(self._indices)
+                for _, i in zip(range(key + 1), rel_indices):
+                    new_key = i
+            return self._ancestor[new_key]
 
     def close(self):
         "Closing this child slice of the original reader does nothing."
@@ -270,7 +276,8 @@ class FramesSequence(FramesStream):
         """If getting a scalar, a specific frame, call get_frame. Otherwise,
         be 'lazy' and defer to the slicing logic of SliceableIterable."""
         if isinstance(key, int):
-            return self.get_frame(key if key >= 0 else len(self) + key)
+            i = key if key >= 0 else len(self) + key
+            return self.get_frame(i)
         else:
             return SliceableIterable(self, range(len(self)), len(self))[key]
 
