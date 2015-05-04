@@ -194,7 +194,7 @@ class SliceableIterable(object):
         return self._proc_func(self._ancestor[key])
 
     def __repr__(self):
-        msg = "Sliced Subsection of {0}. Original repr:\n".format(
+        msg = "Sliced and/or processed {0}. Original repr:\n".format(
                 type(self._ancestor).__name__)
         old = '\n'.join("    " + ln for ln in repr(self._ancestor).split('\n'))
         return msg + old
@@ -447,3 +447,65 @@ def _index_generator(new_indices, old_indices):
             yield o
         else:
             continue
+
+
+def pipeline(func):
+    """Decorator to make function aware of pims objects.
+
+    When the function is applied to a pims reader or a slice of one, it
+    returns another lazily-evaluated, sliceable object.
+
+    When the function is applied to any other object, it falls back on its
+    normal behavhior.
+
+    Parameters
+    ----------
+    func : callable
+        function that accepts an image as its first argument
+
+    Returns
+    -------
+    processed_images : pims.SliceableIterator
+
+    Example
+    -------
+    Apply the pipeline decorator to your image processing function.
+    >>> @pipeline
+    ...  def color_channel(image, channel):
+    ...      return image[channel, :, :]
+    ...
+
+    Load images with PIMS.
+    >>> images = pims.ImageSequence(...)
+
+    Passing the PIMS class to the function return another PIMS object
+    that "lazily" applies the function when the images come out. Different
+    functions can be applied to the same underlying images, creating
+    independent objects.
+    >>> red_images = color_channel(images, 0)
+    >>> green_images = color_channel(images, 1)
+
+    Pipeline functions can also be composed.
+    >>> @pipeline
+    ... def rescale(image):
+    ... return (image - image.min())/image.ptp()
+    ...
+    >>> rescale(color_channel(images, 0))
+
+    The function can still be applied to ordinary images. The decorator
+    only takes affect when a PIMS object is passed.
+    >>> single_img = images[0]
+    >>> red_img = red_channel(single_img)  # normal behavior
+    """
+    @wraps(func)
+    def process(img_or_iterable, *args, **kwargs):
+        if isinstance(img_or_iterable, (SliceableIterable, FramesSequence)):
+            _len = len(img_or_iterable)
+            s = SliceableIterable(img_or_iterable, range(_len), _len)
+            s._proc_func = lambda image: func(image, *args, **kwargs)
+            return s
+        else:
+            # Fall back on normal behavior of func, interpreting input
+            # as a single image.
+            return func(img_or_iterable)
+    return process
