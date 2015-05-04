@@ -225,6 +225,15 @@ class TestRecursiveSlicing(unittest.TestCase):
         assert_letters_equal(slice2, list('def'))
         assert_true(isinstance(slice2, types.GeneratorType))
 
+def _rescale(img):
+    print(type(img))
+    return (img - img.min()) / img.ptp()
+
+def _color_channel(img, channel):
+    if img.ndim == 3:
+        return img[:, :, channel]
+    else:
+        return img
 
 class _image_series(_image_single):
     def test_iterator(self):
@@ -265,6 +274,33 @@ class _image_series(_image_single):
         frame0, frame1 = list(tmp)
         assert_image_equal(frame0, self.frame0)
         assert_image_equal(frame1, self.frame1)
+
+    def test_pipeline_simple(self):
+        rescale = pims.pipeline(_rescale)
+        rescaled_v = rescale(self.v[:1])
+
+        assert_image_equal(rescaled_v[0], _rescale(self.frame0))
+
+    def test_pipeline_with_args(self):
+        color_channel = pims.pipeline(_color_channel)
+        red = color_channel(self.v, 0)
+        green = color_channel(self.v, 1)
+
+        assert_image_equal(red[0], _color_channel(self.frame0, 0))
+        assert_image_equal(green[0], _color_channel(self.frame0, 1))
+
+        # Multiple pipelines backed by the same data are indep,
+        # so this call to red is unaffected by green above.
+        assert_image_equal(red[0], _color_channel(self.frame0, 0))
+
+    def test_composed_pipelines(self):
+        color_channel = pims.pipeline(_color_channel)
+        rescale = pims.pipeline(_rescale)
+
+        composed = rescale(color_channel(self.v, 0))
+
+        expected = _rescale(_color_channel(self.v[0], 0))
+        assert_image_equal(composed[0], expected)
 
     def test_getting_single_frame(self):
         self.check_skip()
@@ -521,8 +557,8 @@ class ImageSequence3D(_image_series):
         frames = save_dummy_png(self.filepath, self.filenames, shape)
 
         self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = [frames[0], frames[2]]
-        self.frame1 = [frames[4], frames[6]]
+        self.frame0 = np.array([frames[0], frames[2]])
+        self.frame1 = np.array([frames[4], frames[6]])
         self.klass = pims.ImageSequence3D
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
