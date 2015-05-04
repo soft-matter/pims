@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
+import random
 import types
 import unittest
 import nose
@@ -120,11 +121,51 @@ class _image_single(unittest.TestCase):
         assert_image_equal(v[0], invert(v_raw[0]))
 
 def box(letter):
-    return pims.Frame(np.array(letter).reshape(1, 1))
+    return pims.Frame(np.array(letter))
 
 def assert_letters_equal(actual, expected):
     for actual_, expected_ in zip(actual, expected):
-        assert_equal(actual_, box(expected_))
+        # This contrived reader has weird shape behavior,
+        # but that's not what I'm testing here.
+        assert_equal(actual_.reshape((1, 1)), box(expected_).reshape((1, 1)))
+
+def compare_slice_to_list(actual, expected):
+    assert_letters_equal(actual, expected)
+    # test lengths
+    actual_len = len(actual)
+    assert_equal(actual_len, len(expected))
+    indices = list(range(len(actual)))
+    for i in indices:
+        # test positive indexing
+        assert_letters_equal(actual[i], expected[i])
+        # test negative indexing
+        assert_letters_equal(actual[-i + 1], expected[-i + 1])
+    # in reverse order
+    for i in indices[::-1]:
+        assert_letters_equal(actual[i], expected[i])
+        assert_letters_equal(actual[-i + 1], expected[-i + 1])
+    # in shuffled order (using a consistent random seed)
+    r = random.Random(5)
+    r.shuffle(indices)
+    for i in indices:
+        assert_letters_equal(actual[i], expected[i])
+        assert_letters_equal(actual[-i + 1], expected[-i + 1])
+    # test list indexing
+    some_indices = [r.choice(indices) for _ in range(2)]
+    assert_letters_equal(actual[some_indices],
+                         np.array(expected)[some_indices])
+    # mixing positive and negative indices
+    some_indices = [r.choice(indices + [-i-1 for i in indices])
+                    for _ in range(2)]
+    assert_letters_equal(actual[some_indices],
+                         np.array(expected)[some_indices])
+    # test slices
+    assert_letters_equal(actual[::2], expected[::2])
+    assert_letters_equal(actual[1::2], expected[1::2])
+    assert_letters_equal(actual[::3], expected[::3])
+    assert_letters_equal(actual[1:], expected[1:])
+    assert_letters_equal(actual[:], expected[:])
+    assert_letters_equal(actual[:-1], expected[:-1])
 
 
 class TestRecursiveSlicing(unittest.TestCase):
@@ -138,64 +179,44 @@ class TestRecursiveSlicing(unittest.TestCase):
 
     def test_slice_of_slice(self):
         slice1 = self.v[4:]
-        assert_letters_equal(slice1, list('efghij'))
-
+        compare_slice_to_list(slice1, list('efghij'))
+        slice1a = self.v[3:]
+        compare_slice_to_list(slice1a, list('defghij'))
         slice2 = slice1[-3:]
-        assert_letters_equal(slice2, list('hij'))
+        compare_slice_to_list(slice2, list('hij'))
 
     def test_slice_of_slice_of_slice(self):
         slice1 = self.v[4:]
-        assert_letters_equal(slice1, list('efghij'))
+        compare_slice_to_list(slice1, list('efghij'))
         slice2 = slice1[1:-1]
-        assert_letters_equal(slice2, list('fghi'))
-        slice3 = slice2[1::2]  # gi
-        assert_letters_equal(slice3, list('gi'))
+        compare_slice_to_list(slice2, list('fghi'))
+        slice3 = slice2[1::2]
+        compare_slice_to_list(slice3, list('gi'))
 
     def test_slice_of_slice_of_slice_of_slice(self):
         # Take the red pill. It's slices all the way down!
         slice1 = self.v[4:]
-        assert_letters_equal(slice1, list('efghij'))
+        compare_slice_to_list(slice1, list('efghij'))
         slice2 = slice1[1:-1]
-        assert_letters_equal(slice2, list('fghi'))
+        compare_slice_to_list(slice2, list('fghi'))
         slice3 = slice2[1:]
-        assert_letters_equal(slice3, list('ghi'))
+        compare_slice_to_list(slice3, list('ghi'))
         slice4 = slice3[1:]
-        assert_letters_equal(slice4, list('hi'))
-
-        # We should be able to iterate all these again.
-        assert_letters_equal(slice4, list('hi'))
-        assert_letters_equal(slice3, list('ghi'))
-        assert_letters_equal(slice2, list('fghi'))
-        assert_letters_equal(slice1, list('efghij'))
-        # ... in any order
-        assert_letters_equal(slice4, list('hi'))
-        assert_letters_equal(slice2, list('fghi'))
-        assert_letters_equal(slice3, list('ghi'))
-        assert_letters_equal(slice1, list('efghij'))
-        assert_letters_equal(slice3, list('ghi'))
+        compare_slice_to_list(slice4, list('hi'))
 
         # Give me another!
         slice1 = self.v[2:]
-        assert_letters_equal(slice1, list('cdefghij'))
+        compare_slice_to_list(slice1, list('cdefghij'))
         slice2 = slice1[0::2]
-        assert_letters_equal(slice2, list('cegi'))
+        compare_slice_to_list(slice2, list('cegi'))
         slice3 = slice2[:]
-        assert_letters_equal(slice3, list('cegi'))
+        compare_slice_to_list(slice3, list('cegi'))
         slice4 = slice3[:-1]
-        assert_letters_equal(slice4, list('ceg'))
-
-        assert_letters_equal(slice1, list('cdefghij'))
-        assert_letters_equal(slice2, list('cegi'))
-        assert_letters_equal(slice3, list('cegi'))
-        assert_letters_equal(slice4, list('ceg'))
-        assert_letters_equal(slice3, list('cegi'))
-        assert_letters_equal(slice4, list('ceg'))
-        assert_letters_equal(slice2, list('cegi'))
-        assert_letters_equal(slice1, list('cdefghij'))
+        compare_slice_to_list(slice4, list('ceg'))
 
     def test_slice_with_generator(self):
         slice1 = self.v[1:]
-        assert_letters_equal(slice1, list('bcdefghij'))
+        compare_slice_to_list(slice1, list('bcdefghij'))
         slice2 = slice1[(i for i in range(2,5))]
         assert_letters_equal(slice2, list('def'))
         assert_true(isinstance(slice2, types.GeneratorType))
