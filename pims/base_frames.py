@@ -10,6 +10,7 @@ import collections
 import itertools
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
+from functools import wraps
 
 
 class FramesStream(with_metaclass(ABCMeta, object)):
@@ -180,6 +181,17 @@ class SliceableIterable(object):
         self._ancestor = ancestor
         self._indices = indices
         self._counter = 0
+        self._proc_func = lambda image: image
+
+    @property
+    def indices(self):
+        # Advancing indices won't affect this new copy of self._indices.
+        indices, self._indices = itertools.tee(iter(self._indices))
+        return indices
+
+    def _get(self, key):
+        "Wrap ancestor's get_frame method in a processing function."
+        return self._proc_func(self._ancestor[key])
 
     def __repr__(self):
         msg = "Sliced Subsection of {0}. Original repr:\n".format(
@@ -188,9 +200,7 @@ class SliceableIterable(object):
         return msg + old
 
     def __iter__(self):
-        # Advancing indices won't affect this new copy of self._indices.
-        indices, self._indices = itertools.tee(self._indices)
-        return (self._ancestor[i] for i in indices)
+        return (self._get(i) for i in self.indices)
 
     def __len__(self):
         return self._len
@@ -203,12 +213,7 @@ class SliceableIterable(object):
     def __getitem__(self, key):
         """for data access"""
         _len = len(self)
-        try:
-            # Advancing abs_indices won't affect this new copy of
-            # self._ancestor._indices.
-            abs_indices, self._indices = itertools.tee(self._indices)
-        except AttributeError:
-            abs_indices = range(len(self._ancestor))
+        abs_indices = self.indices
 
         if isinstance(key, slice):
             # if input is a slice, return another SliceableIterable
@@ -220,7 +225,6 @@ class SliceableIterable(object):
             return SliceableIterable(self._ancestor, indices, new_length)
         elif isinstance(key, collections.Iterable):
             # if the input is an iterable, doing 'fancy' indexing
-
             if isinstance(key, np.ndarray) and key.dtype == np.bool:
                 # if we have a bool array, set up masking but defer
                 # the actual computation, returning another SliceableIterable
@@ -231,7 +235,7 @@ class SliceableIterable(object):
             if any(_k < -_len or _k >= _len for _k in key):
                 raise IndexError("Keys out of range")
             try:
-                new_length = len(self._indices)
+                new_length = len(key)
             except TypeError:
                 # The key is a generator; return a plain old generator.
                 # Without knowing the length of the *key*,
@@ -243,18 +247,18 @@ class SliceableIterable(object):
                 # SliceableIterable, again deferring computation.
                 rel_indices = ((_k if _k >= 0 else _len + _k) for _k in key)
                 indices = _index_generator(rel_indices, abs_indices)
-                return SliceableIterable(self._ancestor, indices, _len)
+                return SliceableIterable(self._ancestor, indices, new_length)
         else:
             if key < -_len or key >= _len:
                 raise IndexError("Key out of range")
             try:
-                new_key = self._indices[key]
+                abs_key = self._indices[key]
             except TypeError:
                 key = key if key >= 0 else _len + key
                 rel_indices, self._indices = itertools.tee(self._indices)
                 for _, i in zip(range(key + 1), rel_indices):
                     abs_key = i
-            return self._ancestor[abs_key]
+            return self._get(abs_key)
 
     def close(self):
         "Closing this child slice of the original reader does nothing."

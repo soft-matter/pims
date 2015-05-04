@@ -180,16 +180,20 @@ class TestRecursiveSlicing(unittest.TestCase):
     def test_slice_of_slice(self):
         slice1 = self.v[4:]
         compare_slice_to_list(slice1, list('efghij'))
-        slice1a = self.v[3:]
-        compare_slice_to_list(slice1a, list('defghij'))
         slice2 = slice1[-3:]
         compare_slice_to_list(slice2, list('hij'))
+        slice1a = self.v[[3, 4, 5, 6, 7, 8, 9]]
+        compare_slice_to_list(slice1a, list('defghij'))
+        slice2a = slice1a[::2]
+        compare_slice_to_list(slice2a, list('dfhj'))
 
     def test_slice_of_slice_of_slice(self):
         slice1 = self.v[4:]
         compare_slice_to_list(slice1, list('efghij'))
         slice2 = slice1[1:-1]
         compare_slice_to_list(slice2, list('fghi'))
+        slice2a = slice1[[2, 3, 4]]
+        compare_slice_to_list(slice2a, list('ghi'))
         slice3 = slice2[1::2]
         compare_slice_to_list(slice3, list('gi'))
 
