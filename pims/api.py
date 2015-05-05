@@ -68,7 +68,7 @@ except (ImportError, IOError):
 
 
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
-    """Read a directory of sequentially numbered image files into an
+    """Read a filename, list of filenames, or directory of image files into an
     iterable that returns images as numpy arrays.
 
     Parameters
