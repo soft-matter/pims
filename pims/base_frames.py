@@ -508,4 +508,12 @@ def pipeline(func):
             # Fall back on normal behavior of func, interpreting input
             # as a single image.
             return func(img_or_iterable)
+
+    if process.__doc__ is None:
+        process.__doc__ = ''
+    process.__doc__ = ("This function has been made pims-aware. When passed\n"
+                       "a pims reader or SliceableIterable, it will return a \n"
+                       "new SliceableIterable of the results. When passed \n"
+                       "other objects, its behavior is "
+                       "unchanged.\n\n") + process.__doc__
     return process
