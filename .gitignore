@@ -32,3 +32,6 @@ pims/tests/data/bioformats/wtembryo.mov
 .idea/
 
 MANIFEST
+
+# docs
+doc/build
