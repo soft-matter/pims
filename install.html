@@ -1,0 +1,267 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Installation &mdash; pims v0.3 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="pims v0.3 documentation" href="index.html"/>
+        <link rel="next" title="Opening Files" href="opening_files.html"/>
+        <link rel="prev" title="PIMS: Python Image Sequence" href="index.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-nav-search">
+        
+
+        
+          <a href="index.html" class="icon icon-home"> pims
+        
+
+        
+        </a>
+
+        
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+        
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        
+          
+          
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#recommended-conda">Recommended: conda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pip">pip</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#source">source</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="opening_files.html">Opening Files</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="opening_files.html#quickstart">QuickStart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="opening_files.html#using-specific-readers">Using Specific Readers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="slicing.html">Slicing and Iteration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="slicing.html#accessing-individual-images">Accessing Individual Images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slicing.html#iteration">Iteration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slicing.html#slices-and-slices-of-slices">Slices &#8211; and Slices of Slices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="slicing.html#fancy-indexing">Fancy Indexing</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="frame.html">Frame</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="frame.html#caveats">Caveats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="custom_readers.html">Custom Readers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="custom_readers.html#components">Components</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom_readers.html#basic-example">Basic Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom_readers.html#plugging-into-pims-s-open-function">Plugging into PIMS&#8217;s open function</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom_readers.html#example-demonstrating-generality-of-pims-design">Example Demonstrating Generality of PIMS Design</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="image_sequence.html">ImageSequence</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="image_sequence.html#dependencies">Dependencies</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tiff_stack.html">TiffStack</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tiff_stack.html#dependences">Dependences</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="bioformats.html">Bioformats</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="bioformats.html#depedencies">Depedencies</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="video.html">Video</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="video.html#dependencies">Dependencies</a></li>
+</ul>
+</li>
+</ul>
+
+          
+        
+      </div>
+      &nbsp;
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">pims</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Installation</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/install.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document">
+            
+  <div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>PIMS is easy to install on Windows, OSX, or Linux.</p>
+<div class="section" id="recommended-conda">
+<h2>Recommended: conda<a class="headerlink" href="#recommended-conda" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">To get started with Python on any platform, download and install
+<a class="reference external" href="https://store.continuum.io/cshop/anaconda/">Anaconda</a>.
+It comes with the common scientific Python packages built in.</p>
+</div>
+<p>With <a class="reference external" href="https://store.continuum.io/cshop/anaconda/">Anaconda</a>
+(or <a class="reference external" href="http://conda.pydata.org/miniconda.html">Miniconda</a>) installed,
+type the following into a Terminal to install PIMS.</p>
+<div class="highlight-bash"><div class="highlight"><pre>conda install -c soft-matter pims
+</pre></div>
+</div>
+<p>The above installs the latest stable to release. To install the version under
+active development, with the latest tested code, use the development channel.</p>
+<div class="highlight-bash"><div class="highlight"><pre>conda config --add channels soft-matter
+conda install -c soft-matter/channel/dev pims
+</pre></div>
+</div>
+</div>
+<div class="section" id="pip">
+<h2>pip<a class="headerlink" href="#pip" title="Permalink to this headline">¶</a></h2>
+<p>PIMS can also be installed using pip.</p>
+<div class="highlight-bash"><div class="highlight"><pre>pip install pims
+</pre></div>
+</div>
+</div>
+<div class="section" id="source">
+<h2>source<a class="headerlink" href="#source" title="Permalink to this headline">¶</a></h2>
+<p>If you plan to edit the code, you can install PIMS manually.</p>
+<div class="highlight-bash"><div class="highlight"><pre>git clone https://github.com/soft-matter/pims
+pip install -e pims
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="opening_files.html" class="btn btn-neutral float-right" title="Opening Files" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="index.html" class="btn btn-neutral" title="PIMS: Python Image Sequence" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2015, PIMS Contributors.
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'v0.3',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
