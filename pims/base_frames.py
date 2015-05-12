@@ -137,7 +137,11 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 class SliceableIterable(object):
 
     def __init__(self, ancestor, indices, length=None):
-        """A generator that support fancy indexing, returning another generator
+        """A generator that supports fancy indexing
+
+        When sliced using any iterable with a known length, it return another
+        object like itself, a SliceableIterable. When sliced with an integer,
+        it returns the data payload.
 
         Also, this retains the attributes of the "ancestor" object that
         created it.
