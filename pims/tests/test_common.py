@@ -186,6 +186,22 @@ class TestRecursiveSlicing(unittest.TestCase):
         compare_slice_to_list(slice1a, list('defghij'))
         slice2a = slice1a[::2]
         compare_slice_to_list(slice2a, list('dfhj'))
+        slice2b = slice1a[::-1]
+        compare_slice_to_list(slice2b, list('jihgfed'))
+        slice2c = slice1a[::-2]
+        compare_slice_to_list(slice2c, list('jhfd'))
+        print('slice2d')
+        slice2d = slice1a[:0:-1]
+        compare_slice_to_list(slice2d, list('jihgfe'))
+        slice2e = slice1a[-1:1:-1]
+        compare_slice_to_list(slice2e, list('jihgf'))
+        slice2f = slice1a[-2:1:-1]
+        compare_slice_to_list(slice2f, list('ihgf'))
+        slice2g = slice1a[::-3]
+        compare_slice_to_list(slice2g, list('jgd'))
+        slice2h = slice1a[[5, 6, 2, -1, 3, 3, 3, 0]]
+        compare_slice_to_list(slice2h, list('ijfjgggd'))
+
 
     def test_slice_of_slice_of_slice(self):
         slice1 = self.v[4:]
@@ -215,8 +231,14 @@ class TestRecursiveSlicing(unittest.TestCase):
         compare_slice_to_list(slice2, list('cegi'))
         slice3 = slice2[:]
         compare_slice_to_list(slice3, list('cegi'))
+        print('define slice4')
         slice4 = slice3[:-1]
+        print('compare slice4')
         compare_slice_to_list(slice4, list('ceg'))
+        print('define slice4a')
+        slice4a = slice3[::-1]
+        print('compare slice4a')
+        compare_slice_to_list(slice4a, list('igec'))
 
     def test_slice_with_generator(self):
         slice1 = self.v[1:]
