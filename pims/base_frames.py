@@ -430,26 +430,34 @@ def _index_generator(new_indices, old_indices):
     """Find locations of new_indicies in the ref. frame of the old_indices.
     
     Example: (1, 3), (1, 3, 5, 10) -> (3, 10)
-    
+
     The point of all this trouble is that this is done lazily, returning
     a generator without actually looping through the inputs."""
     # Use iter() to be safe. On a generator, this returns an identical ref.
     new_indices = iter(new_indices)
-    old_indices = iter(old_indices)
     n = next(new_indices)
+    last_n = None
     done = False
-    for i, o in enumerate(old_indices):
-        if done:
-            raise StopIteration
-        if i == n:
-            try:
-                n = next(new_indices)
-            except StopIteration:
-                done = True
-                # Don't stop yet; we still have one last thing to yield.
-            yield o
-        else:
-            continue
+    while True:
+        old_indices_, old_indices = itertools.tee(iter(old_indices))
+        for i, o in enumerate(old_indices_):
+            # If new_indices is not strictly monotonically increasing, break
+            # and start again from the beginning of old_indices.
+            if last_n is not None and n <= last_n:
+                last_n = None
+                break
+            if done:
+                raise StopIteration
+            if i == n:
+                last_n = n
+                try:
+                    n = next(new_indices)
+                except StopIteration:
+                    done = True
+                    # Don't stop yet; we still have one last thing to yield.
+                yield o
+            else:
+                continue
 
 
 def pipeline(func):
