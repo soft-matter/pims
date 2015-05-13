@@ -221,11 +221,10 @@ class SliceableIterable(object):
 
         if isinstance(key, slice):
             # if input is a slice, return another SliceableIterable
-            rel_indices = range(*key.indices(_len))
-            indices = _index_generator(rel_indices, abs_indices)
             start, stop, step = key.indices(_len)
-            # There is fenceposting subtlety in knowing the length of a slice.
-            new_length = 1 + (stop - start - 1) // step
+            rel_indices = range(start, stop, step)
+            new_length = len(rel_indices)
+            indices = _index_generator(rel_indices, abs_indices)
             return SliceableIterable(self._ancestor, indices, new_length)
         elif isinstance(key, collections.Iterable):
             # if the input is an iterable, doing 'fancy' indexing
