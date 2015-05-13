@@ -143,8 +143,8 @@ class SliceableIterable(object):
         object like itself, a SliceableIterable. When sliced with an integer,
         it returns the data payload.
 
-        Also, this retains the attributes of the "ancestor" object that
-        created it.
+        Also, this retains the attributes of the ultimate ancestor that
+        created it (or its parent, or its parent's parent, ...).
 
         Parameters
         ----------
