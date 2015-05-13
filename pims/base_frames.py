@@ -3,13 +3,14 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 from six import with_metaclass
-from six.moves import xrange
+from six.moves import range
 import os
 import numpy as np
 import collections
 import itertools
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
+from functools import wraps
 
 
 class FramesStream(with_metaclass(ABCMeta, object)):
@@ -133,6 +134,140 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type)
 
 
+class SliceableIterable(object):
+
+    def __init__(self, ancestor, indices, length=None):
+        """A generator that supports fancy indexing
+
+        When sliced using any iterable with a known length, it return another
+        object like itself, a SliceableIterable. When sliced with an integer,
+        it returns the data payload.
+
+        Also, this retains the attributes of the ultimate ancestor that
+        created it (or its parent, or its parent's parent, ...).
+
+        Parameters
+        ----------
+        ancestor : object
+            must support __getitem__ with an integer argument
+        indices : iterable
+            giving indices into `ancestor`
+        length : integer, optional
+            length of indicies
+            This is required if `indices` is a generator,
+            that is, if `len(indices)` is invalid
+
+        Examples
+        --------
+        # Slicing on a SliceableIterable returns another SliceableIterable...
+        >>> v = SliceableIterable([0, 1, 2, 3], range(4), 4)
+        >>> v1 = v[:2]
+        >>> type(v[:2])
+        SliceableIterable
+        >>> v2 = v[::2]
+        >>> type(v2)
+        SliceableIterable
+        >>> v2[0]
+        0
+        # ...unless the slice itself has an unknown length, which makes
+        # slicing impossible.
+        >>> v3 = v2((i for i in [0]))  # argument is a generator
+        >>> type(v3)
+        generator
+        """
+        if length is None:
+            try:
+                length = len(indices)
+            except TypeError:
+                raise ValueError("The length parameter is required in this "
+                                 "case because len(indices) is not valid.")
+        self._len = length
+        self._ancestor = ancestor
+        self._indices = indices
+        self._counter = 0
+        self._proc_func = lambda image: image
+
+    @property
+    def indices(self):
+        # Advancing indices won't affect this new copy of self._indices.
+        indices, self._indices = itertools.tee(iter(self._indices))
+        return indices
+
+    def _get(self, key):
+        "Wrap ancestor's get_frame method in a processing function."
+        return self._proc_func(self._ancestor[key])
+
+    def __repr__(self):
+        msg = "Sliced and/or processed {0}. Original repr:\n".format(
+                type(self._ancestor).__name__)
+        old = '\n'.join("    " + ln for ln in repr(self._ancestor).split('\n'))
+        return msg + old
+
+    def __iter__(self):
+        return (self._get(i) for i in self.indices)
+
+    def __len__(self):
+        return self._len
+
+    def __getattr__(self, key):
+        # Remember this only gets called if __getattribute__ raises an
+        # AttributeError. Try the ancestor object.
+        return getattr(self._ancestor, key)
+
+    def __getitem__(self, key):
+        """for data access"""
+        _len = len(self)
+        abs_indices = self.indices
+
+        if isinstance(key, slice):
+            # if input is a slice, return another SliceableIterable
+            start, stop, step = key.indices(_len)
+            rel_indices = range(start, stop, step)
+            new_length = len(rel_indices)
+            indices = _index_generator(rel_indices, abs_indices)
+            return SliceableIterable(self._ancestor, indices, new_length)
+        elif isinstance(key, collections.Iterable):
+            # if the input is an iterable, doing 'fancy' indexing
+            if isinstance(key, np.ndarray) and key.dtype == np.bool:
+                # if we have a bool array, set up masking but defer
+                # the actual computation, returning another SliceableIterable
+                rel_indices = np.arange(len(self))[key]
+                indices = _index_generator(rel_indices, abs_indices)
+                new_length = key.sum()
+                return SliceableIterable(self._ancestor, indices, new_length)
+            if any(_k < -_len or _k >= _len for _k in key):
+                raise IndexError("Keys out of range")
+            try:
+                new_length = len(key)
+            except TypeError:
+                # The key is a generator; return a plain old generator.
+                # Without knowing the length of the *key*,
+                # we can't give a SliceableIterable
+                gen = (self[_k if _k >= 0 else _len + _k] for _k in key)
+                return gen
+            else:
+                # The key is a list of in-range values. Build another
+                # SliceableIterable, again deferring computation.
+                rel_indices = ((_k if _k >= 0 else _len + _k) for _k in key)
+                indices = _index_generator(rel_indices, abs_indices)
+                return SliceableIterable(self._ancestor, indices, new_length)
+        else:
+            if key < -_len or key >= _len:
+                raise IndexError("Key out of range")
+            try:
+                abs_key = self._indices[key]
+            except TypeError:
+                key = key if key >= 0 else _len + key
+                rel_indices, self._indices = itertools.tee(self._indices)
+                for _, i in zip(range(key + 1), rel_indices):
+                    abs_key = i
+            return self._get(abs_key)
+
+    def close(self):
+        "Closing this child slice of the original reader does nothing."
+        pass
+
+
 class FramesSequence(FramesStream):
     """Baseclass for wrapping data buckets that have random access.
 
@@ -145,33 +280,16 @@ class FramesSequence(FramesStream):
 
     """
     def __getitem__(self, key):
-        """for data access"""
-        _len = len(self)
-
-        if isinstance(key, slice):
-            # if input is a slice, return a generator
-            return (self.get_frame(_k) for _k
-                    in xrange(*key.indices(_len)))
-        elif isinstance(key, collections.Iterable):
-            # if the input is an iterable, doing 'fancy' indexing
-
-            if isinstance(key, np.ndarray) and key.dtype == np.bool:
-                # if we have a bool array, do the right thing
-                return (self.get_frame(_k) for _k in np.arange(len(self))[key])
-            if any(_k < -_len or _k >= _len for _k in key):
-                raise IndexError("Keys out of range")
-            # else, return a generator looping over the keys
-            return (self.get_frame(_k if _k >= 0 else _len + _k)
-                    for _k in key)
+        """If getting a scalar, a specific frame, call get_frame. Otherwise,
+        be 'lazy' and defer to the slicing logic of SliceableIterable."""
+        if isinstance(key, int):
+            i = key if key >= 0 else len(self) + key
+            return self.get_frame(i)
         else:
-            if key < -_len or key >= _len:
-                raise IndexError("Key out of range")
-
-            # else, fall back to `get_frame`
-            return self.get_frame(key if key >= 0 else _len + key)
+            return SliceableIterable(self, range(len(self)), len(self))[key]
 
     def __iter__(self):
-        return self[:]
+        return iter(self[:])
 
     @abstractmethod
     def __len__(self):
@@ -306,3 +424,107 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   count = len(self),
                                   dtype=self.pixel_type)
+
+
+def _index_generator(new_indices, old_indices):
+    """Find locations of new_indicies in the ref. frame of the old_indices.
+    
+    Example: (1, 3), (1, 3, 5, 10) -> (3, 10)
+
+    The point of all this trouble is that this is done lazily, returning
+    a generator without actually looping through the inputs."""
+    # Use iter() to be safe. On a generator, this returns an identical ref.
+    new_indices = iter(new_indices)
+    n = next(new_indices)
+    last_n = None
+    done = False
+    while True:
+        old_indices_, old_indices = itertools.tee(iter(old_indices))
+        for i, o in enumerate(old_indices_):
+            # If new_indices is not strictly monotonically increasing, break
+            # and start again from the beginning of old_indices.
+            if last_n is not None and n <= last_n:
+                last_n = None
+                break
+            if done:
+                raise StopIteration
+            if i == n:
+                last_n = n
+                try:
+                    n = next(new_indices)
+                except StopIteration:
+                    done = True
+                    # Don't stop yet; we still have one last thing to yield.
+                yield o
+            else:
+                continue
+
+
+def pipeline(func):
+    """Decorator to make function aware of pims objects.
+
+    When the function is applied to a pims reader or a slice of one, it
+    returns another lazily-evaluated, sliceable object.
+
+    When the function is applied to any other object, it falls back on its
+    normal behavhior.
+
+    Parameters
+    ----------
+    func : callable
+        function that accepts an image as its first argument
+
+    Returns
+    -------
+    processed_images : pims.SliceableIterator
+
+    Example
+    -------
+    Apply the pipeline decorator to your image processing function.
+    >>> @pipeline
+    ...  def color_channel(image, channel):
+    ...      return image[channel, :, :]
+    ...
+
+    Load images with PIMS.
+    >>> images = pims.ImageSequence(...)
+
+    Passing the PIMS class to the function return another PIMS object
+    that "lazily" applies the function when the images come out. Different
+    functions can be applied to the same underlying images, creating
+    independent objects.
+    >>> red_images = color_channel(images, 0)
+    >>> green_images = color_channel(images, 1)
+
+    Pipeline functions can also be composed.
+    >>> @pipeline
+    ... def rescale(image):
+    ... return (image - image.min())/image.ptp()
+    ...
+    >>> rescale(color_channel(images, 0))
+
+    The function can still be applied to ordinary images. The decorator
+    only takes affect when a PIMS object is passed.
+    >>> single_img = images[0]
+    >>> red_img = red_channel(single_img)  # normal behavior
+    """
+    @wraps(func)
+    def process(img_or_iterable, *args, **kwargs):
+        if isinstance(img_or_iterable, (SliceableIterable, FramesSequence)):
+            _len = len(img_or_iterable)
+            s = SliceableIterable(img_or_iterable, range(_len), _len)
+            s._proc_func = lambda image: func(image, *args, **kwargs)
+            return s
+        else:
+            # Fall back on normal behavior of func, interpreting input
+            # as a single image.
+            return func(img_or_iterable)
+
+    if process.__doc__ is None:
+        process.__doc__ = ''
+    process.__doc__ = ("This function has been made pims-aware. When passed\n"
+                       "a pims reader or SliceableIterable, it will return a \n"
+                       "new SliceableIterable of the results. When passed \n"
+                       "other objects, its behavior is "
+                       "unchanged.\n\n") + process.__doc__
+    return process

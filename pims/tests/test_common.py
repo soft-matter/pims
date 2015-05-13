@@ -4,10 +4,13 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
+import random
+import types
 import unittest
 import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
+from nose.tools import assert_true
 import pims
 from PIL import Image
 
@@ -117,6 +120,142 @@ class _image_single(unittest.TestCase):
         v = self.klass(self.filename, invert, **self.kwargs)
         assert_image_equal(v[0], invert(v_raw[0]))
 
+def box(letter):
+    return pims.Frame(np.array(letter))
+
+def assert_letters_equal(actual, expected):
+    for actual_, expected_ in zip(actual, expected):
+        # This contrived reader has weird shape behavior,
+        # but that's not what I'm testing here.
+        assert_equal(actual_.reshape((1, 1)), box(expected_).reshape((1, 1)))
+
+def compare_slice_to_list(actual, expected):
+    assert_letters_equal(actual, expected)
+    # test lengths
+    actual_len = len(actual)
+    assert_equal(actual_len, len(expected))
+    indices = list(range(len(actual)))
+    for i in indices:
+        # test positive indexing
+        assert_letters_equal(actual[i], expected[i])
+        # test negative indexing
+        assert_letters_equal(actual[-i + 1], expected[-i + 1])
+    # in reverse order
+    for i in indices[::-1]:
+        assert_letters_equal(actual[i], expected[i])
+        assert_letters_equal(actual[-i + 1], expected[-i + 1])
+    # in shuffled order (using a consistent random seed)
+    r = random.Random(5)
+    r.shuffle(indices)
+    for i in indices:
+        assert_letters_equal(actual[i], expected[i])
+        assert_letters_equal(actual[-i + 1], expected[-i + 1])
+    # test list indexing
+    some_indices = [r.choice(indices) for _ in range(2)]
+    assert_letters_equal(actual[some_indices],
+                         np.array(expected)[some_indices])
+    # mixing positive and negative indices
+    some_indices = [r.choice(indices + [-i-1 for i in indices])
+                    for _ in range(2)]
+    assert_letters_equal(actual[some_indices],
+                         np.array(expected)[some_indices])
+    # test slices
+    assert_letters_equal(actual[::2], expected[::2])
+    assert_letters_equal(actual[1::2], expected[1::2])
+    assert_letters_equal(actual[::3], expected[::3])
+    assert_letters_equal(actual[1:], expected[1:])
+    assert_letters_equal(actual[:], expected[:])
+    assert_letters_equal(actual[:-1], expected[:-1])
+
+
+class TestRecursiveSlicing(unittest.TestCase):
+
+    def setUp(self):
+        class DemoReader(pims.ImageSequence):
+            def imread(self, filename, **kwargs):
+                return np.array([[filename]])
+
+        self.v = DemoReader(list('abcdefghij'))
+
+    def test_slice_of_slice(self):
+        slice1 = self.v[4:]
+        compare_slice_to_list(slice1, list('efghij'))
+        slice2 = slice1[-3:]
+        compare_slice_to_list(slice2, list('hij'))
+        slice1a = self.v[[3, 4, 5, 6, 7, 8, 9]]
+        compare_slice_to_list(slice1a, list('defghij'))
+        slice2a = slice1a[::2]
+        compare_slice_to_list(slice2a, list('dfhj'))
+        slice2b = slice1a[::-1]
+        compare_slice_to_list(slice2b, list('jihgfed'))
+        slice2c = slice1a[::-2]
+        compare_slice_to_list(slice2c, list('jhfd'))
+        print('slice2d')
+        slice2d = slice1a[:0:-1]
+        compare_slice_to_list(slice2d, list('jihgfe'))
+        slice2e = slice1a[-1:1:-1]
+        compare_slice_to_list(slice2e, list('jihgf'))
+        slice2f = slice1a[-2:1:-1]
+        compare_slice_to_list(slice2f, list('ihgf'))
+        slice2g = slice1a[::-3]
+        compare_slice_to_list(slice2g, list('jgd'))
+        slice2h = slice1a[[5, 6, 2, -1, 3, 3, 3, 0]]
+        compare_slice_to_list(slice2h, list('ijfjgggd'))
+
+
+    def test_slice_of_slice_of_slice(self):
+        slice1 = self.v[4:]
+        compare_slice_to_list(slice1, list('efghij'))
+        slice2 = slice1[1:-1]
+        compare_slice_to_list(slice2, list('fghi'))
+        slice2a = slice1[[2, 3, 4]]
+        compare_slice_to_list(slice2a, list('ghi'))
+        slice3 = slice2[1::2]
+        compare_slice_to_list(slice3, list('gi'))
+
+    def test_slice_of_slice_of_slice_of_slice(self):
+        # Take the red pill. It's slices all the way down!
+        slice1 = self.v[4:]
+        compare_slice_to_list(slice1, list('efghij'))
+        slice2 = slice1[1:-1]
+        compare_slice_to_list(slice2, list('fghi'))
+        slice3 = slice2[1:]
+        compare_slice_to_list(slice3, list('ghi'))
+        slice4 = slice3[1:]
+        compare_slice_to_list(slice4, list('hi'))
+
+        # Give me another!
+        slice1 = self.v[2:]
+        compare_slice_to_list(slice1, list('cdefghij'))
+        slice2 = slice1[0::2]
+        compare_slice_to_list(slice2, list('cegi'))
+        slice3 = slice2[:]
+        compare_slice_to_list(slice3, list('cegi'))
+        print('define slice4')
+        slice4 = slice3[:-1]
+        print('compare slice4')
+        compare_slice_to_list(slice4, list('ceg'))
+        print('define slice4a')
+        slice4a = slice3[::-1]
+        print('compare slice4a')
+        compare_slice_to_list(slice4a, list('igec'))
+
+    def test_slice_with_generator(self):
+        slice1 = self.v[1:]
+        compare_slice_to_list(slice1, list('bcdefghij'))
+        slice2 = slice1[(i for i in range(2,5))]
+        assert_letters_equal(slice2, list('def'))
+        assert_true(isinstance(slice2, types.GeneratorType))
+
+def _rescale(img):
+    print(type(img))
+    return (img - img.min()) / img.ptp()
+
+def _color_channel(img, channel):
+    if img.ndim == 3:
+        return img[:, :, channel]
+    else:
+        return img
 
 class _image_series(_image_single):
     def test_iterator(self):
@@ -131,6 +270,59 @@ class _image_series(_image_single):
         frame0, frame1 = tmp
         assert_image_equal(frame0, self.frame0)
         assert_image_equal(frame1, self.frame1)
+
+    def test_slice_of_slice(self):
+        # More thorough recursive slicing tests, making use of more than
+        # the two frames available for these tests, are elsewhere:
+        # see test_recursive_slicing.
+        self.check_skip()
+        tmp = self.v[0:2]
+        tmp1 = tmp[1:]
+        frame1 = tmp1[0]
+        assert_image_equal(frame1, self.frame1)
+
+        # Do the same thing again, show that the generators are not dead.
+        tmp1 = tmp[1:]
+        frame1 = tmp1[0]
+        assert_image_equal(frame1, self.frame1)
+
+        frame0 = tmp[0]
+        assert_image_equal(frame0, self.frame0)
+
+        # Show that we can listify the slice twice.
+        frame0, frame1 = list(tmp)
+        assert_image_equal(frame0, self.frame0)
+        assert_image_equal(frame1, self.frame1)
+        frame0, frame1 = list(tmp)
+        assert_image_equal(frame0, self.frame0)
+        assert_image_equal(frame1, self.frame1)
+
+    def test_pipeline_simple(self):
+        rescale = pims.pipeline(_rescale)
+        rescaled_v = rescale(self.v[:1])
+
+        assert_image_equal(rescaled_v[0], _rescale(self.frame0))
+
+    def test_pipeline_with_args(self):
+        color_channel = pims.pipeline(_color_channel)
+        red = color_channel(self.v, 0)
+        green = color_channel(self.v, 1)
+
+        assert_image_equal(red[0], _color_channel(self.frame0, 0))
+        assert_image_equal(green[0], _color_channel(self.frame0, 1))
+
+        # Multiple pipelines backed by the same data are indep,
+        # so this call to red is unaffected by green above.
+        assert_image_equal(red[0], _color_channel(self.frame0, 0))
+
+    def test_composed_pipelines(self):
+        color_channel = pims.pipeline(_color_channel)
+        rescale = pims.pipeline(_rescale)
+
+        composed = rescale(color_channel(self.v, 0))
+
+        expected = _rescale(_color_channel(self.v[0], 0))
+        assert_image_equal(composed[0], expected)
 
     def test_getting_single_frame(self):
         self.check_skip()
@@ -387,8 +579,8 @@ class ImageSequence3D(_image_series):
         frames = save_dummy_png(self.filepath, self.filenames, shape)
 
         self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = [frames[0], frames[2]]
-        self.frame1 = [frames[4], frames[6]]
+        self.frame0 = np.array([frames[0], frames[2]])
+        self.frame1 = np.array([frames[4], frames[6]])
         self.klass = pims.ImageSequence3D
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
