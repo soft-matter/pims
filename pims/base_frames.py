@@ -152,9 +152,9 @@ class SliceableIterable(object):
             must support __getitem__ with an integer argument
         indices : iterable
             giving indices into `ancestor`
-        length: integer
+        length : integer, optional
             length of indicies
-            This must be given explicitly if indices is a generator,
+            This is required if `indices` is a generator,
             that is, if `len(indices)` is invalid
 
         Examples
