@@ -528,3 +528,57 @@ def pipeline(func):
                        "other objects, its behavior is "
                        "unchanged.\n\n") + process.__doc__
     return process
+
+
+class Multidimensional(FramesSequence):
+    @abstractproperty
+    def sizes(self):
+        pass
+
+    @abstractproperty
+    def dim_default(self):
+        pass
+
+    @abstractproperty
+    def dim_names(self):
+        pass
+
+    @abstractproperty
+    def dim_aggregate(self):
+        pass
+
+    @abstractproperty
+    def dim_loop_over(self):
+        pass
+
+    def __len__(self):
+        return np.prod([self.sizes[d] for d in self.dim_loop_over])
+
+    def frame_shape(self):
+        shape = [self.sizes[d] for d in self.dim_aggregate]
+        return shape + [self.sizes['Y'], self.sizes['X']]
+
+    def get_frame(self, i):
+        ind = {n: self.dim_default[n] for n in self.dim_names}
+        i_prev = 0
+        for n, dim in enumerate(self.dim_loop_over):
+            size = int(np.prod([self.sizes[d] for d in self.dim_loop_over[n+1:]]))
+            ind[dim] = (i - i_prev) // size
+            i_prev += ind[dim] * size
+
+        Nframes = int(np.prod([self.sizes[d] for d in self.dim_aggregate]))
+
+        result = np.empty((Nframes, self.sizes['Y'], self.sizes['X']))
+        for n in range(Nframes):
+            result[n] = self.get_frame_2D(**ind)
+            for d in self.dim_aggregate:
+                ind[d] += 1
+                if ind[d] >= self.sizes[d]:
+                    ind[d] = 0
+                else:
+                    break
+        return Frame(result.reshape(self.frame_shape()))
+        
+    @abstractmethod  
+    def get_frame_2D(self, **ind):
+        pass
