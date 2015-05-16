@@ -629,8 +629,8 @@ class Multidimensional(FramesSequence):
     ...    def frame_shape_2D(self):
     ...        return self._frame_shape_2D
     ...    def __init__(self, shape, **dims):
-    ...        for name, size in dims.iteritems():
-    ...            self.add_dim(name, size)
+    ...        for name in dims:
+    ...            self.add_dim(name, dims[name])
     ...        self._frame_shape_2D = shape
     ...    def get_frame_2D(self, **ind):
     ...        return np.zeros(self.frame_shape_2D, dtype=self.pixel_type)
@@ -650,9 +650,6 @@ class Multidimensional(FramesSequence):
             self._dims = []
         new_dim = FramesDimension(name, size, aggregate, iterate, default)
         self._dims.append(new_dim)
-
-    def del_dim(self, name):
-        del self._dims[name]
 
     def __len__(self):
         return np.prod([d.size for d in self._dims if d.iterate])

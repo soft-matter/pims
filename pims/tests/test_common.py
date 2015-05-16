@@ -260,8 +260,8 @@ class TestMultidimensional(unittest.TestCase):
                 return self._frame_shape_2D
 
             def __init__(self, **dims):
-                for k, v in dims.iteritems():
-                    self.add_dim(k, v)
+                for k in dims:
+                    self.add_dim(k, dims[k])
                 self._frame_shape_2D = (1, len(dims))
 
             def get_frame_2D(self, **ind):
