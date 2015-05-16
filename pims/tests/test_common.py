@@ -247,6 +247,67 @@ class TestRecursiveSlicing(unittest.TestCase):
         assert_letters_equal(slice2, list('def'))
         assert_true(isinstance(slice2, types.GeneratorType))
 
+
+class TestMultidimensional(unittest.TestCase):
+    def setUp(self):
+        class IndexReturningReader(pims.base_frames.Multidimensional):
+            @property
+            def pixel_type(self):
+                pass
+
+            @property
+            def frame_shape_2D(self):
+                return self._frame_shape_2D
+
+            def __init__(self, **dims):
+                for k, v in dims.iteritems():
+                    self.add_dim(k, v)
+                self._frame_shape_2D = (1, len(dims))
+
+            def get_frame_2D(self, **ind):
+                return np.array([[ind[i] for i in sorted(ind)]])
+
+        self.v = IndexReturningReader(c=3, m=5, t=100, z=20)
+
+    def test_iterate(self):
+        self.v.iterate = 't'
+        for i in [0, 1, 15]:
+            assert_equal(self.v[i], [[0, 0, i, 0]])
+        self.v.iterate = 'm'
+        for i in [0, 1, 3]:
+            assert_equal(self.v[i], [[0, i, 0, 0]])
+        self.v.iterate = 'zc'
+        assert_equal(self.v[0], [[0, 0, 0, 0]])
+        assert_equal(self.v[2], [[2, 0, 0, 0]])
+        assert_equal(self.v[30], [[0, 0, 0, 10]])
+        self.v.iterate = 'cz'
+        assert_equal(self.v[0], [[0, 0, 0, 0]])
+        assert_equal(self.v[4], [[0, 0, 0, 4]])
+        assert_equal(self.v[21], [[1, 0, 0, 1]])
+        self.v.iterate = 'tzc'
+        assert_equal(self.v[0], [[0, 0, 0, 0]])
+        assert_equal(self.v[4], [[1, 0, 0, 1]])
+        assert_equal(self.v[180], [[0, 0, 3, 0]])
+        assert_equal(self.v[210], [[0, 0, 3, 10]])
+        assert_equal(self.v[212], [[2, 0, 3, 10]])
+
+    def test_default(self):
+        self.v.iterate = 't'
+        self.v.dims['m'].default = 2
+        for i in [0, 1, 3]:
+            assert_equal(self.v[i], [[0, 2, i, 0]])
+
+    def test_aggregate(self):
+        self.v.aggregate = 'z'
+        assert_equal(self.v[0].shape, (20, 1, 4))
+        self.v.aggregate = 'c'
+        assert_equal(self.v[0].shape, (3, 1, 4))
+        self.v.aggregate = 'cz'
+        assert_equal(self.v[0].shape, (3, 20, 1, 4))
+        self.v.aggregate = 'zc'
+        assert_equal(self.v[0].shape, (20, 3, 1, 4))
+
+
 def _rescale(img):
     print(type(img))
     return (img - img.min()) / img.ptp()
