@@ -530,55 +530,252 @@ def pipeline(func):
     return process
 
 
+class FramesDimension(object):
+    """
+    This class defines a dimension for use in the Multidimensional base class.
+
+    Parameters
+    ----------
+    name : string, dimension name
+    size : int, size of dimension
+    aggregate : boolean, default False
+        when True, this sets the dimension to be aggregated inside the Frame
+    iterate : boolean, default True
+        when True, this sets the dimension to be iterable
+    default : int
+        when aggregate and iterate are both False, this is the fallback value
+    """
+    def __init__(self, name, size, aggregate=False, iterate=True, default=0):
+        if name.lower() in ['x', 'y']:
+            raise ValueError('The names x and y are reserved and cannot be '
+                             'used.')
+        self.name = name
+        self._default = default
+        self.size = size
+        if aggregate and iterate:
+            raise ValueError('Dimensions cannot aggregate and be iterable '
+                             'simultaneously.')
+        self._aggregate = aggregate
+        self._iterate = iterate
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        if value <= 0:
+            raise ValueError('Dimension size should be greater than zero.')
+        self._size = value
+        self.default = self._default  # recheck default value validity
+
+    @property
+    def default(self):
+        return self._default
+
+    @default.setter
+    def default(self, value):
+        if value >= self.size:
+            raise ValueError('Default value out of bounds')
+        self._default = value
+
+    @property
+    def aggregate(self):
+        return self._aggregate
+
+    @aggregate.setter
+    def aggregate(self, value):
+        self._aggregate = value
+        if value:  # iterate and aggregate cannot both be True
+            self._iterate = False
+
+    @property
+    def iterate(self):
+        return self._iterate
+
+    @iterate.setter
+    def iterate(self, value):
+        self._iterate = value
+        if value:  # iterate and aggregate cannot both be True
+            self._aggregate = False
+
+    def __repr__(self):
+        s = "<FramesDimension>; Name: {0}; Size: {1}; Status: "
+        s = s.format(self.name, self.size)
+        if self.iterate:
+            s += "iterate"
+        elif self.aggregate:
+            s += "aggregate"
+        else:
+            s += "defaults to {}".format(self.default)
+        return s
+
+
 class Multidimensional(FramesSequence):
-    @abstractproperty
-    def sizes(self):
-        pass
+    """ A base class defining a FramesSequence with an arbitrary number of
+    dimensions. The properties `aggregate` and `iterate` define the functions
+    of each dimension.
 
-    @abstractproperty
-    def dim_default(self):
-        pass
+    Subclassed readers need to define `frame_shape_2D` and `get_frame_2D`.
+    Dimensions need to be instanciated using the available method `add_dim`.
 
-    @abstractproperty
-    def dim_names(self):
-        pass
+    Examples
+    --------
+    >>> class MDummy(Multidimensional):
+    ...    @property
+    ...    def pixel_type(self):
+    ...        return 'uint8'
+    ...    @property
+    ...    def frame_shape_2D(self):
+    ...        return self._frame_shape_2D
+    ...    def __init__(self, shape, **dims):
+    ...        for name, size in dims.iteritems():
+    ...            self.add_dim(name, size)
+    ...        self._frame_shape_2D = shape
+    ...    def get_frame_2D(self, **ind):
+    ...        return np.zeros(self.frame_shape_2D, dtype=self.pixel_type)
 
-    @abstractproperty
-    def dim_aggregate(self):
-        pass
+    >>> frames = MDummy((64, 64), t=80, c=2, z=10, m=5)
+    >>> frames.aggregate = 'cz'
+    >>> frames.iterate = 't'
+    >>> frames.dims['m'].default = 3
+    >>> frames[5]  # returns Frame at T=5, M=3 with shape (2, 10, 64, 64)
+    """
+    def clear_dims(self):
+        self._dims = []
 
-    @abstractproperty
-    def dim_loop_over(self):
-        pass
+    def add_dim(self, name, size, aggregate=False, iterate=True,
+                default=0):
+        if not hasattr(self, '_dims'):
+            self._dims = []
+        new_dim = FramesDimension(name, size, aggregate, iterate, default)
+        self._dims.append(new_dim)
+
+    def del_dim(self, name):
+        del self._dims[name]
 
     def __len__(self):
-        return np.prod([self.sizes[d] for d in self.dim_loop_over])
+        return np.prod([d.size for d in self._dims if d.iterate])
 
+    @abstractproperty
+    def frame_shape_2D(self, **ind):
+        """ This property should return the shape of a single 2D image. """
+        pass
+
+    @property
     def frame_shape(self):
-        shape = [self.sizes[d] for d in self.dim_aggregate]
-        return shape + [self.sizes['Y'], self.sizes['X']]
+        """ Returns the shape of the frame as returned by get_frame. """
+        shape = [d.size for d in self._dims if d.aggregate]
+        return tuple(shape + list(self.frame_shape_2D))
+
+    @property
+    def dims(self):
+        """ Returns a dictionary of all FramesDimension objects. """
+        return {d.name: d for d in self._dims}
+
+    @property
+    def ndim(self):
+        """ Returns the number of dimensions, including x and y. """
+        return len(self._dims) + 2
+
+    @property
+    def sizes(self):
+        """ Returns a dict of all dimension sizes, including x and y. """
+        result = {d.name: d.size for d in self._dims}
+        result['y'], result['x'] = self.frame_shape_2D
+        return result
+
+    @property
+    def aggregate(self):
+        """ This determines which dimensions will be aggregated into one.
+        Frame. The dimensions in the ndarray that is returned by get_frame has
+        the same order as the order in this list. """
+        return [d.name for d in self._dims if d.aggregate]
+
+    @aggregate.setter
+    def aggregate(self, value):
+        for dim_aggregate in value:
+            if dim_aggregate.lower() in ['x', 'y']:
+                raise ValueError('Aggregate does not take dimensions x or y.')
+
+        new_dims_aggr = [0] * len(value)
+        new_dims_rest = []
+        for dim in self._dims:
+            for n_aggr, dim_aggregate in enumerate(value):
+                if dim.name == dim_aggregate:
+                    new_dims_aggr[n_aggr] = dim
+                    dim.aggregate = True
+                    break
+            else:
+                new_dims_rest.append(dim)
+                dim.aggregate = False
+        self._dims = new_dims_rest + new_dims_aggr
+
+    @property
+    def iterate(self):
+        """ This determines which dimensions will be iterated over by the
+        FramesSequence. The last element in will iterate fastest. """
+        return [d.name for d in self._dims if d.iterate]
+
+    @iterate.setter
+    def iterate(self, value):
+        for dim_iterate in value:
+            if dim_iterate.lower() in ['x', 'y']:
+                raise ValueError('Iterate does not take dimensions x or y.')
+
+        new_dims_iter = [0] * len(value)
+        new_dims_rest = []
+        for dim in self._dims:
+            for n_iter, dim_iterate in enumerate(value):
+                if dim.name == dim_iterate:
+                    new_dims_iter[n_iter] = dim
+                    dim.iterate = True
+                    break
+            else:
+                new_dims_rest.append(dim)
+                dim.iterate = False
+        self._dims = new_dims_iter + new_dims_rest
+
+    @abstractmethod
+    def get_frame_2D(self, **ind):
+        """ The actual frame reader, defined by the subclassed reader.
+
+        This method should take exactly one keyword argument per dimension,
+        reflecting the index along each dimension. It returns a two dimensional
+        ndarray with shape `frame_shape_2D` and dtype `pixel_type`.
+        """
+        pass
 
     def get_frame(self, i):
-        ind = {n: self.dim_default[n] for n in self.dim_names}
+        """ Returns a Frame of shape deterimend by aggregate. The property
+        iterate (together with the dimension default index) determines which.
+        multidimensional index is returned. """
+        # identify the indices to take along each dimension
         i_prev = 0
-        for n, dim in enumerate(self.dim_loop_over):
-            size = int(np.prod([self.sizes[d] for d in self.dim_loop_over[n+1:]]))
-            ind[dim] = (i - i_prev) // size
-            i_prev += ind[dim] * size
+        for n, dim in enumerate(self._dims):
+            dim.i = dim.default
+            if dim.iterate:
+                size = int(np.prod([d.size for d in self._dims[n+1:]
+                                    if d.iterate]))
+                dim.i = (i - i_prev) // size
+                i_prev += dim.i * size
 
-        Nframes = int(np.prod([self.sizes[d] for d in self.dim_aggregate]))
+        # initialize a stack of 2D arrays to collect the Frame
+        Nframes = int(np.prod(self.frame_shape[:-2]))
+        result = np.empty([Nframes] + list(self.frame_shape_2D),
+                          dtype=self.pixel_type)
 
-        result = np.empty((Nframes, self.sizes['Y'], self.sizes['X']))
+        # read all 2D frames
         for n in range(Nframes):
-            result[n] = self.get_frame_2D(**ind)
-            for d in self.dim_aggregate:
-                ind[d] += 1
-                if ind[d] >= self.sizes[d]:
-                    ind[d] = 0
-                else:
-                    break
-        return Frame(result.reshape(self.frame_shape()))
-        
-    @abstractmethod  
-    def get_frame_2D(self, **ind):
-        pass
+            result[n] = self.get_frame_2D(**{d.name: d.i for d in self._dims})
+            for dim in self._dims[::-1]:
+                if dim.aggregate:
+                    dim.i += 1
+                    if dim.i >= dim.size:
+                        dim.i = 0
+                    else:
+                        break
+
+        # reshape the array into the desired shape
+        result.shape = self.frame_shape
+        return Frame(result, frame_no=i)
