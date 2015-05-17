@@ -566,7 +566,7 @@ class FramesDimension(object):
     def size(self, value):
         if value <= 0:
             raise ValueError('Dimension size should be greater than zero.')
-        self._size = value
+        self._size = int(value)
         self.default = self._default  # recheck default value validity
 
     @property
@@ -646,10 +646,8 @@ class Multidimensional(FramesSequence):
 
     def add_dim(self, name, size, aggregate=False, iterate=True,
                 default=0):
-        if not hasattr(self, '_dims'):
-            self._dims = []
         new_dim = FramesDimension(name, size, aggregate, iterate, default)
-        self._dims.append(new_dim)
+        self._dims += [new_dim]
 
     def __len__(self):
         return np.prod([d.size for d in self._dims if d.iterate])
@@ -784,8 +782,13 @@ class Multidimensional(FramesSequence):
         return Frame(result, frame_no=i)
 
     def __getattr__(self, key):
-        """ Enables dimensions to be called by for instance frames.c. Existing
-        methods always precede over this: a dimension named 'ndim' would not
-        be accessible by frames.ndim. """
-        if key in self.dims:
-            return self.dims[key]
+        """ Sets an empty value for self._dims without using __init__.
+
+        Enables dimensions to be accessed by for instance frames.c.
+        Existing methods always precede over this: a dimension named 'ndim'
+        would not be accessible by frames.ndim. """
+        if key == '_dims':
+            return []
+        for dim in self._dims:
+            if key == dim.name:
+                return dim
