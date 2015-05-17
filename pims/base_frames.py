@@ -694,6 +694,9 @@ class Multidimensional(FramesSequence):
         for dim_aggregate in value:
             if dim_aggregate.lower() in ['x', 'y']:
                 raise ValueError('Aggregate does not take dimensions x or y.')
+            if dim_aggregate not in self.dims:
+                raise ValueError(('Dimension named ''{}'' does not exist ' +
+                                  'in this image.').format(dim_aggregate))
 
         new_dims_aggr = [0] * len(value)
         new_dims_rest = []
@@ -719,6 +722,9 @@ class Multidimensional(FramesSequence):
         for dim_iterate in value:
             if dim_iterate.lower() in ['x', 'y']:
                 raise ValueError('Iterate does not take dimensions x or y.')
+            if dim_iterate not in self.dims:
+                raise ValueError(("Dimension named '{}' does not exist " +
+                                  "in this image.").format(dim_iterate))
 
         new_dims_iter = [0] * len(value)
         new_dims_rest = []
@@ -776,3 +782,10 @@ class Multidimensional(FramesSequence):
         # reshape the array into the desired shape
         result.shape = self.frame_shape
         return Frame(result, frame_no=i)
+
+    def __getattr__(self, key):
+        """ Enables dimensions to be called by for instance frames.c. Existing
+        methods always precede over this: a dimension named 'ndim' would not
+        be accessible by frames.ndim. """
+        if key in self.dims:
+            return self.dims[key]

@@ -12,7 +12,7 @@ import os
 from warnings import warn
 
 # has to be here for API stuff
-from pims.image_sequence import ImageSequence, ImageSequence3D  # noqa
+from pims.image_sequence import ImageSequence, ImageSequenceND  # noqa
 from .cine import Cine  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
 
