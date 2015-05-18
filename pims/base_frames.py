@@ -682,9 +682,9 @@ class Multidimensional(FramesSequence):
 
     @property
     def aggregate(self):
-        """ This determines which dimensions will be aggregated into one.
-        Frame. The dimensions in the ndarray that is returned by get_frame has
-        the same order as the order in this list. """
+        """ This determines which dimensions will be aggregated into one Frame.
+        The ndarray that is returned by get_frame has the same dimension order
+        as the order of aggregate. """
         return [d.name for d in self._dims if d.aggregate]
 
     @aggregate.setter
@@ -712,7 +712,7 @@ class Multidimensional(FramesSequence):
     @property
     def iterate(self):
         """ This determines which dimensions will be iterated over by the
-        FramesSequence. The last element in will iterate fastest. """
+        FramesSequence. The last element will iterate fastest. """
         return [d.name for d in self._dims if d.iterate]
 
     @iterate.setter
@@ -792,3 +792,4 @@ class Multidimensional(FramesSequence):
         for dim in self._dims:
             if key == dim.name:
                 return dim
+        raise AttributeError
