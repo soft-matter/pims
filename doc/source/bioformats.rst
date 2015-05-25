@@ -11,4 +11,12 @@ Depedencies
 -----------
 To interface with the java library, we use `JPype <https://github.com/originell/jpype>`_, which allows fast and easy access to all java functions. JRE or JDK are not required.
 
+For installation with pip, use
+
+.. code-block:: bash
+
+    pip install jpype1
+
+to install the correct version (0.6.0 or later).
+
 On first use of pims.Bioformats(filename), the required java library :file:`loci_tools.jar` will be automatically downloaded from openmicroscopy.org.

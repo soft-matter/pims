@@ -17,8 +17,6 @@ once it is open, random access is fast.
 Dependencies
 ------------
 
-* `FFmpeg <http://ffmpeg.org/>`_ or `libav <http://libav.org/>`_
 * `PyAV <http://mikeboers.github.io/PyAV/>`_
 
-FFmpeg and libav can be installed using a package manager like aptitude or
-homebrew. PyAV can be installed using pip.
+PyAV is installed with the PIMS conda package.

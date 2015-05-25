@@ -46,5 +46,6 @@ If you plan to edit the code, you can install PIMS manually.
 .. code-block:: bash
 
    git clone https://github.com/soft-matter/pims
-   pip install -e pims
+   cd pims
+   python setup.py develop
 

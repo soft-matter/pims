@@ -10,7 +10,13 @@ They are a subclass of ``numpy.ndarray``, adding two new attributes:
 * ``metadata``, a dictionary
 
 These can be used by the PIMS readers to provide any metadata stored in the
-image files. Setting these attriburtes is optional.
+image files. Setting these attributes is optional.
+
+
+IPython Rich Display
+--------------------
+
+Frame objects hook into IPython's rich display framework. In IPython notebooks, 2D Frames are displayed as actual images. 3D Frames ("Z stacks") are displayed as a stack of images. The user can scroll through the images with the scroll wheel.
 
 Caveats
 -------

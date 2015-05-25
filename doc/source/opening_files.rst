@@ -23,7 +23,7 @@ dispatch to them automatically, you can use them directly. For example:
 .. code-block:: python
 
    import pims
-   images = ImageSequence('my_directory/*.png')
+   images = pims.ImageSequence('my_directory/*.png')
 
 The main readers are:
 

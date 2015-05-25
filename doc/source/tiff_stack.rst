@@ -22,4 +22,4 @@ reader for which the required package is installed.
 * `pylibtiff <https://pypi.python.org/pypi/libtiff>`_
 * `Pillow <https://pillow.readthedocs.org/>`_ or `PIL <http://www.pythonware.com/products/pil/>`_
 
-Tifffile is included in the pims conda package.
+Tifffile is installed with the PIMS conda package.

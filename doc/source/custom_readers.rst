@@ -77,6 +77,10 @@ New readers can be defined or imported at any time. They will be detected the
 next time ``pims.open`` is called, as it searches all subclasses of
 ``FramesSequence`` for an eligible reader.
 
+To prioritize readers, a field ``class_priority`` can optionally be given to the
+reader. A higher priority will be chosen over a lower priority. Default for
+all readers is 10.
+
 Example Demonstrating Generality of PIMS Design
 -----------------------------------------------
 
@@ -100,8 +104,6 @@ Here is a reader that extracts tiles from a tiled image or "sprite sheet."
     cols : int
         The number of rows and columns of sprites.
         The sprite size is computed from these + the shape of the sheet.
-    dtype : np.dtype or None
-        dtype of the returned array.  Defaults to the type of sheet
     """
 
     def __init__(self, sheet, rows, cols):

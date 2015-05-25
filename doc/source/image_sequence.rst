@@ -12,6 +12,7 @@ filenames.
 * a "glob" string, such as ``'my_directory/*.png'``, which is safer than
   using a directory because directories sometimes contain stray files
 * the filepath of a zipped archive, such as ``'my_directory/all-images.zip'``
+* a list of filepaths, such as ``['image1.png', 'image2.png']``
 
 Dependencies
 ------------
@@ -25,4 +26,4 @@ the following** packages, in order of decreasing preference.
 * `matplotlib <http://scikit-image.org/>`_
 * `scipy <http://scikit-image.org/>`_
 
-Scikit-image is included in the pims conda package.
+Scikit-image is installed with the PIMS conda package.
