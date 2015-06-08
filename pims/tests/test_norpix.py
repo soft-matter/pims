@@ -9,10 +9,10 @@ import pims.norpix_reader
 tests_path, _ = os.path.split(os.path.abspath(__file__))
 sample_filename = os.path.join(tests_path, 'data', 'sample_norpix.seq')
 
-class test_norpix_sample(unittest.TestCase):
+class common_norpix_sample_tests(object):
     """Test the Norpix .seq reader on a sample file."""
     def setUp(self):
-        self.seq = pims.open(sample_filename)
+        self.seq = pims.open(sample_filename, **self.options)
 
     def tearDown(self):
         self.seq.close()
@@ -23,7 +23,7 @@ class test_norpix_sample(unittest.TestCase):
     def test_metadata(self):
         s = self.seq
         assert isinstance(len(s), int)
-        assert isinstance(s.pixel_type, np.dtype)
+        assert np.issubdtype(s.pixel_type, np.dtype)
         assert s.width > 0
         assert s.height > 0
         assert len(s.filename)
@@ -66,5 +66,35 @@ class test_norpix_sample(unittest.TestCase):
 
     def test_dump_times(self):
         assert isinstance(self.seq.dump_times_float(), np.ndarray)
+
+
+class test_defaults(common_norpix_sample_tests, unittest.TestCase):
+    def setUp(self):
+        self.options = {}
+        super(test_defaults, self).setUp()
+
+
+class test_dtype(common_norpix_sample_tests, unittest.TestCase):
+    def setUp(self):
+        self.options = {}
+        self.dtype = np.float_
+        self.options['dtype'] = self.dtype
+        super(test_dtype, self).setUp()
+
+    def test_dtype(self):
+        fr = self.seq[0]
+        assert fr.dtype == self.dtype
+
+
+class test_process_func(common_norpix_sample_tests, unittest.TestCase):
+    def setUp(self):
+        self.options = {}
+        self.options['dtype'] = np.float_
+        self.options['process_func'] = lambda x: -x
+        super(test_process_func, self).setUp()
+
+    def test_process_func(self):
+        fr = self.seq[0]
+        assert np.all(fr <= 0)
 
 

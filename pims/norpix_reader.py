@@ -63,6 +63,10 @@ class NorpixSeq(FramesSequence):
     process_func : function, optional
         callable with signature `proc_img = process_func(img)`,
         which will be applied to the data from each frame
+    dtype : numpy datatype, optional
+        Image arrays will be converted to this datatype.
+    as_grey : boolean, optional
+        Ignored.
     """
     @classmethod
     def class_exts(cls):
@@ -71,13 +75,6 @@ class NorpixSeq(FramesSequence):
     def __init__(self, filename, process_func=None, dtype=None, as_grey=False):
         self._file = open(filename, 'rb')
         self._filename = filename
-
-        if process_func is not None:
-            raise NotImplementedError('process_func parameter not yet supported')
-        if dtype is not None:
-            raise NotImplementedError('dtype parameter not yet supported')
-        if as_grey:
-            raise NotImplementedError('as_grey parameter not yet supported')
 
         self.header_dict = self._read_header(HEADER_FIELDS)
 
@@ -97,14 +94,22 @@ class NorpixSeq(FramesSequence):
         self._width = self.header_dict['width']
         self._height = self.header_dict['height']
         self._pixel_count = self._width * self._height
-        self._dtype = np.dtype('uint%i' % self.header_dict['bit_depth'])
         self._image_bytes = self.header_dict['image_size_bytes']
+        self._dtype_native = np.dtype('uint%i' % self.header_dict['bit_depth'])
 
         # Public metadata
         self.metadata = {k: self.header_dict[k] for k in
                          ('description', 'bit_depth_real', 'origin',
                           'suggested_frame_rate', 'width', 'height')}
         self.metadata['gamut'] = 2**self.metadata['bit_depth_real'] - 1
+
+        # Handle optional parameters
+        if dtype is None:
+            self._dtype = self._dtype_native
+        else:
+            self._dtype = dtype
+
+        self._validate_process_func(process_func)
 
         # TODO How to handle timestamps in a way that survives slicing?
         # Do we need to be able to read timestamps independent of their images?
@@ -147,12 +152,14 @@ class NorpixSeq(FramesSequence):
         self._verify_frame_no(i)
         with FileLocker(self._file_lock):
             self._file.seek(self._image_offset + self._image_block_size * i)
-            imdata = np.fromfile(self._file, self._dtype, self._pixel_count).reshape((self.height, self.width))
+            imdata = np.fromfile(self._file, self._dtype_native, self._pixel_count
+                                 ).reshape((self.height, self.width))
             # Timestamp immediately follows
             tfloat, ts = self._read_timestamp()
             md = {'time': ts, 'time_float': tfloat,
                   'gamut': self.metadata['gamut']}
-            return Frame(imdata, frame_no=i, metadata=md)
+            return Frame(self.process_func(imdata.astype(self._dtype)),
+                         frame_no=i, metadata=md)
 
     def _read_timestamp(self):
         """Read a 6-byte timestamp at the current position in the file.
