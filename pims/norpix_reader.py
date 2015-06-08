@@ -217,6 +217,10 @@ class NorpixSeq(FramesSequence):
     def frame_shape(self):
         return (self.metadata['height'], self.metadata['width'])
 
+    @property
+    def frame_rate(self):
+        return self.metadata['suggested_frame_rate']
+
     def __len__(self):
         return self._image_count
 
