@@ -242,8 +242,8 @@ class ImageSequence3D(ImageSequence):
         should contain the indices of T, Z and C, preceded by a dimension
         identifier such as: 'file_t001c05z32'.
     process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
+        callable with signature `proc_img = process_func(img)`,
+        which will be applied to the data from each frame.
     dtype : numpy datatype, optional
         Image arrays will be converted to this datatype.
     as_grey : boolean, optional
