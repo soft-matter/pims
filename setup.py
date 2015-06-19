@@ -27,7 +27,8 @@ setup_parameters = dict(
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",
     packages=['pims',
-              'pims.utils'],
+              'pims.utils',
+              'pims.tests'],
     long_description=read('README.md'))
 
 setup(**setup_parameters)

@@ -32,17 +32,28 @@ try:
 except (ImportError, IOError):
     Video = not_available("PyAV")
 
-try:
-    import pims.tiff_stack
-    from pims.tiff_stack import TiffStack_pil, TiffStack_libtiff
-    if pims.tiff_stack.libtiff_available():
-        TiffStack = TiffStack_libtiff
-    elif pims.tiff_stack.PIL_available():
-        TiffStack = TiffStack_pil
-    else:
-        raise ImportError()
-except ImportError:
+import pims.tiff_stack
+from pims.tiff_stack import (TiffStack_pil, TiffStack_libtiff,
+                                TiffStack_tifffile)
+# First, check if each individual class is available
+# and drop in placeholders as needed.
+if not pims.tiff_stack.tifffile_available():
+    TiffStack_tiffile = not_available("tifffile")
+if not pims.tiff_stack.libtiff_available():
+    TiffStack_libtiff = not_available("libtiff")
+if not pims.tiff_stack.PIL_available():
+    TiffStack_pil = not_available("PIL or Pillow")
+# Second, decide which class to assign to the
+# TiffStack alias.
+if pims.tiff_stack.tifffile_available():
     TiffStack = TiffStack_tifffile
+elif pims.tiff_stack.libtiff_available():
+    TiffStack = TiffStack_libtiff
+elif pims.tiff_stack.PIL_available():
+    TiffStack = TiffStack_pil
+else:
+    TiffStack = not_available("tifffile, libtiff, or PIL/Pillow")
+
 
 try:
     import pims.bioformats
@@ -57,7 +68,7 @@ except (ImportError, IOError):
 
 
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
-    """Read a directory of sequentially numbered image files into an
+    """Read a filename, list of filenames, or directory of image files into an
     iterable that returns images as numpy arrays.
 
     Parameters
