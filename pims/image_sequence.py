@@ -332,3 +332,33 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type,
                                   C=self._sizeC,
                                   Z=self._sizeZ)
+
+
+def customize_image_sequence(imread_func, name=None):
+    """Class factory for ImageSequence with customized image reader.
+
+    Parameters
+    ----------
+    imread_func : callable
+        image reader
+    name : str or None
+        name of class returned; if None, 'CustomImageSequence' is used.
+
+    Returns
+    -------
+    type : a subclass of ImageSequence
+        This subclass has its image-opening method, imread, overriden
+        by the passed function.
+
+    Example
+    -------
+    >>> # my_func accepts a filename and returns a numpy array
+    >>> MyImageSequence = customize_image_sequence(my_func)
+    >>> frames = MyImageSequence('path/to/my_weird_files*')
+    """
+    class CustomImageSequence(ImageSequence):
+        def imread(self, filename, **kwargs):
+            return imread_func(filename, **kwargs)
+    if name is not None:
+        CustomImageSequence.__name__ = name
+    return CustomImageSequence
