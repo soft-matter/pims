@@ -127,16 +127,20 @@ version, run this in the command prompt:
 
     pip install --upgrade http://github.com/soft-matter/pims/zipball/master
 
-Contributors
-------------
+Primary Contributors
+--------------------
 * Daniel B. Allan
-* Thomas A. Caswell (major refactoring, additional formats)
+* Thomas A. Caswell
+* Casper van der Wel
 
 Supporting Grant
 ----------------
-This package was originally developed and maintained by Daniel Allan, as part
-of his
-PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
-University in Baltimore, MD. The work was supported by the National Science Foundation under grant number CBET-1033985.
+
+This package was originally developed and maintained by Daniel Allan,
+as part of his PhD thesis work on microrheology in Robert L. Leheny's
+group at Johns Hopkins University in Baltimore, MD. The work was
+supported by the National Science Foundation under grant number
+CBET-1033985.
+
 
 Dan can be reached at daniel.b.allan@jhu.edu.
