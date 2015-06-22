@@ -250,16 +250,14 @@ class TestRecursiveSlicing(unittest.TestCase):
 
 class TestMultidimensional(unittest.TestCase):
     def setUp(self):
-        class IndexReturningReader(pims.base_frames.FramesSequenceND):
+        class IndexReturningReader(pims.FramesSequenceND):
             @property
             def pixel_type(self):
                 pass
 
-            @property
-            def frame_shape_2D(self):
-                return self._frame_shape_2D
-
             def __init__(self, **dims):
+                self._dim_add('x', len(dims))
+                self._dim_add('y', 1)
                 for k in dims:
                     self._dim_add(k, dims[k])
                 self._frame_shape_2D = (1, len(dims))
@@ -301,13 +299,13 @@ class TestMultidimensional(unittest.TestCase):
             assert_equal(self.v[i], [[0, 0, i, 0]])
 
     def test_aggregate(self):
-        self.v.aggregate = 'z'
+        self.v.aggregate = 'zyx'
         assert_equal(self.v[0].shape, (20, 1, 4))
-        self.v.aggregate = 'c'
+        self.v.aggregate = 'cyx'
         assert_equal(self.v[0].shape, (3, 1, 4))
-        self.v.aggregate = 'cz'
+        self.v.aggregate = 'czyx'
         assert_equal(self.v[0].shape, (3, 20, 1, 4))
-        self.v.aggregate = 'zc'
+        self.v.aggregate = 'zcyx'
         assert_equal(self.v[0].shape, (20, 3, 1, 4))
 
 

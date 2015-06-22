@@ -535,72 +535,66 @@ class FramesSequenceND(FramesSequence):
     dimensions. The properties `aggregate` and `iterate` define the functions
     of each dimension.
 
-    Subclassed readers need to define `frame_shape_2D` and `get_frame_2D`.
-    Dimensions need to be instanciated using the available method `add_dim`.
+    Subclassed readers need to define `get_frame_2D`.
+    Dimensions need to be instanciated using the available method `add_dim`. It
+    is always necessary to specify the the dimensions `y` and `x`.
 
     Examples
     --------
-    >>> class MDummy(Multidimensional):
+    >>> class MDummy(FramesSequenceND):
     ...    @property
     ...    def pixel_type(self):
     ...        return 'uint8'
-    ...    @property
-    ...    def frame_shape_2D(self):
-    ...        return self._frame_shape_2D
     ...    def __init__(self, shape, **dims):
+    ...        self._dim_add('y', shape[0])
+    ...        self._dim_add('x', shape[1])
     ...        for name in dims:
-    ...            self.add_dim(name, dims[name])
-    ...        self._frame_shape_2D = shape
+    ...            self._dim_add(name, dims[name])
     ...    def get_frame_2D(self, **ind):
-    ...        return np.zeros(self.frame_shape_2D, dtype=self.pixel_type)
+    ...        return np.zeros((self.sizes['y'], self.sizes['x']),
+    ...                        dtype=self.pixel_type)
 
     >>> frames = MDummy((64, 64), t=80, c=2, z=10, m=5)
     >>> frames.aggregate = 'cz'
     >>> frames.iterate = 't'
-    >>> frames.dims['m'].default = 3
+    >>> frames.default_coords['m'] = 3
     >>> frames[5]  # returns Frame at T=5, M=3 with shape (2, 10, 64, 64)
     """
     def _dim_init(self):
         self._sizes = {}
         self._default_coords = {}
         self._iterate = []
-        self._aggregate = []
+        self._aggregate = ['y', 'x']
 
     def _dim_add(self, name, size, default=0):
         if not hasattr(self, '_sizes'):
             self._dim_init()
         self._sizes[name] = size
-        self._default_coords[name] = default
+        if not (name == 'x' or name == 'y'):
+            self._default_coords[name] = default
 
     def __len__(self):
         return np.prod([self._sizes[d] for d in self._iterate])
 
-    @abstractproperty
-    def frame_shape_2D(self, **ind):
-        """ This property should return the shape of a single 2D image. """
-        pass
-
     @property
     def frame_shape(self):
         """ Returns the shape of the frame as returned by get_frame. """
-        shape = [self._sizes[d] for d in self._aggregate]
-        return tuple(shape + list(self.frame_shape_2D))
+        return tuple([self._sizes[d] for d in self._aggregate])
 
     @property
     def dims(self):
-        """ Returns a list of all dimensions, including x and y. """
-        return [k for k in self._sizes] + ['y', 'x']
+        """ Returns a list of all dimensions. """
+        return [k for k in self._sizes]
 
     @property
     def ndim(self):
-        """ Returns the number of dimensions, including x and y. """
-        return len(self._sizes) + 2
+        """ Returns the number of dimensions. """
+        return len(self._sizes)
 
     @property
     def sizes(self):
-        """ Returns a dict of all dimension sizes, including x and y. """
-        return dict(self._sizes,
-                    y=self.frame_shape_2D[0], x=self.frame_shape_2D[1])
+        """ Returns a dict of all dimension sizes. """
+        return self._sizes
 
     @property
     def aggregate(self):
@@ -614,6 +608,9 @@ class FramesSequenceND(FramesSequence):
         invalid = [k for k in value if k not in self._sizes]
         if invalid:
             raise ValueError("dimensions %r do not exist" % invalid)
+
+        if len(value) < 2 or not (value[-1] == 'x' and value[-2] == 'y'):
+            raise ValueError("aggregate should end with ['y', 'x']")
 
         for k in value:
             if k in self._iterate:
@@ -632,6 +629,9 @@ class FramesSequenceND(FramesSequence):
         invalid = [k for k in value if k not in self._sizes]
         if invalid:
             raise ValueError("dimensions %r do not exist" % invalid)
+
+        if 'x' in value or 'y' in value:
+            raise ValueError("y and x cannot be iterated over")
 
         for k in value:
             if k in self._aggregate:
@@ -677,32 +677,31 @@ class FramesSequenceND(FramesSequence):
         iter_coords = (i // iter_cumsizes) % iter_sizes
         coords.update(**{k: v for k, v in zip(self._iterate, iter_coords)})
 
-        # initialize a stack of 2D arrays to collect the Frame
-        Nframes = int(np.prod([self._sizes[k] for k in self.aggregate]))
-        result = np.empty([Nframes] + list(self.frame_shape_2D),
-                          dtype=self.pixel_type)
+        shape = self.frame_shape
+        if len(shape) == 2:  # simple case of only one frame
+            result = self.get_frame_2D(**coords)
+        else:  # general case of N dimensional frame
+            Nframes = int(np.prod(shape[:-2]))
+            result = np.empty([Nframes] + list(shape[-2:]),
+                              dtype=self.pixel_type)
 
-        # read all 2D frames and properly interate through the coordinates
-        for n in range(Nframes):
-            result[n] = self.get_frame_2D(**coords)
-            for dim in self._aggregate[::-1]:
-                coords[dim] += 1
-                if coords[dim] >= self._sizes[dim]:
-                    coords[dim] = 0
-                else:
-                    break
+            # read all 2D frames and properly interate through the coordinates
+            for n in range(Nframes):
+                result[n] = self.get_frame_2D(**coords)
+                for dim in self._aggregate[-3::-1]:
+                    coords[dim] += 1
+                    if coords[dim] >= self._sizes[dim]:
+                        coords[dim] = 0
+                    else:
+                        break
+            # reshape the array into the desired shape
+            result.shape = self.frame_shape
 
-        # reshape the array into the desired shape
-        result.shape = self.frame_shape
         return Frame(result, frame_no=i)
 
     def __repr__(self):
-        s = "<FramesSequenceND>\nDimensions: {0}\n"
+        s = "<FramesSequenceND>\nDimensions: {0}\n".format(self.ndim)
         for dim in self._sizes:
             s += "Dimension '{0}' size: {1}\n".format(dim, self._sizes[dim])
-
-        s += """2D frame Shape: {w} x {h}
-Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
-                                  dtype=self.pixel_type)        
+        s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s

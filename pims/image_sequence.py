@@ -281,10 +281,13 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         self.dim_identifiers = dim_identifiers
         super(ImageSequenceND, self).__init__(path_spec, process_func,
                                               dtype, as_grey, plugin)
+                                              
+        self._dim_add('y', self._first_frame_shape[0])
+        self._dim_add('x', self._first_frame_shape[1])
         if 't' in self.dims:
             self.iterate = 't'  # iterate over t
         if 'z' in self.dims:
-            self.aggregate = 'z'  # return z-stacks
+            self.aggregate = 'zyx'  # return z-stacks
 
     def _get_files(self, path_spec):
         super(ImageSequenceND, self)._get_files(path_spec)
@@ -310,22 +313,16 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
             res = res.astype(self._dtype)
         return res
 
-    @property
-    def frame_shape_2D(self):
-        return self._first_frame_shape
-
     def __repr__(self):
         try:
             source = self.pathname
         except AttributeError:
             source = '(list of images)'
-        s = ("<Frames>\nSource: {pathname}\nFrame Shape: {w} x {h}\n " +
-             "Pixel Datatype: {dtype}").format(h=self.frame_shape_2D[0],
-                                               w=self.frame_shape_2D[1],
-                                               pathname=source,
-                                               dtype=self.pixel_type)
+        s = "<ImageSequenceND>\nSource: {0}\n".format(source)
+        s += "Dimensions: {0}\n".format(self.ndim)
         for dim in self._sizes:
-            s += '\nSize {0}: {1}'.format(dim, self._sizes[dim])
+            s += "Dimension '{0}' size: {1}\n".format(dim, self._sizes[dim])
+        s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s
 
 
