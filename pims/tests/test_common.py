@@ -250,7 +250,7 @@ class TestRecursiveSlicing(unittest.TestCase):
 
 class TestMultidimensional(unittest.TestCase):
     def setUp(self):
-        class IndexReturningReader(pims.base_frames.Multidimensional):
+        class IndexReturningReader(pims.base_frames.FramesSequenceND):
             @property
             def pixel_type(self):
                 pass
@@ -261,7 +261,7 @@ class TestMultidimensional(unittest.TestCase):
 
             def __init__(self, **dims):
                 for k in dims:
-                    self.add_dim(k, dims[k])
+                    self._dim_add(k, dims[k])
                 self._frame_shape_2D = (1, len(dims))
 
             def get_frame_2D(self, **ind):
@@ -293,10 +293,10 @@ class TestMultidimensional(unittest.TestCase):
 
     def test_default(self):
         self.v.iterate = 't'
-        self.v.m.default = 2
+        self.v.default_coords['m'] = 2
         for i in [0, 1, 3]:
             assert_equal(self.v[i], [[0, 2, i, 0]])
-        self.v.m.default = 0
+        self.v.default_coords['m'] = 0
         for i in [0, 1, 3]:
             assert_equal(self.v[i], [[0, 0, i, 0]])
 
@@ -648,7 +648,7 @@ class ImageSequenceND(_image_series):
         self.klass = pims.ImageSequenceND
         self.kwargs = dict(dim_identifiers='tzc')
         self.v = self.klass(self.filename, **self.kwargs)
-        self.v.c.default = 0
+        self.v.default_coords['c'] = 0
         self.expected_len = 3
         self.expected_Z = 2
         self.expected_C = 2

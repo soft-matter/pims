@@ -13,7 +13,7 @@ from six.moves import StringIO
 
 import numpy as np
 
-from pims.base_frames import FramesSequence, Multidimensional
+from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
@@ -225,7 +225,7 @@ def filename_to_indices(filename, identifiers='tzc'):
     return result
 
 
-class ImageSequenceND(Multidimensional, ImageSequence):
+class ImageSequenceND(FramesSequenceND, ImageSequence):
     """Read a directory of multi-indexed image files into an iterable that
     returns images as numpy arrays. By default, the extra dimensions are
     denoted with t, z, c.
@@ -295,7 +295,7 @@ class ImageSequenceND(Multidimensional, ImageSequence):
                 self._toc = np.delete(self._toc, n, axis=1)
             else:
                 self._toc[:, n] = self._toc[:, n] - min(self._toc[:, n])
-                self.add_dim(name, max(self._toc[:, n]) + 1)
+                self._dim_add(name, max(self._toc[:, n]) + 1)
         self._filepaths = np.array(self._filepaths)
 
     def get_frame(self, i):
@@ -324,8 +324,8 @@ class ImageSequenceND(Multidimensional, ImageSequence):
                                                w=self.frame_shape_2D[1],
                                                pathname=source,
                                                dtype=self.pixel_type)
-        for dim in self.dims:
-            s += '\nSize {0}: {1}'.format(dim, self.dims[dim].size)
+        for dim in self._sizes:
+            s += '\nSize {0}: {1}'.format(dim, self._sizes[dim])
         return s
 
 
