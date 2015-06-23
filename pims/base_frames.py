@@ -658,7 +658,8 @@ class FramesSequenceND(FramesSequence):
 
         This method should take exactly one keyword argument per dimension,
         reflecting the index along each dimension. It returns a two dimensional
-        ndarray with shape (sizes['y'], sizes['x']) and dtype `pixel_type`.
+        ndarray with shape (sizes['y'], sizes['x']) and dtype `pixel_type`. It
+        may also return a Frame object, so that metadata will be propagated.
         """
         pass
 
@@ -682,14 +683,22 @@ class FramesSequenceND(FramesSequence):
         shape = self.frame_shape
         if len(shape) == 2:  # simple case of only one frame
             result = self.get_frame_2D(**coords)
+            if hasattr(result, 'metadata'):
+                metadata = result.metadata
+            else:
+                metadata = None
         else:  # general case of N dimensional frame
             Nframes = int(np.prod(shape[:-2]))
             result = np.empty([Nframes] + list(shape[-2:]),
                               dtype=self.pixel_type)
 
-            # read all 2D frames and properly interate through the coordinates
+            # read all 2D frames and properly iterate through the coordinates
+            mdlist = []
             for n in range(Nframes):
-                result[n] = self.get_frame_2D(**coords)
+                frame = self.get_frame_2D(**coords)
+                result[n] = frame
+                if hasattr(frame, 'metadata'):
+                    mdlist.append(frame.metadata)
                 for dim in self._aggregate[-3::-1]:
                     coords[dim] += 1
                     if coords[dim] >= self._sizes[dim]:
@@ -699,7 +708,21 @@ class FramesSequenceND(FramesSequence):
             # reshape the array into the desired shape
             result.shape = self.frame_shape
 
-        return Frame(result, frame_no=i)
+            # squash the list of metadata dicts into one dict of lists
+            if len(mdlist) > 1:
+                keys = mdlist[0].keys()
+                metadata = {}
+                for k in keys:
+                    metadata[k] = [row[k] for row in mdlist]
+                    # if all values are equal, only return one value
+                    if metadata[k][1:] == metadata[k][:-1]:
+                        metadata[k] = metadata[k][0]
+            elif len(mdlist) == 1:
+                metadata = mdlist[0]
+            else:
+                metadata = None
+
+        return Frame(result, frame_no=i, metadata=metadata)
 
     def __repr__(self):
         s = "<FramesSequenceND>\nDimensions: {0}\n".format(self.ndim)
