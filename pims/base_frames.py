@@ -564,17 +564,19 @@ class FramesSequenceND(FramesSequence):
         self._sizes = {}
         self._default_coords = {}
         self._iterate = []
-        self._aggregate = ['y', 'x']
+        self._aggregate = 'yx'
 
     def _dim_add(self, name, size, default=0):
         if not hasattr(self, '_sizes'):
             self._dim_init()
-        self._sizes[name] = size
+        if name in self._sizes:
+            raise ValueError("dimension '{}' already exists".format(name))
+        self._sizes[name] = int(size)
         if not (name == 'x' or name == 'y'):
-            self._default_coords[name] = default
+            self._default_coords[name] = int(default)
 
     def __len__(self):
-        return np.prod([self._sizes[d] for d in self._iterate])
+        return int(np.prod([self._sizes[d] for d in self._iterate]))
 
     @property
     def frame_shape(self):
@@ -656,7 +658,7 @@ class FramesSequenceND(FramesSequence):
 
         This method should take exactly one keyword argument per dimension,
         reflecting the index along each dimension. It returns a two dimensional
-        ndarray with shape `frame_shape_2D` and dtype `pixel_type`.
+        ndarray with shape (sizes['y'], sizes['x']) and dtype `pixel_type`.
         """
         pass
 
