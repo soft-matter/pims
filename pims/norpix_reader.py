@@ -84,7 +84,10 @@ class NorpixSeq(FramesSequence):
             raise IOError('Only uncompressed mono images are supported in .seq files')
 
         # File-level metadata
-        self._image_offset = self.header_dict['header_size']
+        if self.header_dict['version'] == 5:  # StreamPix version 6
+            self._image_offset = 8192
+        else:  # Older versions
+            self._image_offset = 1024
         self._image_block_size = self.header_dict['true_image_size']
         self._filesize = os.stat(self._filename).st_size
         self._image_count = int((self._filesize - self._image_offset) /
