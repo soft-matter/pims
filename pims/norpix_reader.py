@@ -42,9 +42,6 @@ HEADER_FIELDS = [
     ('description_format', LONG),
 ]
 
-# Timestamp = 4-byte unsigned long + 2-byte unsigned short
-TIMESTAMP_STRUCT = struct.Struct('<LH')
-
 
 class NorpixSeq(FramesSequence):
     """Read Norpix sequence (.seq) files
@@ -86,8 +83,14 @@ class NorpixSeq(FramesSequence):
         # File-level metadata
         if self.header_dict['version'] >= 5:  # StreamPix version 6
             self._image_offset = 8192
+            # Timestamp = 4-byte unsigned long + 2-byte unsigned short (ms)
+            #   + 2-byte unsigned short (us)
+            self._timestamp_struct = struct.Struct('<LHH')
+            self._timestamp_micro = True
         else:  # Older versions
             self._image_offset = 1024
+            self._timestamp_struct = struct.Struct('<LH')
+            self._timestamp_micro = False
         self._image_block_size = self.header_dict['true_image_size']
         self._filesize = os.stat(self._filename).st_size
         self._image_count = int((self._filesize - self._image_offset) /
@@ -169,8 +172,12 @@ class NorpixSeq(FramesSequence):
 
         Returns a floating-point representation in seconds, and a datetime instance.
         """
-        tsecs, tms = TIMESTAMP_STRUCT.unpack(self._file.read(6))
-        tfloat = tsecs + float(tms) / 1000.
+        if self._timestamp_micro:
+            tsecs, tms, tus = self._timestamp_struct.unpack(self._file.read(8))
+            tfloat = tsecs + float(tms) / 1000. + float(tus) / 1.0e6
+        else:
+            tsecs, tms = self._timestamp_struct.unpack(self._file.read(6))
+            tfloat = tsecs + float(tms) / 1000.
         return tfloat, datetime.datetime.fromtimestamp(tfloat)
 
     def _get_time(self, i):
