@@ -78,13 +78,13 @@ class NorpixSeq(FramesSequence):
 
         self.header_dict = self._read_header(HEADER_FIELDS)
 
-        if self.header_dict['header_size'] != 1024:
+        if self.header_dict['magic'] != 0xFEED:
             raise IOError('The format of this .seq file is unrecognized')
         if self.header_dict['image_format'] != 100:
             raise IOError('Only uncompressed mono images are supported in .seq files')
 
         # File-level metadata
-        if self.header_dict['version'] == 5:  # StreamPix version 6
+        if self.header_dict['version'] >= 5:  # StreamPix version 6
             self._image_offset = 8192
         else:  # Older versions
             self._image_offset = 1024
