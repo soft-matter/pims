@@ -532,12 +532,43 @@ def pipeline(func):
 
 class FramesSequenceND(FramesSequence):
     """ A base class defining a FramesSequence with an arbitrary number of
-    dimensions. The properties `aggregate` and `iterate` define the functions
-    of each dimension.
+    dimensions. The properties `aggregate`, `iterate`, and `default_coords`
+    define the functions of each dimension. See below for a description of
+    each attribute.
 
-    Subclassed readers need to define `get_frame_2D`.
-    Dimensions need to be instanciated using the available method `add_dim`. It
+    Subclassed readers only need to define `get_frame_2D`, `pixel_type` and
+    `__init__`. In the `__init__`, at least dimensions y and x need to be
+    instanciated using `_dim_add(name, size)`.
+
+    The attributes `__len__`, `frame_shape`, and `get_frame` are defined by
+    this base_class; these are not meant to be changed.
+
+    Dimensions need to be instanciated using the available method `add_dim`.It
     is always necessary to specify the the dimensions `y` and `x`.
+
+    Attributes
+    ----------
+    dims : list of strings
+        List of all available dimensions
+    ndim : int
+        Number of image dimensions
+    sizes : dict of int
+        Dictionary with all dimension sizes
+    frame_shape : tuple of int
+        Shape of frames that will be returned by get_frame
+    iterate : iterable of strings
+        This determines which dimensions will be iterated over by the
+        FramesSequence. The last element in will iterate fastest.
+        x and y are not allowed.
+    aggregate : iterable of strings
+        This determines which dimensions will be aggregated into one Frame.
+        The dimensions in the ndarray that is returned by get_frame has
+        the same order as the order in this list. The last two elements have
+        to be ['y', 'x'].
+    default_coords: dict of int
+        When a dimension is not present in both iterate and aggregate, the
+        coordinate contained in this dictionary will be used.
+
 
     Examples
     --------
@@ -602,7 +633,8 @@ class FramesSequenceND(FramesSequence):
     def aggregate(self):
         """ This determines which dimensions will be aggregated into one Frame.
         The ndarray that is returned by get_frame has the same dimension order
-        as the order of aggregate. """
+        as the order of aggregate. The last two elements have to be ['y', 'x'].
+        """
         return self._aggregate
 
     @aggregate.setter
@@ -623,7 +655,8 @@ class FramesSequenceND(FramesSequence):
     @property
     def iterate(self):
         """ This determines which dimensions will be iterated over by the
-        FramesSequence. The last element will iterate fastest. """
+        FramesSequence. The last element will iterate fastest.
+        x and y are not allowed. """
         return self._iterate
 
     @iterate.setter
@@ -643,6 +676,8 @@ class FramesSequenceND(FramesSequence):
 
     @property
     def default_coords(self):
+        """ When a dimension is not present in both iterate and aggregate, the
+        coordinate contained in this dictionary will be used. """
         return self._default_coords
 
     @default_coords.setter
