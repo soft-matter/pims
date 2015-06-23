@@ -2,17 +2,17 @@
 
 import os
 import unittest
+import nose
 import numpy as np
 import pims
 import pims.norpix_reader
 
 tests_path, _ = os.path.split(os.path.abspath(__file__))
-sample_filename = os.path.join(tests_path, 'data', 'sample_norpix.seq')
 
 class common_norpix_sample_tests(object):
     """Test the Norpix .seq reader on a sample file."""
     def setUp(self):
-        self.seq = pims.open(sample_filename, **self.options)
+        self.seq = pims.open(self.sample_filename, **self.options)
 
     def tearDown(self):
         self.seq.close()
@@ -68,13 +68,32 @@ class common_norpix_sample_tests(object):
         assert isinstance(self.seq.dump_times_float(), np.ndarray)
 
 
-class test_defaults(common_norpix_sample_tests, unittest.TestCase):
+class test_norpix5_sample(common_norpix_sample_tests, unittest.TestCase):
+    def setUp(self):
+        self.sample_filename = os.path.join(tests_path, 'data',
+                                            'sample_norpix5.seq')
+        if not os.path.exists(self.sample_filename):
+            raise nose.SkipTest('(Large) Norpix v5 sample file not found. '
+                                'Skipping.')
+
+        self.options = {}
+        super(test_norpix5_sample, self).setUp()
+
+
+class norpix6_sample_tests(common_norpix_sample_tests):
+    def setUp(self):
+        self.sample_filename = os.path.join(tests_path, 'data',
+                                            'sample_norpix6.seq')
+        super(norpix6_sample_tests, self).setUp()
+
+
+class test_defaults(norpix6_sample_tests, unittest.TestCase):
     def setUp(self):
         self.options = {}
         super(test_defaults, self).setUp()
 
 
-class test_dtype(common_norpix_sample_tests, unittest.TestCase):
+class test_dtype(norpix6_sample_tests, unittest.TestCase):
     def setUp(self):
         self.options = {}
         self.dtype = np.float_
@@ -86,7 +105,7 @@ class test_dtype(common_norpix_sample_tests, unittest.TestCase):
         assert fr.dtype == self.dtype
 
 
-class test_process_func(common_norpix_sample_tests, unittest.TestCase):
+class test_process_func(norpix6_sample_tests, unittest.TestCase):
     def setUp(self):
         self.options = {}
         self.options['dtype'] = np.float_
