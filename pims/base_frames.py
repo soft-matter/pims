@@ -564,7 +564,7 @@ class FramesSequenceND(FramesSequence):
         self._sizes = {}
         self._default_coords = {}
         self._iterate = []
-        self._aggregate = 'yx'
+        self._aggregate = ['y', 'x']
 
     def _dim_add(self, name, size, default=0):
         if not hasattr(self, '_sizes'):
@@ -618,7 +618,7 @@ class FramesSequenceND(FramesSequence):
             if k in self._iterate:
                 del self._iterate[self._iterate.index(k)]
 
-        self._aggregate = value
+        self._aggregate = list(value)
 
     @property
     def iterate(self):
@@ -639,7 +639,7 @@ class FramesSequenceND(FramesSequence):
             if k in self._aggregate:
                 del self._aggregate[self._aggregate.index(k)]
 
-        self._iterate = value
+        self._iterate = list(value)
 
     @property
     def default_coords(self):
