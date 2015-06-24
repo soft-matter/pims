@@ -260,7 +260,6 @@ class TestMultidimensional(unittest.TestCase):
                 self._init_axis('y', 1)
                 for k in dims:
                     self._init_axis(k, dims[k])
-                self._frame_shape_2D = (1, len(dims))
 
             def get_frame_2D(self, **ind):
                 return np.array([[ind[i] for i in sorted(ind)]])
@@ -308,6 +307,46 @@ class TestMultidimensional(unittest.TestCase):
         self.v.bundle_axes = 'zcyx'
         assert_equal(self.v[0].shape, (20, 3, 1, 4))
 
+    def test_frame_no(self):
+        self.v.iter_axes = 't'
+        for i in np.random.randint(0, 100, 10):
+            assert_equal(self.v[i].frame_no, i)
+        self.v.iter_axes = 'zc'    
+        for i in np.random.randint(0, 3*20, 10):
+            assert_equal(self.v[i].frame_no, i)
+
+    def test_metadata(self):
+        # if no metadata is provided by the reader, metadata should be {} 
+        assert_equal(self.v[0].metadata, {})
+
+        class MetadataReturningReader(pims.FramesSequenceND):
+            @property
+            def pixel_type(self):
+                pass
+
+            def __init__(self, **dims):
+                self._init_axis('x', len(dims))
+                self._init_axis('y', 1)
+                for k in dims:
+                    self._init_axis(k, dims[k])
+
+            def get_frame_2D(self, **ind):
+                metadata = {i: ind[i] for i in ind}
+                im = np.array([[ind[i] for i in sorted(ind)]])
+                return pims.Frame(im, metadata=metadata)
+
+        self.v_md = MetadataReturningReader(c=3, m=5, t=100, z=20)
+        self.v_md.iter_axes = 't'
+        self.v_md.bundle_axes = 'czyx'
+        md = self.v_md[15].metadata
+
+        # if metadata is provided, it should have the correct shape
+        assert_equal(md['z'].shape, (3, 20))  # shape 'c', 'z'
+        assert_equal(md['z'][:, 5], 5)
+        assert_equal(md['c'][1, :], 1)
+
+        # if a metadata field is equal for all frames, it should be a scalar
+        assert_equal(md['t'], 15)
 
 def _rescale(img):
     print(type(img))

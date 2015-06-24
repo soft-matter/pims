@@ -11,6 +11,7 @@ import itertools
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
 from functools import wraps
+from warnings import warn
 
 
 class FramesStream(with_metaclass(ABCMeta, object)):
@@ -691,7 +692,9 @@ class FramesSequenceND(FramesSequence):
         This method should take exactly one keyword argument per axis,
         reflecting the coordinate along each axis. It returns a two dimensional
         ndarray with shape (sizes['y'], sizes['x']) and dtype `pixel_type`. It
-        may also return a Frame object, so that metadata will be propagated.
+        may also return a Frame object, so that metadata will be propagated. It
+        will only propagate metadata if every bundled frame gives the same
+        fields.
         """
         pass
 
@@ -725,12 +728,12 @@ class FramesSequenceND(FramesSequence):
                               dtype=self.pixel_type)
 
             # read all 2D frames and properly iterate through the coordinates
-            mdlist = []
+            mdlist = [{}] * Nframes
             for n in range(Nframes):
                 frame = self.get_frame_2D(**coords)
                 result[n] = frame
                 if hasattr(frame, 'metadata'):
-                    mdlist.append(frame.metadata)
+                    mdlist[n] = frame.metadata
                 for dim in self._bundle_axes[-3::-1]:
                     coords[dim] += 1
                     if coords[dim] >= self._sizes[dim]:
@@ -738,21 +741,25 @@ class FramesSequenceND(FramesSequence):
                     else:
                         break
             # reshape the array into the desired shape
-            result.shape = self.frame_shape
+            result.shape = shape
 
-            # squash the list of metadata dicts into one dict of lists
-            if len(mdlist) > 1:
+            # propagate metadata
+            metadata = {}
+            if not np.all([md == {} for md in mdlist]):
                 keys = mdlist[0].keys()
-                metadata = {}
                 for k in keys:
-                    metadata[k] = [row[k] for row in mdlist]
-                    # if all values are equal, only return one value
-                    if metadata[k][1:] == metadata[k][:-1]:
-                        metadata[k] = metadata[k][0]
-            elif len(mdlist) == 1:
-                metadata = mdlist[0]
-            else:
-                metadata = None
+                    try:
+                        metadata[k] = [row[k] for row in mdlist]
+                    except KeyError:
+                        # if a field is not present in every frame, ignore it
+                        warn('metadata field {} is not propagated')
+                    else:
+                        # if all values are equal, only return one value
+                        if metadata[k][1:] == metadata[k][:-1]:
+                            metadata[k] = metadata[k][0]
+                        else:  # cast into ndarray
+                            metadata[k] = np.array(metadata[k])
+                            metadata[k].shape = shape[:-2]
 
         return Frame(result, frame_no=i, metadata=metadata)
 
