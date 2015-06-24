@@ -532,43 +532,41 @@ def pipeline(func):
 
 class FramesSequenceND(FramesSequence):
     """ A base class defining a FramesSequence with an arbitrary number of
-    dimensions. The properties `aggregate`, `iterate`, and `default_coords`
-    define the functions of each dimension. See below for a description of
+    axes. In the context of this reader base class, dimensions like 'x', 'y',
+    't' and 'z' will be called axes. Indices along these axes will be called
+    coordinates.
+
+    The properties `bundle_axes`, `iter_axes`, and `default_coords` define
+    to which coordinates each index points. See below for a description of
     each attribute.
 
     Subclassed readers only need to define `get_frame_2D`, `pixel_type` and
-    `__init__`. In the `__init__`, at least dimensions y and x need to be
-    instanciated using `_dim_add(name, size)`.
+    `__init__`. In the `__init__`, at least axes y and x need to be
+    initialized using `_init_axis(name, size)`.
 
     The attributes `__len__`, `frame_shape`, and `get_frame` are defined by
     this base_class; these are not meant to be changed.
 
-    Dimensions need to be instanciated using the available method `add_dim`.It
-    is always necessary to specify the the dimensions `y` and `x`.
-
     Attributes
     ----------
-    dims : list of strings
-        List of all available dimensions
+    axes : list of strings
+        List of all available axes
     ndim : int
-        Number of image dimensions
+        Number of image axes
     sizes : dict of int
-        Dictionary with all dimension sizes
+        Dictionary with all axis sizes
     frame_shape : tuple of int
         Shape of frames that will be returned by get_frame
-    iterate : iterable of strings
-        This determines which dimensions will be iterated over by the
-        FramesSequence. The last element in will iterate fastest.
-        x and y are not allowed.
-    aggregate : iterable of strings
-        This determines which dimensions will be aggregated into one Frame.
-        The dimensions in the ndarray that is returned by get_frame has
-        the same order as the order in this list. The last two elements have
-        to be ['y', 'x'].
+    iter_axes : iterable of strings
+        This determines which axes will be iterated over by the FramesSequence.
+        The last element in will iterate fastest. x and y are not allowed.
+    bundle_axes : iterable of strings
+        This determines which axes will be bundled into one Frame. The axes in
+        the ndarray that is returned by get_frame have the same order as the
+        order in this list. The last two elements have to be ['y', 'x'].
     default_coords: dict of int
-        When a dimension is not present in both iterate and aggregate, the
+        When a dimension is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used.
-
 
     Examples
     --------
@@ -576,107 +574,106 @@ class FramesSequenceND(FramesSequence):
     ...    @property
     ...    def pixel_type(self):
     ...        return 'uint8'
-    ...    def __init__(self, shape, **dims):
-    ...        self._dim_add('y', shape[0])
-    ...        self._dim_add('x', shape[1])
-    ...        for name in dims:
-    ...            self._dim_add(name, dims[name])
+    ...    def __init__(self, shape, **axes):
+    ...        self._init_axis('y', shape[0])
+    ...        self._init_axis('x', shape[1])
+    ...        for name in axes:
+    ...            self._init_axis(name, axes[name])
     ...    def get_frame_2D(self, **ind):
     ...        return np.zeros((self.sizes['y'], self.sizes['x']),
     ...                        dtype=self.pixel_type)
 
     >>> frames = MDummy((64, 64), t=80, c=2, z=10, m=5)
-    >>> frames.aggregate = 'cz'
-    >>> frames.iterate = 't'
+    >>> frames.bundle_axes = 'czyx'
+    >>> frames.iter_axes = 't'
     >>> frames.default_coords['m'] = 3
     >>> frames[5]  # returns Frame at T=5, M=3 with shape (2, 10, 64, 64)
     """
-    def _dim_init(self):
-        self._sizes = {}
-        self._default_coords = {}
-        self._iterate = []
-        self._aggregate = ['y', 'x']
-
-    def _dim_add(self, name, size, default=0):
+    def _init_axis(self, name, size, default=0):
+        # check if the axes have been initialized, if not, do it here
         if not hasattr(self, '_sizes'):
-            self._dim_init()
-        if name in self._sizes:
+            self._sizes = {}
+            self._default_coords = {}
+            self._iter_axes = []
+            self._bundle_axes = ['y', 'x']
+        elif name in self._sizes:
             raise ValueError("dimension '{}' already exists".format(name))
         self._sizes[name] = int(size)
         if not (name == 'x' or name == 'y'):
-            self._default_coords[name] = int(default)
+            self.default_coords[name] = int(default)
 
     def __len__(self):
-        return int(np.prod([self._sizes[d] for d in self._iterate]))
+        return int(np.prod([self._sizes[d] for d in self._iter_axes]))
 
     @property
     def frame_shape(self):
         """ Returns the shape of the frame as returned by get_frame. """
-        return tuple([self._sizes[d] for d in self._aggregate])
+        return tuple([self._sizes[d] for d in self._bundle_axes])
 
     @property
-    def dims(self):
-        """ Returns a list of all dimensions. """
+    def axes(self):
+        """ Returns a list of all axes. """
         return [k for k in self._sizes]
 
     @property
     def ndim(self):
-        """ Returns the number of dimensions. """
+        """ Returns the number of axes. """
         return len(self._sizes)
 
     @property
     def sizes(self):
-        """ Returns a dict of all dimension sizes. """
+        """ Returns a dict of all axis sizes. """
         return self._sizes
 
     @property
-    def aggregate(self):
-        """ This determines which dimensions will be aggregated into one Frame.
+    def bundle_axes(self):
+        """ This determines which dimensions will be bundled into one Frame.
         The ndarray that is returned by get_frame has the same dimension order
-        as the order of aggregate. The last two elements have to be ['y', 'x'].
+        as the order of `bundle_axes`.
+        The last two elements have to be ['y', 'x'].
         """
         return self._aggregate
 
-    @aggregate.setter
-    def aggregate(self, value):
+    @bundle_axes.setter
+    def bundle_axes(self, value):
         invalid = [k for k in value if k not in self._sizes]
         if invalid:
-            raise ValueError("dimensions %r do not exist" % invalid)
+            raise ValueError("axes %r do not exist" % invalid)
 
         if len(value) < 2 or not (value[-1] == 'x' and value[-2] == 'y'):
-            raise ValueError("aggregate should end with ['y', 'x']")
+            raise ValueError("bundle_axes should end with ['y', 'x']")
 
         for k in value:
-            if k in self._iterate:
-                del self._iterate[self._iterate.index(k)]
+            if k in self._iter_axes:
+                del self._iter_axes[self._iter_axes.index(k)]
 
-        self._aggregate = list(value)
+        self._bundle_axes = list(value)
 
     @property
-    def iterate(self):
-        """ This determines which dimensions will be iterated over by the
+    def iter_axes(self):
+        """ This determines which axes will be iterated over by the
         FramesSequence. The last element will iterate fastest.
         x and y are not allowed. """
-        return self._iterate
+        return self._iterate_axes
 
-    @iterate.setter
-    def iterate(self, value):
+    @iter_axes.setter
+    def iter_axes(self, value):
         invalid = [k for k in value if k not in self._sizes]
         if invalid:
-            raise ValueError("dimensions %r do not exist" % invalid)
+            raise ValueError("axes %r do not exist" % invalid)
 
         if 'x' in value or 'y' in value:
-            raise ValueError("y and x cannot be iterated over")
+            raise ValueError("axes 'y' and 'x' cannot be iterated")
 
         for k in value:
-            if k in self._aggregate:
-                del self._aggregate[self._aggregate.index(k)]
+            if k in self._bundle_axes:
+                del self._bundle_axes[self._bundle_axes.index(k)]
 
-        self._iterate = list(value)
+        self._iter_axes = list(value)
 
     @property
     def default_coords(self):
-        """ When a dimension is not present in both iterate and aggregate, the
+        """ When a axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used. """
         return self._default_coords
 
@@ -684,36 +681,36 @@ class FramesSequenceND(FramesSequence):
     def default_coords(self, value):
         invalid = [k for k in value if k not in self._sizes]
         if invalid:
-            raise ValueError("dimensions %r do not exist" % invalid)
+            raise ValueError("axes %r do not exist" % invalid)
         self._default_coords.update(**value)
 
     @abstractmethod
     def get_frame_2D(self, **ind):
         """ The actual frame reader, defined by the subclassed reader.
 
-        This method should take exactly one keyword argument per dimension,
-        reflecting the index along each dimension. It returns a two dimensional
+        This method should take exactly one keyword argument per axis,
+        reflecting the coordinate along each axis. It returns a two dimensional
         ndarray with shape (sizes['y'], sizes['x']) and dtype `pixel_type`. It
         may also return a Frame object, so that metadata will be propagated.
         """
         pass
 
     def get_frame(self, i):
-        """ Returns a Frame of shape deterimend by aggregate. The index value
-        is interpreted according to the `iterate` property. Coordinates not
-        present in both `iterate` and `aggregate` will be set to their default
-        value (see `default_coords`). """
+        """ Returns a Frame of shape deterimend by bundle_axes. The index value
+        is interpreted according to the iter_axes property. Coordinates not
+        present in both iter_axes and bundle_axes will be set to their default
+        value (see default_coords). """
 
         # start with the default coordinates
         coords = self._default_coords.copy()
 
         # list sizes of iterate dimensions
-        iter_sizes = [self._sizes[k] for k in self._iterate]
+        iter_sizes = [self._sizes[k] for k in self._iter_axes]
         # list how much i has to increase to get an increase of coordinate n
         iter_cumsizes = np.append(np.cumprod(iter_sizes[::-1])[-2::-1], 1)
         # calculate the coordinates and update the coords dictionary
         iter_coords = (i // iter_cumsizes) % iter_sizes
-        coords.update(**{k: v for k, v in zip(self._iterate, iter_coords)})
+        coords.update(**{k: v for k, v in zip(self._iter_axes, iter_coords)})
 
         shape = self.frame_shape
         if len(shape) == 2:  # simple case of only one frame
@@ -734,7 +731,7 @@ class FramesSequenceND(FramesSequence):
                 result[n] = frame
                 if hasattr(frame, 'metadata'):
                     mdlist.append(frame.metadata)
-                for dim in self._aggregate[-3::-1]:
+                for dim in self._bundle_axes[-3::-1]:
                     coords[dim] += 1
                     if coords[dim] >= self._sizes[dim]:
                         coords[dim] = 0

@@ -256,7 +256,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
 
     Attributes
     ----------
-    dims : list of strings
+    axes : list of strings
         List of all available dimensions
     ndim : int
         Number of image dimensions
@@ -264,11 +264,11 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         Dictionary with all dimension sizes
     frame_shape : tuple of int
         Shape of frames that will be returned by get_frame
-    iterate : iterable of strings
+    iter_axes : iterable of strings
         This determines which dimensions will be iterated over by the
         FramesSequence. The last element in will iterate fastest.
         x and y are not allowed. Defaults to ['t'].
-    aggregate : iterable of strings
+    bundle_axes : iterable of strings
         This determines which dimensions will be aggregated into one Frame.
         The dimensions in the ndarray that is returned by get_frame has
         the same order as the order in this list. The last two elements have
@@ -284,24 +284,23 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         self.dim_identifiers = dim_identifiers
         super(ImageSequenceND, self).__init__(path_spec, process_func,
                                               dtype, as_grey, plugin)
-                                              
-        self._dim_add('y', self._first_frame_shape[0])
-        self._dim_add('x', self._first_frame_shape[1])
-        if 't' in self.dims:
-            self.iterate = 't'  # iterate over t
-        if 'z' in self.dims:
-            self.aggregate = 'zyx'  # return z-stacks
+        self._init_axis('y', self._first_frame_shape[0])
+        self._init_axis('x', self._first_frame_shape[1])
+        if 't' in self.axes:
+            self.iter_axes = 't'  # iterate over t
+        if 'z' in self.axes:
+            self.bundle_axes = 'zyx'  # return z-stacks
 
     def _get_files(self, path_spec):
         super(ImageSequenceND, self)._get_files(path_spec)
-        self._toc = np.array([filename_to_indices(f, self.dim_identifiers) \
+        self._toc = np.array([filename_to_indices(f, self.dim_identifiers)
                               for f in self._filepaths])
         for n, name in enumerate(self.dim_identifiers):
             if np.all(self._toc[:, n] == 0):
                 self._toc = np.delete(self._toc, n, axis=1)
             else:
                 self._toc[:, n] = self._toc[:, n] - min(self._toc[:, n])
-                self._dim_add(name, max(self._toc[:, n]) + 1)
+                self._init_axis(name, max(self._toc[:, n]) + 1)
         self._filepaths = np.array(self._filepaths)
 
     def get_frame(self, i):

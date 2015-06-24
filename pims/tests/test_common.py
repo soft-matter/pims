@@ -256,10 +256,10 @@ class TestMultidimensional(unittest.TestCase):
                 pass
 
             def __init__(self, **dims):
-                self._dim_add('x', len(dims))
-                self._dim_add('y', 1)
+                self._init_axis('x', len(dims))
+                self._init_axis('y', 1)
                 for k in dims:
-                    self._dim_add(k, dims[k])
+                    self._init_axis(k, dims[k])
                 self._frame_shape_2D = (1, len(dims))
 
             def get_frame_2D(self, **ind):
@@ -268,21 +268,21 @@ class TestMultidimensional(unittest.TestCase):
         self.v = IndexReturningReader(c=3, m=5, t=100, z=20)
 
     def test_iterate(self):
-        self.v.iterate = 't'
+        self.v.iter_axes = 't'
         for i in [0, 1, 15]:
             assert_equal(self.v[i], [[0, 0, i, 0]])
-        self.v.iterate = 'm'
+        self.v.iter_axes = 'm'
         for i in [0, 1, 3]:
             assert_equal(self.v[i], [[0, i, 0, 0]])
-        self.v.iterate = 'zc'
+        self.v.iter_axes = 'zc'
         assert_equal(self.v[0], [[0, 0, 0, 0]])
         assert_equal(self.v[2], [[2, 0, 0, 0]])
         assert_equal(self.v[30], [[0, 0, 0, 10]])
-        self.v.iterate = 'cz'
+        self.v.iter_axes = 'cz'
         assert_equal(self.v[0], [[0, 0, 0, 0]])
         assert_equal(self.v[4], [[0, 0, 0, 4]])
         assert_equal(self.v[21], [[1, 0, 0, 1]])
-        self.v.iterate = 'tzc'
+        self.v.iter_axes = 'tzc'
         assert_equal(self.v[0], [[0, 0, 0, 0]])
         assert_equal(self.v[4], [[1, 0, 0, 1]])
         assert_equal(self.v[180], [[0, 0, 3, 0]])
@@ -290,7 +290,7 @@ class TestMultidimensional(unittest.TestCase):
         assert_equal(self.v[212], [[2, 0, 3, 10]])
 
     def test_default(self):
-        self.v.iterate = 't'
+        self.v.iter_axes = 't'
         self.v.default_coords['m'] = 2
         for i in [0, 1, 3]:
             assert_equal(self.v[i], [[0, 2, i, 0]])
@@ -298,14 +298,14 @@ class TestMultidimensional(unittest.TestCase):
         for i in [0, 1, 3]:
             assert_equal(self.v[i], [[0, 0, i, 0]])
 
-    def test_aggregate(self):
-        self.v.aggregate = 'zyx'
+    def test_bundle(self):
+        self.v.bundle_axes = 'zyx'
         assert_equal(self.v[0].shape, (20, 1, 4))
-        self.v.aggregate = 'cyx'
+        self.v.bundle_axes = 'cyx'
         assert_equal(self.v[0].shape, (3, 1, 4))
-        self.v.aggregate = 'czyx'
+        self.v.bundle_axes = 'czyx'
         assert_equal(self.v[0].shape, (3, 20, 1, 4))
-        self.v.aggregate = 'zcyx'
+        self.v.bundle_axes = 'zcyx'
         assert_equal(self.v[0].shape, (20, 3, 1, 4))
 
 
