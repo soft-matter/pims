@@ -1,6 +1,7 @@
 # Tests for norpix_reader.py
 
 import os
+from datetime import datetime
 import unittest
 import nose
 import numpy as np
@@ -35,9 +36,8 @@ class common_norpix_sample_tests(object):
 
     def test_get_frame(self):
         s = self.seq
-        frames = {0, 1, len(s) - 1}  # In case of length 1 or 2
         hashes = set()  # Check that each frame is unique
-        for i in sorted(frames):
+        for i in range(len(s)):
             fr = s[i]
             fhash = hash(np.array(fr).tobytes())
             assert fhash not in hashes
@@ -52,14 +52,16 @@ class common_norpix_sample_tests(object):
     def test_get_time(self):
         """Check all 3 ways to get time of a frame."""
         s = self.seq
-        times = set()
-        for i in (0, 1, len(s) - 1):
+        maxtime = 0.
+        for i in range(len(s)):
             tdt = s.get_time(i)
             tfloat = s.get_time_float(i)
             fr = s[i]
 
-            assert tfloat not in times
-            times.add(tfloat)
+            assert isinstance(tdt, datetime)
+
+            assert tfloat > maxtime
+            maxtime = tfloat
 
             assert fr.metadata['time'] == tdt
             assert fr.metadata['time_float'] == tfloat
