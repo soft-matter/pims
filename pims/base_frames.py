@@ -633,7 +633,7 @@ class FramesSequenceND(FramesSequence):
         as the order of `bundle_axes`.
         The last two elements have to be ['y', 'x'].
         """
-        return self._aggregate
+        return self._bundle_axes
 
     @bundle_axes.setter
     def bundle_axes(self, value):
@@ -655,7 +655,7 @@ class FramesSequenceND(FramesSequence):
         """ This determines which axes will be iterated over by the
         FramesSequence. The last element will iterate fastest.
         x and y are not allowed. """
-        return self._iterate_axes
+        return self._iter_axes
 
     @iter_axes.setter
     def iter_axes(self, value):
