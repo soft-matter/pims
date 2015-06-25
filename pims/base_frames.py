@@ -590,13 +590,16 @@ class FramesSequenceND(FramesSequence):
     >>> frames.default_coords['m'] = 3
     >>> frames[5]  # returns Frame at T=5, M=3 with shape (2, 10, 64, 64)
     """
+    def _clear_axes(self):
+        self._sizes = {}
+        self._default_coords = {}
+        self._iter_axes = []
+        self._bundle_axes = ['y', 'x']
+
     def _init_axis(self, name, size, default=0):
         # check if the axes have been initialized, if not, do it here
         if not hasattr(self, '_sizes'):
-            self._sizes = {}
-            self._default_coords = {}
-            self._iter_axes = []
-            self._bundle_axes = ['y', 'x']
+            self._clear_axes()
         elif name in self._sizes:
             raise ValueError("dimension '{}' already exists".format(name))
         self._sizes[name] = int(size)
@@ -703,6 +706,8 @@ class FramesSequenceND(FramesSequence):
         is interpreted according to the iter_axes property. Coordinates not
         present in both iter_axes and bundle_axes will be set to their default
         value (see default_coords). """
+        if i > len(self):
+            raise IndexError('index out of range')
 
         # start with the default coordinates
         coords = self._default_coords.copy()
