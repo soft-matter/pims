@@ -59,7 +59,6 @@ else:
 try:
     import pims.bioformats
     if pims.bioformats.available():
-        BioformatsRaw = pims.bioformats.BioformatsReaderRaw
         Bioformats = pims.bioformats.BioformatsReader
     else:
         raise ImportError()
