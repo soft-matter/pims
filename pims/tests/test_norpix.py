@@ -66,6 +66,12 @@ class _common_norpix_sample_tests(object):
             assert fr.metadata['time'] == tdt
             assert fr.metadata['time_float'] == tfloat
 
+    def test_get_time_mapped(self):
+        s = self.seq
+        sli = s[4:]
+        assert s.get_time(4) == sli.get_time(0)
+        assert s.get_time_float(4) == sli.dump_times_float()[0]
+
     def test_dump_times(self):
         assert isinstance(self.seq.dump_times_float(), np.ndarray)
 

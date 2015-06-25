@@ -10,7 +10,7 @@ import six
 from six.moves import range
 
 from pims.frame import Frame
-from pims.base_frames import FramesSequence
+from pims.base_frames import FramesSequenceMappable
 import os, struct, itertools
 from warnings import warn
 import datetime
@@ -43,7 +43,7 @@ HEADER_FIELDS = [
 ]
 
 
-class NorpixSeq(FramesSequence):
+class NorpixSeq(FramesSequenceMappable):
     """Read Norpix sequence (.seq) files
 
     This is the native format of StreamPix software, owned by NorPix Inc.
@@ -70,6 +70,7 @@ class NorpixSeq(FramesSequence):
         return {'seq'} | super(NorpixSeq, cls).class_exts()
 
     def __init__(self, filename, process_func=None, dtype=None, as_grey=False):
+        super(NorpixSeq, self).__init__()
         self._file = open(filename, 'rb')
         self._filename = filename
 
@@ -195,15 +196,15 @@ class NorpixSeq(FramesSequence):
         was recorded will result in an offset. The .seq format does not
         store UTC or timezone information.
         """
-        return self._get_time(i)[1]
+        return self._get_time(self._map_index(i))[1]
 
     def get_time_float(self, i):
         """Return the time of frame i as a floating-point number of seconds."""
-        return self._get_time(i)[0]
+        return self._get_time(self._map_index(i))[0]
 
     def dump_times_float(self):
         """Return all frame times in file, as an array of floating-point numbers."""
-        return np.array([self.get_time_float(i) for i in range(len(self))])
+        return np.array([self._get_time(i)[0] for i in self._all_indices()])
 
     @property
     def filename(self):
