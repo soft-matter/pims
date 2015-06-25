@@ -257,24 +257,23 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
     Attributes
     ----------
     axes : list of strings
-        List of all available dimensions
+        List of all available axes
     ndim : int
-        Number of image dimensions
+        Number of image axes
     sizes : dict of int
-        Dictionary with all dimension sizes
+        Dictionary with all axis sizes
     frame_shape : tuple of int
         Shape of frames that will be returned by get_frame
     iter_axes : iterable of strings
-        This determines which dimensions will be iterated over by the
-        FramesSequence. The last element in will iterate fastest.
-        x and y are not allowed. Defaults to ['t'].
+        This determines which axes will be iterated over by the FramesSequence.
+        The last element in will iterate fastest. x and y are not allowed.
     bundle_axes : iterable of strings
-        This determines which dimensions will be aggregated into one Frame.
-        The dimensions in the ndarray that is returned by get_frame has
-        the same order as the order in this list. The last two elements have
-        to be ['y', 'x']. Defaults to ['z', 'y', 'x'].
+        This determines which axes will be bundled into one Frame. The axes in
+        the ndarray that is returned by get_frame have the same order as the
+        order in this list. The last two elements have to be ['y', 'x'].
+        Defaults to ['z', 'y', 'x'].
     default_coords: dict of int
-        When a dimension is not present in both iterate and aggregate, the
+        When a dimension is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used.
     """
     def __init__(self, path_spec, process_func=None, dtype=None,
