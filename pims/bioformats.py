@@ -496,7 +496,7 @@ class BioformatsReader(FramesSequenceND):
         j = self.rdr.getIndex(_coords['z'], _coords['c'], _coords['t'])
         if self.read_mode == 'jpype':
             im = np.frombuffer(self.rdr.openBytes(j)[:],
-                               dtype=self._source_dtype)
+                               dtype=self._pixel_type)
         elif self.read_mode == 'stringbuffer':
             im = self._jbytearr_stringbuffer(self.rdr.openBytes(j))
         elif self.read_mode == 'javacasting':
