@@ -60,39 +60,6 @@ class _image_single(unittest.TestCase):
         # simple smoke test, values not checked
         repr(self.v)
 
-    def test_dtype_conversion(self):
-        self.check_skip()
-        v8 = self.klass(self.filename, dtype='uint8', **self.kwargs)
-        v16 = self.klass(self.filename, dtype='uint16', **self.kwargs)
-        type8 = v8[0].dtype
-        type16 = v16[0].dtype
-        self.assertEqual(type8, np.uint8)
-        self.assertEqual(type16, np.uint16)
-
-    def test_process_func(self):
-        self.check_skip()
-        # Use a trivial identity function to verify the process_func exists.
-        f = lambda x: x
-        self.klass(self.filename, process_func=f, **self.kwargs)
-
-        # Also, it should be the second positional arg for each class.
-        # This is verified more directly in later tests, too.
-        self.klass(self.filename, f, **self.kwargs)
-
-    def test_inversion_process_func(self):
-        self.check_skip()
-        def invert(image):
-            if np.issubdtype(image.dtype, np.integer):
-                max_value = np.iinfo(image.dtype).max
-                image = image ^ max_value
-            else:
-                image = 1 - image
-            return image
-
-        v_raw = self.klass(self.filename, **self.kwargs)
-        v = self.klass(self.filename, invert, **self.kwargs)
-        assert_image_equal(v[0], invert(v_raw[0]))
-
 
 class _image_series(_image_single):
     def test_iterator(self):
@@ -142,7 +109,7 @@ class _image_stack(unittest.TestCase):
 
     def test_sizeZ(self):
         self.check_skip()
-        assert_equal(self.v.sizes['Z'], self.expected_Z)
+        assert_equal(self.v.sizes['z'], self.expected_Z)
 
 
 class _image_multichannel(unittest.TestCase):
@@ -151,16 +118,17 @@ class _image_multichannel(unittest.TestCase):
 
     def test_change_channel(self):
         self.check_skip()
-        self.v.channel = (0, 1)
+        self.v.bundle_axes = 'cyx'
         channel0, channel1 = self.v[0][0], self.v[0][1]
-        self.v.channel = 0
+        self.v.bundle_axes = 'yx'
+        self.v.default_coords['c'] = 0
         assert_image_equal(self.v[0], channel0)
-        self.v.channel = 1
+        self.v.default_coords['c'] = 1
         assert_image_equal(self.v[0], channel1)
 
     def test_sizeC(self):
         self.check_skip()
-        assert_equal(self.v.sizes['C'], self.expected_C)
+        assert_equal(self.v.sizes['c'], self.expected_C)
 
 
 class TestBioformatsTiff(_image_series):
@@ -199,7 +167,7 @@ class TestBioformatsND2(_image_series, _image_multichannel):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (31, 38)
+        self.expected_shape = (10, 31, 38)
         self.expected_len = 3
         self.expected_Z = 10
         self.expected_C = 2
@@ -247,7 +215,7 @@ class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (256, 256)
+        self.expected_shape = (24, 256, 256)
         self.expected_len = 7
         self.expected_C = 2
         self.expected_Z = 24
@@ -293,7 +261,7 @@ class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (300, 400)
+        self.expected_shape = (21, 300, 400)
         self.expected_len = 19
         self.expected_C = 2
         self.expected_Z = 21
@@ -317,7 +285,7 @@ class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (256, 256)
+        self.expected_shape = (4, 256, 256)
         self.expected_len = 5
         self.expected_C = 2
         self.expected_Z = 4
@@ -342,7 +310,7 @@ class TestBioformatsOlympusTiff(_image_series, _image_stack):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (512, 512)
+        self.expected_shape = (21, 512, 512)
         self.expected_len = 16
         self.expected_Z = 21
 
@@ -369,17 +337,17 @@ class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel)
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False, 'series': 0}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (512, 512)
+        self.expected_shape = (25, 512, 512)
         self.expected_len = 1
         self.expected_C = 4
         self.expected_Z = 25
 
     def test_count_series(self):
-        assert_equal(self.v.sizes['series'], 2)
+        assert_equal(self.v.size_series, 2)
 
     def test_switch_series(self):
         self.v.series = 1
-        assert_equal(self.v.sizes['Z'], 46)
+        assert_equal(self.v.sizes['z'], 46)
 
     def tearDown(self):
         self.v.close()
@@ -398,7 +366,7 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel)
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False, 'series': 1}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (512, 512)
+        self.expected_shape = (46, 512, 512)
         self.expected_len = 1
         self.expected_C = 4
         self.expected_Z = 46
@@ -442,7 +410,7 @@ class TestBioformatsSEQ(_image_single, _image_stack):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (512, 512)
+        self.expected_shape = (30, 512, 512)
         self.expected_len = 1
         self.expected_Z = 30
 
@@ -466,7 +434,7 @@ class TestBioformatsLEI(_image_single, _image_stack):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (256, 256)
+        self.expected_shape = (3, 256, 256)
         self.expected_len = 1
         self.expected_Z = 3
 
@@ -514,7 +482,7 @@ class TestBioformatsZPO(_image_stack, _image_multichannel):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (672, 512)
+        self.expected_shape = (29, 672, 512)
         self.expected_C = 3
         self.expected_Z = 29
 
@@ -537,26 +505,28 @@ class TestBioformatsMetadataND2(unittest.TestCase):
     def test_metadataretrieve(self):
         # tests using the metadata object are combined in one, to reduce the
         # amount of log output.
-        self.v = self.klass(self.filename, meta=True, C=0)
+        self.v = self.klass(self.filename, meta=True)
+        self.v.bundle_axes = 'yx'
         # test fields directly
         assert_equal(self.v.metadata.ChannelCount(0), 2)
         assert_equal(self.v.metadata.ChannelName(0, 0), '5-FAM/pH 9.0')
         assert_almost_equal(self.v.metadata.PixelsPhysicalSizeX(0),
                             0.167808983)
+        assert_almost_equal(self.v.calibration, 0.167808983)
         # test metadata in Frame objects
-        assert_almost_equal(self.v[0].metadata['T'], 0.445083498)
-        assert_equal(self.v[0].metadata['indexT'], 0)
+        assert_almost_equal(self.v[0].metadata['t_s'], 0.445083498)
+        assert_equal(self.v[0].metadata['t'], 0)
         # test changing frame_metadata
-        del self.v.frame_metadata['T']
-        assert 'T' not in self.v[0].metadata
-        self.v.frame_metadata['T'] = 'PlaneDeltaT'
-        assert 'T' in self.v[0].metadata
+        del self.v.frame_metadata['t_s']
+        assert 't_s' not in self.v[0].metadata
+        self.v.frame_metadata['t_s'] = 'PlaneDeltaT'
+        assert 't_s' in self.v[0].metadata
         # test colors field
         assert_allclose(self.v[0].metadata['colors'][0], [0.47, 0.91, 0.06],
                         atol=0.01)
 
     def test_metadata_raw(self):
-        self.v = self.klass(self.filename, meta=False, C=0)
+        self.v = self.klass(self.filename, meta=False)
         metadata = self.v.get_metadata_raw('dict')
         assert_equal(metadata['ChannelCount'], '2')
         assert_equal(metadata['CH2ChannelDyeName'], '5-FAM/pH 9.0')
@@ -564,5 +534,5 @@ class TestBioformatsMetadataND2(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
+    nose.runmodule(argv=[__file__, '-vvs'],
                    exit=False)

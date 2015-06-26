@@ -13,7 +13,7 @@ from six.moves import StringIO
 
 import numpy as np
 
-from pims.base_frames import FramesSequence
+from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
@@ -193,33 +193,30 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type)
 
 
-def filename_to_tzc(filename, identifiers=None):
-    """ Find ocurrences of z/t/c + number (e.g. t001, z06, c2)
-    in a filename and returns a list of [t, z, c] coordinates
+def filename_to_indices(filename, identifiers='tzc'):
+    """ Find ocurrences of dimension indices (e.g. t001, z06, c2)
+    in a filename and returns a list of indices.
 
     Parameters
     ----------
     filename : string
-        filename to be searched for t, z, c indices
-    identifiers : list of string, optional
-        3 strings preceding t, z, c indices, in that order
+        filename to be searched for indices
+    identifiers : string or list of strings, optional
+        iterable of N strings preceding dimension indices, in that order
 
     Returns
     ---------
     list of int
-        t, z, c indices. Elements default to 0 when index was not found.
+        dimension indices. Elements default to 0 when index was not found.
 
     """
-    if identifiers is None:
-        identifiers = tzc = ['t', 'z', 'c']
-    else:
-        tzc = [re.escape(a) for a in identifiers]
-    dimensions = re.findall(r'({0}|{1}|{2})(\d+)'.format(*tzc),
+    escaped = [re.escape(a) for a in identifiers]
+    dimensions = re.findall('(' + '|'.join(escaped) + r')(\d+)',
                             filename)
-    if len(dimensions) > 3:
+    if len(dimensions) > len(identifiers):
         dimensions = dimensions[-3:]
     order = [a[0] for a in dimensions]
-    result = [0, 0, 0]
+    result = [0] * len(identifiers)
     for (i, col) in enumerate(identifiers):
         try:
             result[i] = int(dimensions[order.index(col)][1])
@@ -228,9 +225,10 @@ def filename_to_tzc(filename, identifiers=None):
     return result
 
 
-class ImageSequence3D(ImageSequence):
-    """Read a directory of (t, z, c) numbered image files into an
-    iterable that returns images as numpy arrays, indexed by t.
+class ImageSequenceND(FramesSequenceND, ImageSequence):
+    """Read a directory of multi-indexed image files into an iterable that
+    returns images as numpy arrays. By default, the extra dimensions are
+    denoted with t, z, c.
 
     Parameters
     ----------
@@ -248,90 +246,85 @@ class ImageSequence3D(ImageSequence):
         Image arrays will be converted to this datatype.
     as_grey : boolean, optional
         Not implemented for 3D images.
-    plugin : string
+    plugin : string, optional
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
         will be issued. Not available in combination with zipfiles.
-    tzc_identifiers : list of string, optional
-        3 strings preceding t, z, c indices. Default ['t', 'z', 'c'].
+    dim_identifiers : iterable of strings, optional
+        N strings preceding dimension indices. Default 'tzc'. x and y are not
+        allowed.
 
+    Attributes
+    ----------
+    axes : list of strings
+        List of all available axes
+    ndim : int
+        Number of image axes
+    sizes : dict of int
+        Dictionary with all axis sizes
+    frame_shape : tuple of int
+        Shape of frames that will be returned by get_frame
+    iter_axes : iterable of strings
+        This determines which axes will be iterated over by the FramesSequence.
+        The last element in will iterate fastest. x and y are not allowed.
+    bundle_axes : iterable of strings
+        This determines which axes will be bundled into one Frame. The axes in
+        the ndarray that is returned by get_frame have the same order as the
+        order in this list. The last two elements have to be ['y', 'x'].
+        Defaults to ['z', 'y', 'x'].
+    default_coords: dict of int
+        When a dimension is not present in both iter_axes and bundle_axes, the
+        coordinate contained in this dictionary will be used.
     """
     def __init__(self, path_spec, process_func=None, dtype=None,
-                 as_grey=False, plugin=None, tzc_identifiers=None):
-        self.tzc_identifiers = tzc_identifiers
-        super(ImageSequence3D, self).__init__(path_spec, process_func,
+                 as_grey=False, plugin=None, dim_identifiers='tzc'):
+        if as_grey:
+            raise ValueError('As grey not supported for ND images')
+        self.dim_identifiers = dim_identifiers
+        super(ImageSequenceND, self).__init__(path_spec, process_func,
                                               dtype, as_grey, plugin)
+        self._init_axis('y', self._first_frame_shape[0])
+        self._init_axis('x', self._first_frame_shape[1])
+        if 't' in self.axes:
+            self.iter_axes = 't'  # iterate over t
+        if 'z' in self.axes:
+            self.bundle_axes = 'zyx'  # return z-stacks
 
     def _get_files(self, path_spec):
-        super(ImageSequence3D, self)._get_files(path_spec)
-        self._toc = np.array([filename_to_tzc(f, self.tzc_identifiers) \
+        super(ImageSequenceND, self)._get_files(path_spec)
+        self._toc = np.array([filename_to_indices(f, self.dim_identifiers)
                               for f in self._filepaths])
-        for n in range(3):
-            self._toc[:, n] = self._toc[:, n] - min(self._toc[:, n])
+        for n, name in enumerate(self.dim_identifiers):
+            if np.all(self._toc[:, n] == 0):
+                self._toc = np.delete(self._toc, n, axis=1)
+            else:
+                self._toc[:, n] = self._toc[:, n] - min(self._toc[:, n])
+                self._init_axis(name, max(self._toc[:, n]) + 1)
         self._filepaths = np.array(self._filepaths)
-        self._count = max(self._toc[:, 0]) + 1
-        self._sizeZ = max(self._toc[:, 1]) + 1
-        self._sizeC = max(self._toc[:, 2]) + 1
-        self._channel = list(range(self._sizeC))
 
-    def get_frame(self, j):
-        if j > self._count:
-            raise ValueError("File does not contain this many frames")
-        res = np.zeros((len(self._channel), self._sizeZ,
-                        self._first_frame_shape[0],
-                        self._first_frame_shape[1]),
-                       dtype=self._dtype)
-        for (Nc, c) in enumerate(self._channel):
-            selector = np.logical_and(self._toc[:, 0] == j,
-                                      self._toc[:, 2] == c)
-            filelist = self._filepaths[selector]
-            for (z, loc) in enumerate(filelist):
-                res[Nc, z] = self.imread(loc, **self.kwargs)
+    def get_frame(self, i):
+        frame = super(ImageSequenceND, self).get_frame(i)
+        return Frame(self.process_func(frame), frame_no=i)
 
-        return Frame(self.process_func(res.squeeze()), frame_no=j)
-
-    @property
-    def sizes(self):
-        return {'X': self._first_frame_shape[1],
-                'Y': self._first_frame_shape[0],
-                'Z': self._sizeZ,
-                'T': self._count,
-                'C': self._sizeC}
-
-    @property
-    def channel(self):
-        return self._channel
-
-    @channel.setter
-    def channel(self, value):
-        try:
-            channel = tuple(value)
-        except TypeError:
-            channel = tuple((value,))
-        if np.any(np.greater_equal(channel, self._sizeC)) or \
-           np.any(np.less(channel, 0)):
-            raise IndexError('Channel index out of bounds.')
-        self._channel = channel
+    def get_frame_2D(self, **ind):
+        row = [ind[name] for name in self.dim_identifiers]
+        i = np.argwhere(np.all(self._toc == row, 1))[0, 0]
+        res = self.imread(self._filepaths[i], **self.kwargs)
+        if res.dtype != self._dtype:
+            res = res.astype(self._dtype)
+        return res
 
     def __repr__(self):
-        # May be overwritten by subclasses
         try:
             source = self.pathname
         except AttributeError:
             source = '(list of images)'
-        return """<Frames>
-Source: {pathname}
-SizeT: {count} frames
-SizeZ: {Z} frames
-SizeC: {C} frames
-Frame Shape: {w} x {h}
-Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
-                                  count=len(self),
-                                  pathname=source,
-                                  dtype=self.pixel_type,
-                                  C=self._sizeC,
-                                  Z=self._sizeZ)
+        s = "<ImageSequenceND>\nSource: {0}\n".format(source)
+        s += "Dimensions: {0}\n".format(self.ndim)
+        for dim in self._sizes:
+            s += "Dimension '{0}' size: {1}\n".format(dim, self._sizes[dim])
+        s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
+        return s
 
 
 def customize_image_sequence(imread_func, name=None):

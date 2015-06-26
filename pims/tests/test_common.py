@@ -247,6 +247,107 @@ class TestRecursiveSlicing(unittest.TestCase):
         assert_letters_equal(slice2, list('def'))
         assert_true(isinstance(slice2, types.GeneratorType))
 
+
+class TestMultidimensional(unittest.TestCase):
+    def setUp(self):
+        class IndexReturningReader(pims.FramesSequenceND):
+            @property
+            def pixel_type(self):
+                pass
+
+            def __init__(self, **dims):
+                self._init_axis('x', len(dims))
+                self._init_axis('y', 1)
+                for k in dims:
+                    self._init_axis(k, dims[k])
+
+            def get_frame_2D(self, **ind):
+                return np.array([[ind[i] for i in sorted(ind)]])
+
+        self.v = IndexReturningReader(c=3, m=5, t=100, z=20)
+
+    def test_iterate(self):
+        self.v.iter_axes = 't'
+        for i in [0, 1, 15]:
+            assert_equal(self.v[i], [[0, 0, i, 0]])
+        self.v.iter_axes = 'm'
+        for i in [0, 1, 3]:
+            assert_equal(self.v[i], [[0, i, 0, 0]])
+        self.v.iter_axes = 'zc'
+        assert_equal(self.v[0], [[0, 0, 0, 0]])
+        assert_equal(self.v[2], [[2, 0, 0, 0]])
+        assert_equal(self.v[30], [[0, 0, 0, 10]])
+        self.v.iter_axes = 'cz'
+        assert_equal(self.v[0], [[0, 0, 0, 0]])
+        assert_equal(self.v[4], [[0, 0, 0, 4]])
+        assert_equal(self.v[21], [[1, 0, 0, 1]])
+        self.v.iter_axes = 'tzc'
+        assert_equal(self.v[0], [[0, 0, 0, 0]])
+        assert_equal(self.v[4], [[1, 0, 0, 1]])
+        assert_equal(self.v[180], [[0, 0, 3, 0]])
+        assert_equal(self.v[210], [[0, 0, 3, 10]])
+        assert_equal(self.v[212], [[2, 0, 3, 10]])
+
+    def test_default(self):
+        self.v.iter_axes = 't'
+        self.v.default_coords['m'] = 2
+        for i in [0, 1, 3]:
+            assert_equal(self.v[i], [[0, 2, i, 0]])
+        self.v.default_coords['m'] = 0
+        for i in [0, 1, 3]:
+            assert_equal(self.v[i], [[0, 0, i, 0]])
+
+    def test_bundle(self):
+        self.v.bundle_axes = 'zyx'
+        assert_equal(self.v[0].shape, (20, 1, 4))
+        self.v.bundle_axes = 'cyx'
+        assert_equal(self.v[0].shape, (3, 1, 4))
+        self.v.bundle_axes = 'czyx'
+        assert_equal(self.v[0].shape, (3, 20, 1, 4))
+        self.v.bundle_axes = 'zcyx'
+        assert_equal(self.v[0].shape, (20, 3, 1, 4))
+
+    def test_frame_no(self):
+        self.v.iter_axes = 't'
+        for i in np.random.randint(0, 100, 10):
+            assert_equal(self.v[i].frame_no, i)
+        self.v.iter_axes = 'zc'    
+        for i in np.random.randint(0, 3*20, 10):
+            assert_equal(self.v[i].frame_no, i)
+
+    def test_metadata(self):
+        # if no metadata is provided by the reader, metadata should be {} 
+        assert_equal(self.v[0].metadata, {})
+
+        class MetadataReturningReader(pims.FramesSequenceND):
+            @property
+            def pixel_type(self):
+                pass
+
+            def __init__(self, **dims):
+                self._init_axis('x', len(dims))
+                self._init_axis('y', 1)
+                for k in dims:
+                    self._init_axis(k, dims[k])
+
+            def get_frame_2D(self, **ind):
+                metadata = {i: ind[i] for i in ind}
+                im = np.array([[ind[i] for i in sorted(ind)]])
+                return pims.Frame(im, metadata=metadata)
+
+        self.v_md = MetadataReturningReader(c=3, m=5, t=100, z=20)
+        self.v_md.iter_axes = 't'
+        self.v_md.bundle_axes = 'czyx'
+        md = self.v_md[15].metadata
+
+        # if metadata is provided, it should have the correct shape
+        assert_equal(md['z'].shape, (3, 20))  # shape 'c', 'z'
+        assert_equal(md['z'][:, 5], 5)
+        assert_equal(md['c'][1, :], 1)
+
+        # if a metadata field is equal for all frames, it should be a scalar
+        assert_equal(md['t'], 15)
+
 def _rescale(img):
     print(type(img))
     return (img - img.min()) / img.ptp()
@@ -557,7 +658,7 @@ class TestOpenFiles(unittest.TestCase):
         pims.open(os.path.join(path, 'stuck.tif'))
 
 
-class ImageSequence3D(_image_series):
+class ImageSequenceND(_image_series):
     def check_skip(self):
         pass
 
@@ -581,50 +682,44 @@ class ImageSequence3D(_image_series):
         self.filename = os.path.join(self.filepath, '*.png')
         self.frame0 = np.array([frames[0], frames[2]])
         self.frame1 = np.array([frames[4], frames[6]])
-        self.klass = pims.ImageSequence3D
-        self.kwargs = dict()
+        self.klass = pims.ImageSequenceND
+        self.kwargs = dict(dim_identifiers='tzc')
         self.v = self.klass(self.filename, **self.kwargs)
-        self.v.channel = 0
-        self.expected_shape = shape
+        self.v.default_coords['c'] = 0
         self.expected_len = 3
         self.expected_Z = 2
         self.expected_C = 2
+        self.expected_shape = (self.expected_Z,) + shape
 
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
     def test_filename_tzc(self):
-        tzc = pims.image_sequence.filename_to_tzc('file_t01_z005_c4.png')
+        tzc = pims.image_sequence.filename_to_indices('file_t01_z005_c4.png')
         self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_tzc('t01file_t01_z005_c4.png')
+        tzc = pims.image_sequence.filename_to_indices('t01file_t01_z005_c4.png')
         self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_tzc('file_z005_c4_t01.png')
+        tzc = pims.image_sequence.filename_to_indices('file_z005_c4_t01.png')
         self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_tzc(u'file\u03BC_z05_c4_t01.png')
+        tzc = pims.image_sequence.filename_to_indices(u'file\u03BC_z05_c4_t01.png')
         self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_tzc('file_t9415_z005.png')
+        tzc = pims.image_sequence.filename_to_indices('file_t9415_z005.png')
         self.assertEqual(tzc, [9415, 5, 0])
-        tzc = pims.image_sequence.filename_to_tzc('file_t47_c34.png')
+        tzc = pims.image_sequence.filename_to_indices('file_t47_c34.png')
         self.assertEqual(tzc, [47, 0, 34])
-        tzc = pims.image_sequence.filename_to_tzc('file_z4_c2.png')
+        tzc = pims.image_sequence.filename_to_indices('file_z4_c2.png')
         self.assertEqual(tzc, [0, 4, 2])
-        tzc = pims.image_sequence.filename_to_tzc('file_x4_c2_y5_z1.png',
-                                                  ['x', 'y', 'z'])
+        tzc = pims.image_sequence.filename_to_indices('file_x4_c2_y5_z1.png',
+                                                      ['x', 'y', 'z'])
         self.assertEqual(tzc, [4, 5, 1])
 
     def test_sizeZ(self):
         self.check_skip()
-        assert_equal(self.v.sizes['Z'], self.expected_Z)
+        assert_equal(self.v.sizes['z'], self.expected_Z)
 
     def test_sizeC(self):
         self.check_skip()
-        assert_equal(self.v.sizes['C'], self.expected_C)
-
-    def test_change_channels(self):
-        self.check_skip()
-        self.v.channel = (0, 1)
-        assert_equal(self.v[0].shape, (2, 2, self.expected_shape[0],
-                                       self.expected_shape[1]))
+        assert_equal(self.v.sizes['c'], self.expected_C)
 
 
 if __name__ == '__main__':

@@ -1,7 +1,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from pims.base_frames import FramesSequence, SliceableIterable, pipeline
+from pims.base_frames import (FramesSequence, FramesSequenceND,
+                              SliceableIterable, pipeline)
 from pims.frame import Frame
 from pims.display import (export, play, scrollable_stack, to_rgb, normalize,
                           plot_to_frame, plots_to_frame)
@@ -12,7 +13,7 @@ import os
 from warnings import warn
 
 # has to be here for API stuff
-from pims.image_sequence import ImageSequence, ImageSequence3D  # noqa
+from pims.image_sequence import ImageSequence, ImageSequenceND  # noqa
 from .cine import Cine  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
 
@@ -58,7 +59,6 @@ else:
 try:
     import pims.bioformats
     if pims.bioformats.available():
-        BioformatsRaw = pims.bioformats.BioformatsReaderRaw
         Bioformats = pims.bioformats.BioformatsReader
     else:
         raise ImportError()
