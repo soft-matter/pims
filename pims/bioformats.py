@@ -493,7 +493,8 @@ class BioformatsReader(FramesSequenceND):
         _coords.update(coords)
         if self.isRGB:
             _coords['c'] = 0
-        j = self.rdr.getIndex(_coords['z'], _coords['c'], _coords['t'])
+        j = self.rdr.getIndex(int(_coords['z']), int(_coords['c']),
+                              int(_coords['t']))
         if self.read_mode == 'jpype':
             im = np.frombuffer(self.rdr.openBytes(j)[:],
                                dtype=self._pixel_type)
