@@ -337,6 +337,8 @@ class FramesSequenceMappable(FramesSequence):
     """Version of FramesSequence that allows SliceableIterable objects
     to temporarily remap its indices. This is to allow methods like get_time()
     to use the same index mapping that's used for frame images.
+
+    This feature is nominally thread-safe.
     """
     def __init__(self):
         super(FramesSequenceMappable, self).__init__()

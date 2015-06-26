@@ -11,6 +11,7 @@ from six.moves import range
 
 from pims.frame import Frame
 from pims.base_frames import FramesSequenceMappable
+from pims.utils.misc import FileLocker
 import os, struct, itertools
 from warnings import warn
 import datetime
@@ -117,16 +118,6 @@ class NorpixSeq(FramesSequenceMappable):
             self._dtype = dtype
 
         self._validate_process_func(process_func)
-
-        # TODO How to handle timestamps in a way that survives slicing?
-        # Do we need to be able to read timestamps independent of their images?
-        # Plan: return timestamp in the Frame object.
-        # Also offer a function to retrieve an individual timestamp,
-        # plus a dump of all timestamps.
-        #
-        # One thing that would really help this kind of functionality is
-        # a user-facing way to look up the raw frame number that is being
-        # served by a child slice.
 
         self._file_lock = Lock()
 
@@ -246,22 +237,3 @@ Pixel Datatype: {dtype}""".format(filename=self.filename,
                                   w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   dtype=self.pixel_type)
-
-
-class FileLocker(object):
-    """
-    A context manager to lock and unlock a file
-
-    See http://docs.python.org/2/library/contextlib.html
-    http://docs.python.org/2/library/stdtypes.html#typecontextmanager
-    http://docs.python.org/2/reference/datamodel.html#context-managers
-    """
-    def __init__(self, lock):
-        self.lock = lock
-
-    def __enter__(self):
-        self.lock.acquire()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.lock.release()
-        return False

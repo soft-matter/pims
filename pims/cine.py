@@ -14,6 +14,7 @@ import six
 
 from pims.frame import Frame
 from pims.base_frames import FramesSequenceMappable
+from pims.utils.misc import FileLocker
 import time
 import struct
 import numpy as np
@@ -600,25 +601,6 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 
     def __ne__(self, other):
         return not self == other
-
-
-class FileLocker(object):
-    """
-    A context manager to lock and un-lock a the cine file
-
-    See http://docs.python.org/2/library/contextlib.html
-    http://docs.python.org/2/library/stdtypes.html#typecontextmanager
-    http://docs.python.org/2/reference/datamodel.html#context-managers
-    """
-    def __init__(self, lock):
-        self.lock = lock
-
-    def __enter__(self):
-        self.lock.acquire()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.lock.release()
-        return False
 
 
 # Should be divisible by 3, 4 and 5!  This seems to be near-optimal.
