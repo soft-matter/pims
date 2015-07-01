@@ -13,7 +13,8 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from pims.frame import Frame
-from pims.base_frames import FramesSequence
+from pims.base_frames import FramesSequenceMappable
+from pims.utils.misc import FileLocker
 import time
 import struct
 import numpy as np
@@ -207,7 +208,7 @@ SETUP_FIELDS = [
 ]
 
 
-class Cine(FramesSequence):
+class Cine(FramesSequenceMappable):
     """Read cine files
 
     Read cine files, the out put from Vision Research high-speed phantom
@@ -221,14 +222,15 @@ class Cine(FramesSequence):
     filename : string
         Path to cine file.
     process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
+        callable with signature `proc_img = process_func(img)`,
         which will be applied to the data from each frame
     dtype : numpy datatype, optional
         Image arrays will be converted to this datatype.
     as_grey : boolean, optional
         Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
+        May not be used in conjunction with process_func.
     """
+    # TODO: Unit tests using a small sample cine file.
     @classmethod
     def class_exts(cls):
         return {'cine'} | super(Cine,
@@ -236,6 +238,7 @@ class Cine(FramesSequence):
 
     def __init__(self, filename, process_func=None,
                  dtype=None, as_grey=False):
+        super(Cine, self).__init__()
         self.f = open(filename, 'rb')
         self._filename = filename
 
@@ -520,7 +523,12 @@ class Cine(FramesSequence):
 
     def get_time(self, i):
         '''Returm the time of frame i in seconds.'''
-        return float(i) / self.frame_rate
+        # TODO: This is not guaranteed to be the actual time.
+        # Frames may be unevenly spaced due to e.g. external sync.
+        # The actual time is available from the timestamp tagged block,
+        # which is read above.
+        # See NorpixSeq for a timestamp API that solves this problem.
+        return float(self._map_index(i)) / self.frame_rate
 
     def get_fps(self):
         return self.frame_rate
@@ -593,25 +601,6 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 
     def __ne__(self, other):
         return not self == other
-
-
-class FileLocker(object):
-    """
-    A context manager to lock and un-lock a the cine file
-
-    See http://docs.python.org/2/library/contextlib.html
-    http://docs.python.org/2/library/stdtypes.html#typecontextmanager
-    http://docs.python.org/2/reference/datamodel.html#context-managers
-    """
-    def __init__(self, lock):
-        self.lock = lock
-
-    def __enter__(self):
-        self.lock.acquire()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.lock.release()
-        return False
 
 
 # Should be divisible by 3, 4 and 5!  This seems to be near-optimal.

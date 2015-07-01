@@ -8,6 +8,9 @@ import os
 import numpy as np
 import collections
 import itertools
+import functools
+import contextlib
+from threading import Lock
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
 from functools import wraps
@@ -213,7 +216,18 @@ class SliceableIterable(object):
     def __getattr__(self, key):
         # Remember this only gets called if __getattribute__ raises an
         # AttributeError. Try the ancestor object.
-        return getattr(self._ancestor, key)
+        att = getattr(self._ancestor, key)
+        if hasattr(self._ancestor, '_use_indices') and callable(att):
+            # FramesSequenceMappable objects support frame number mapping
+            # within ancestor methods
+            @functools.wraps(att)
+            def mapped(*args, **kwargs):
+                with self._ancestor._use_indices(self.indices):
+                    return att(*args, **kwargs)
+            return mapped
+        else:
+            return att
+
 
     def __getitem__(self, key):
         """for data access"""
@@ -317,6 +331,54 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   count = len(self),
                                   dtype=self.pixel_type)
+
+
+class FramesSequenceMappable(FramesSequence):
+    """Version of FramesSequence that allows SliceableIterable objects
+    to temporarily remap its indices. This is to allow methods like get_time()
+    to use the same index mapping that's used for frame images.
+
+    This feature is nominally thread-safe.
+    """
+    def __init__(self):
+        super(FramesSequenceMappable, self).__init__()
+        # Allow frame numbers to be temporarily re-mapped.
+        self._indexing_lock = Lock()
+        self._indices = None
+
+    @contextlib.contextmanager
+    def _use_indices(self, indices=None):
+        """Context manager to temporarily re-assign indices.
+
+        Only affects methods that are index-aware.
+        """
+        self._indexing_lock.acquire()
+        try:
+            self._indices = list(indices)
+            yield
+        finally:
+            self._indices = None
+            self._indexing_lock.release()
+
+    def _all_indices(self):
+        """Returns iterable of all indices.
+
+        Affected by _use_indices()
+        """
+        if self._indices is None:
+            return range(len(self))
+        else:
+            return self._indices[:]
+
+    def _map_index(self, index):
+        """Returns absolute frame number corresponding to supplied index.
+
+        Affected by _use_indices()
+        """
+        if self._indices is None:
+            return index
+        else:
+            return self._indices[index]
 
 
 class FrameRewindableStream(FramesStream):
