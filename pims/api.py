@@ -13,7 +13,7 @@ import os
 from warnings import warn
 
 # has to be here for API stuff
-from pims.image_sequence import ImageSequence, ImageSequenceND  # noqa
+from pims.image_sequence import ImageSequenceND  # noqa
 from .cine import Cine  # noqa
 from .norpix_reader import NorpixSeq  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
@@ -56,6 +56,33 @@ elif pims.tiff_stack.PIL_available():
 else:
     TiffStack = not_available("tifffile, libtiff, or PIL/Pillow")
 
+
+# As above
+from pims.image_sequence import (ImageSequence_skimage, ImageSequence_mpl,
+                                 ImageSequence_scipy, ImageSequence_pil,
+                                 ImageSequence_tifffile)
+if not pims.image_sequence.skimage_available():
+    ImageSequence_skimage = not_available('skimage')
+if not pims.image_sequence.skimage_available():
+    ImageSequence_mpl = not_availabe('matplotlib')
+if not pims.image_sequence.scipy_available():
+    ImageSequence_scipy = not_available('scipy')
+if not pims.image_sequence.PIL_available():
+    ImageSequence_pil = not_available('PIL/Pillow')
+if not pims.image_sequence.tifffile_available():
+    ImageSequence_tifffile = not_available('tifffile')
+
+if pims.image_sequence.skimage_available():
+    ImageSequence = ImageSequence_skimage
+elif pims.image_sequence.mpl_available():
+    ImageSequence = ImageSequence_mpl
+elif pims.iamge_sequence.scipy_avaiable():
+    ImageSequence = ImageSequence_scipy
+elif pims.image_sequence.PIL_avaialble():
+    ImageSequence = ImageSequence_pil
+# Never point ImageSequence to ImageSequence_tifffile; it only works on TIFF.
+else:
+    ImageSequence = not_available("skimage, matplotlib, scipy, or PIL/Pillow")
 
 try:
     import pims.bioformats

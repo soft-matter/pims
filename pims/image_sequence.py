@@ -17,19 +17,52 @@ from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
-from PIL import Image
-# skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
-# If skimage is not available, go down our own hard-coded hierarchy.
 try:
-    from skimage.io import imread
+    from skimage.io import imread as skimage_imread
 except ImportError:
-    try:
-        from matplotlib.pyplot import imread
-    except ImportError:
-        from scipy.ndimage import imread
+    skimage_imread = None
+try:
+    from matplotlib.pyplot import imread as mpl_imread
+except ImportError:
+    mpl_imread = None
+try:
+    from scipy.ndimage import imread as scipy_imread
+except ImportError:
+    scipy_imread = None
+try:
+    from tifffile import imread as tifffile_imread
+except ImportError:
+    tifffile_imread = None
+try:
+    from PIL import Image
+except ImportError:
+    pil_imread = None
+else:
+    def pil_imread(filename):
+        return np.asarray(Image.open(filename))
 
 
-class ImageSequence(FramesSequence):
+def skimage_available():
+    return skimage_imread is not None
+
+
+def mpl_available():
+    return mpl_imread is not None
+
+
+def scipy_available():
+    return scipy_imread is not None
+
+
+def tifffile_available():
+    return tifffile_imread is not None
+
+
+def PIL_available():
+    return pil_imread is not None
+
+
+class BaseImageSequence(FramesSequence):
     """Read a directory of sequentially numbered image files into an
     iterable that returns images as numpy arrays.
 
@@ -48,10 +81,6 @@ class ImageSequence(FramesSequence):
     as_grey : boolean, optional
         Convert color images to greyscale. False by default.
         May not be used in conjection with process_func.
-    plugin : string
-        Passed on to skimage.io.imread if scikit-image is available.
-        If scikit-image is not available, this will be ignored and a warning
-        will be issued. Not available in combination with zipfiles.
 
     Examples
     --------
@@ -73,19 +102,8 @@ class ImageSequence(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
     def __init__(self, path_spec, process_func=None, dtype=None,
-                 as_grey=False, plugin=None):
-        try:
-            import skimage
-        except ImportError:
-            if plugin is not None:
-                warn("A plugin was specified but ignored. Plugins can only "
-                     "be specified if scikit-image is available. Instead, "
-                     "ImageSequence will try using matplotlib and scipy "
-                     "in that order.")
-            self.kwargs = dict()
-        else:
-            self.kwargs = dict(plugin=plugin)
-
+                 as_grey=False, **kwargs):
+        self.kwargs = kwargs
         self._is_zipfile = False
         self._zipfile = None
         self._get_files(path_spec)
@@ -104,17 +122,17 @@ class ImageSequence(FramesSequence):
     def close(self):
         if self._is_zipfile:
             self._zipfile.close()
-        super(ImageSequence, self).close()
+        super(BaseImageSequence, self).close()
 
     def __del__(self):
         self.close()
 
     def imread(self, filename, **kwargs):
         if self._is_zipfile:
-            img = StringIO(self._zipfile.read(filename))
-            return np.array(Image.open(img))
+            file_handle = StringIO(self._zipfile.read(filename))
+            return self._imread(file_handle, **kwargs)
         else:
-            return imread(filename, **kwargs)
+            return self._imread(filename, **kwargs)
 
     def _get_files(self, path_spec):
         # deal with if input is _not_ a string
@@ -132,9 +150,6 @@ class ImageSequence(FramesSequence):
                          if fnmatch.fnmatch(fn, '*.*')]
             self._filepaths = sorted(filepaths, key=natural_keys)
             self._count = len(self._filepaths)
-            if 'plugin' in self.kwargs and self.kwargs['plugin'] is not None:
-                warn("A plugin cannot be combined with reading from an "
-                     "archive. Extract it if you want to use the plugin.")
             return
 
         self.pathname = os.path.abspath(path_spec)  # used by __repr__
@@ -193,6 +208,31 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type)
 
 
+class ImageSequence_skimage(BaseImageSequence):
+    __doc__ = BaseImageSequence.__doc__
+    _imread = skimage_imread
+
+
+class ImageSequence_mpl(BaseImageSequence):
+    __doc__ = BaseImageSequence.__doc__
+    _imread = mpl_imread
+
+
+class ImageSequence_pil(BaseImageSequence):
+    __doc__ = BaseImageSequence.__doc__
+    _imread = pil_imread
+
+
+class ImageSequence_scipy(BaseImageSequence):
+    __doc__ = BaseImageSequence.__doc__
+    _imread = scipy_imread
+
+
+class ImageSequence_tifffile(BaseImageSequence):
+    __doc__ = BaseImageSequence.__doc__
+    _imread = tifffile_imread
+
+
 def filename_to_indices(filename, identifiers='tzc'):
     """ Find ocurrences of dimension indices (e.g. t001, z06, c2)
     in a filename and returns a list of indices.
@@ -225,7 +265,7 @@ def filename_to_indices(filename, identifiers='tzc'):
     return result
 
 
-class ImageSequenceND(FramesSequenceND, ImageSequence):
+class ImageSequenceND(FramesSequenceND, BaseImageSequence):
     """Read a directory of multi-indexed image files into an iterable that
     returns images as numpy arrays. By default, the extra dimensions are
     denoted with t, z, c.
@@ -349,8 +389,8 @@ def customize_image_sequence(imread_func, name=None):
     >>> MyImageSequence = customize_image_sequence(my_func)
     >>> frames = MyImageSequence('path/to/my_weird_files*')
     """
-    class CustomImageSequence(ImageSequence):
-        def imread(self, filename, **kwargs):
+    class CustomImageSequence(BaseImageSequence):
+        def _imread(self, filename, **kwargs):
             return imread_func(filename, **kwargs)
     if name is not None:
         CustomImageSequence.__name__ = name

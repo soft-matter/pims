@@ -510,54 +510,70 @@ class TestTiffStack_libtiff(_image_series):
         self.expected_len = 5
 
 
+class TestImageSequenceWithSkimage(_image_series):
+    def setUp(self):
+        self.klass = ImageSequence_skimage
+        try:
+            import skimage
+        except ImportError:
+            self.skip = True
+        else:
+            self.skip = False
+        super(TestImageSequenceWithPIL, self).setUp()
+
+
 class TestImageSequenceWithPIL(_image_series):
     def setUp(self):
-        self.filepath = os.path.join(path, 'image_sequence')
-        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
-                          'T76S3F00003.png', 'T76S3F00004.png',
-                          'T76S3F00005.png']
-        shape = (10, 11)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-
-        self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = frames[0]
-        self.frame1 = frames[1]
-        self.kwargs = dict(plugin='pil')
-        self.klass = pims.ImageSequence
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = shape
-        self.expected_len = 5
-
-    def test_bad_path_raises(self):
-        raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
-        self.assertRaises(IOError, raises)
-
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
+        self.klass = ImageSequence_pil
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skip = 'PIL'
+        else:
+            self.skip = False
+        super(TestImageSequenceWithPIL, self).setUp()
 
 
 class TestImageSequenceWithMPL(_image_series):
     def setUp(self):
-        self.filepath = os.path.join(path, 'image_sequence')
-        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
-                          'T76S3F00003.png', 'T76S3F00004.png',
-                          'T76S3F00005.png']
-        shape = (10, 11)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-        self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = frames[0]
-        self.frame1 = frames[1]
-        self.kwargs = dict(plugin='matplotlib')
-        self.klass = pims.ImageSequence
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = shape
-        self.expected_len = 5
+        try:
+            import matplotlib
+        except ImportError:
+            self.skip = 'matplotlib'
+        else:
+            self.skip = False
+        self.klass = ImageSequence_mpl
+        super(TestImageSequenceWithMPL, self).setUp()
 
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
 
-class TestImageSequenceAcceptsList(_image_series):
+class TestImageSequenceWithTifffile(_image_series):
     def setUp(self):
+        try:
+            import tifffile
+        except ImportError:
+            self.skip = 'tifffile'
+        else:
+            self.skip = False
+        self.klass = ImageSequence_tifffile
+        super(TestImageSequenceWithTifffile, self).setUp()
+
+
+class TestImageSequenceWithScipy(_image_series):
+    def setUp(self):
+        try:
+            import scipy
+        except ImportError:
+            self.skip = 'scipy'
+        else:
+            self.skip = False
+        self.klass = ImageSequence_scipy
+        super(TestImageSequenceWithScipy, self).setUp()
+
+
+class ImageSequenceBase(_image_series):
+    def setUp(self):
+        if self.skip:
+            raise nose.SkipTest('{0} is not installed'.format(self.skip))
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
@@ -569,11 +585,14 @@ class TestImageSequenceAcceptsList(_image_series):
                          for fn in self.filenames]
         self.frame0 = frames[0]
         self.frame1 = frames[1]
-        self.kwargs = dict(plugin='matplotlib')
-        self.klass = pims.ImageSequence
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = shape
         self.expected_len = len(self.filenames)
+
+    def test_bad_path_raises(self):
+        raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
+        self.assertRaises(IOError, raises)
+
 
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
