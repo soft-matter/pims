@@ -94,11 +94,22 @@ class _norpix6_sample_tests(_common_norpix_sample_tests):
                                             'sample_norpix6.seq')
         super(_norpix6_sample_tests, self).setUp()
 
+    def test_specific_file_info(self):
+        """Tests based on the specific file in the repo."""
+        s = self.seq
+        assert len(s) == 6
+        assert s.height == 32
+        assert s.width == 36
+
 
 class test_defaults(_norpix6_sample_tests, unittest.TestCase):
     def setUp(self):
         self.options = {}
         super(test_defaults, self).setUp()
+        
+    def test_specific_file_dtype(self):
+        """Based on the specific file in the repo."""
+        assert self.seq[0].dtype == np.uint8
 
 
 class test_dtype(_norpix6_sample_tests, unittest.TestCase):
