@@ -628,7 +628,7 @@ class FramesSequenceND(FramesSequence):
         the ndarray that is returned by get_frame have the same order as the
         order in this list. The last two elements have to be ['y', 'x'].
     default_coords: dict of int
-        When a dimension is not present in both iter_axes and bundle_axes, the
+        When an axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used.
 
     Examples
@@ -663,7 +663,7 @@ class FramesSequenceND(FramesSequence):
         if not hasattr(self, '_sizes'):
             self._clear_axes()
         elif name in self._sizes:
-            raise ValueError("dimension '{}' already exists".format(name))
+            raise ValueError("axis '{}' already exists".format(name))
         self._sizes[name] = int(size)
         if not (name == 'x' or name == 'y'):
             self.default_coords[name] = int(default)
@@ -693,8 +693,8 @@ class FramesSequenceND(FramesSequence):
 
     @property
     def bundle_axes(self):
-        """ This determines which dimensions will be bundled into one Frame.
-        The ndarray that is returned by get_frame has the same dimension order
+        """ This determines which axes will be bundled into one Frame.
+        The ndarray that is returned by get_frame has the same axis order
         as the order of `bundle_axes`.
         The last two elements have to be ['y', 'x'].
         """
@@ -774,7 +774,7 @@ class FramesSequenceND(FramesSequence):
         # start with the default coordinates
         coords = self._default_coords.copy()
 
-        # list sizes of iterate dimensions
+        # list sizes of iterate axes
         iter_sizes = [self._sizes[k] for k in self._iter_axes]
         # list how much i has to increase to get an increase of coordinate n
         iter_cumsizes = np.append(np.cumprod(iter_sizes[::-1])[-2::-1], 1)
@@ -831,8 +831,8 @@ class FramesSequenceND(FramesSequence):
         return Frame(result, frame_no=i, metadata=metadata)
 
     def __repr__(self):
-        s = "<FramesSequenceND>\nDimensions: {0}\n".format(self.ndim)
+        s = "<FramesSequenceND>\nAxes: {0}\n".format(self.ndim)
         for dim in self._sizes:
-            s += "Dimension '{0}' size: {1}\n".format(dim, self._sizes[dim])
+            s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
         s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s
