@@ -17,6 +17,7 @@ from pims.image_sequence import ImageSequence, ImageSequenceND  # noqa
 from .cine import Cine  # noqa
 from .norpix_reader import NorpixSeq  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
+from .spe_stack import SpeStack
 
 
 def not_available(requirement):

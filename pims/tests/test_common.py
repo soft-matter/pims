@@ -5,10 +5,10 @@ import six
 
 import os
 import sys
-import pickle
 import random
 import types
 import unittest
+import pickle
 import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
@@ -651,6 +651,34 @@ class TestTiffStack_tifffile(_tiff_image_series):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (512, 512)
         self.expected_len = 5
+
+
+class TestSpeStack(_image_series):
+    def check_skip(self):
+        pass
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'spestack_test.spe')
+        self.frame0 = np.load(os.path.join(path, 'spestack_test_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'spestack_test_frame1.npy'))
+        self.klass = pims.SpeStack
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (128, 128)
+        self.expected_len = 5
+
+    def test_metadata(self):
+        m = self.v.metadata
+        with open(os.path.join(path, 'spestack_test_metadata.pkl'), 'rb') as p:
+            if sys.version_info.major < 3:
+                d = pickle.load(p)
+            else:
+                d = pickle.load(p, encoding="latin1")
+                #spare4 is actually a byte array
+                d["spare4"] = d["spare4"].encode("latin1")
+
+        assert_equal(m, d)
+
 
 
 class TestOpenFiles(unittest.TestCase):
