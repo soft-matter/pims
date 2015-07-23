@@ -24,12 +24,11 @@ class Spec(object):
     although this may not be accurate since there is next to no documentation
     to be found.
     """
-    datatype = (108, "<h")
-    xdim = (42, "<H")
-    ydim = (656, "<H")
-    numframes = (1446, "<i")
-
     metadata = {
+        "datatype": (108, "<h"),
+        "xdim": (42, "<H"),
+        "ydim": (656, "<H"),
+        "numframes": (1446, "<i"),
         "comments": (200, "<80S", 5),
         "spare4": (742, "<436S"),
         "ControllerVersion": (0, "<h"),
@@ -54,10 +53,10 @@ class Spec(object):
                                  ("starty", "<H"),
                                  ("endy", "<H"),
                                  ("groupy", "<H")]), 10),
+        "num_rois": (1510, "<h"),
         "readoutMode": (1480, "<H"),
         "WindowSize": (1482, "<H")
     }
-    num_rois = (1510, "<h")
 
     data_start = 4100
 
@@ -126,43 +125,9 @@ class SpeStack(FramesSequence):
         self._char_encoding = (char_encoding if char_encoding is not None
                                else self.default_char_encoding)
 
-        #determine data type
-        self._file.seek(Spec.datatype[0])
-        d = np.fromfile(self._file, Spec.datatype[1], count=1)
-        self._file_dtype = Spec.dtypes[d]
-
-        if dtype is None:
-            self._dtype = self._file_dtype
-        else:
-            self._dtype = dtype
-
-        #movie dimensions
-        self._file.seek(Spec.xdim[0])
-        self._width = np.asscalar(
-            np.fromfile(self._file, Spec.xdim[1], count=1))
-        self._file.seek(Spec.ydim[0])
-        self._height = np.asscalar(
-            np.fromfile(self._file, Spec.ydim[1], count=1))
-        self._file.seek(Spec.numframes[0])
-        self._len = np.asscalar(
-            np.fromfile(self._file, Spec.numframes[1], count=1))
-
-        #read additional metadata
+        ### Read metadata ###
         self.metadata = {}
-        self._read_metadata()
-
-        #pims-specific stuff
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
-
-    def _read_metadata(self):
-        """Actual reading of the additional metadata
-
-        Metadata gets written to self.metadata. Strings are decoded to
-        python strings using the character encoding self._char_encoding
-        """
         #Decode each string from the numpy array read by np.fromfile
-        #function definition
         decode = np.vectorize(lambda x: x.decode(self._char_encoding))
 
         for name, sp in Spec.metadata.items():
@@ -181,26 +146,40 @@ class SpeStack(FramesSequence):
                 v = np.asscalar(v)
             self.metadata[name] = v
 
-        #The number of ROIs is specified in the SPE file. Only return as many
-        #ROIs as specified
-        self._file.seek(Spec.num_rois[0])
-        num_rois = np.fromfile(self._file, Spec.num_rois[1], count=1)
+        ### Some metadata is "special", deal with it
+        #Determine data type
+        self._file_dtype = Spec.dtypes[self.metadata.pop("datatype")]
+        if dtype is None:
+            self._dtype = self._file_dtype
+        else:
+            self._dtype = dtype
+
+        #movie dimensions
+        self._width = self.metadata.pop("xdim")
+        self._height = self.metadata.pop("ydim")
+        self._len = self.metadata.pop("numframes")
+
+        #The number of ROIs is given in the SPE file. Only return as many
+        #ROIs as given
+        num_rois = self.metadata.pop("num_rois", None)
         num_rois = (1 if num_rois < 1 else num_rois)
         self.metadata["ROIs"] = self.metadata["ROIs"][:num_rois]
 
-        #Translate controller names
+        #Make some additional information more human-readable
         t = self.metadata["type"]
         if 1 <= t <= len(Spec.controllers):
             self.metadata["type"] = Spec.controllers[t - 1]
         else:
             self.metadata.pop("type", None)
-
-        #Translate readout mode
         m = self.metadata["readoutMode"]
         if 1 <= m <= len(Spec.readout_modes):
             self.metadata["readoutMode"] = Spec.readout_modes[m - 1]
         else:
             self.metadata.pop("readoutMode", None)
+
+        ### pims-specific stuff
+        self._validate_process_func(process_func)
+        self._as_grey(as_grey, process_func)
 
     @property
     def frame_shape(self):
