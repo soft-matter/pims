@@ -75,6 +75,9 @@ class _common_norpix_sample_tests(object):
     def test_dump_times(self):
         assert isinstance(self.seq.dump_times_float(), np.ndarray)
 
+    def test_repr(self):
+        assert len(repr(self.seq))
+
 
 class test_norpix5_sample(_common_norpix_sample_tests, unittest.TestCase):
     def setUp(self):
