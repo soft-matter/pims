@@ -201,6 +201,11 @@ class SpeStack(FramesSequence):
             self.process_func(data.reshape(self._height, self._width)),
             frame_no=j, metadata=self.metadata)
 
+    def close(self):
+        """Clean up and close file"""
+        super(SpeStack, self).close()
+        self._file.close()
+
     @property
     def pixel_type(self):
         return self._dtype
