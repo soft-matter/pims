@@ -25,37 +25,70 @@ class Spec(object):
     to be found.
     """
     metadata = {
-        "datatype": (108, "<h"),
+        #essential information
+        "datatype": (108, "<h"), #dtypes
         "xdim": (42, "<H"),
         "ydim": (656, "<H"),
-        "numframes": (1446, "<i"),
-        "comments": (200, "<80S", 5),
-        "spare4": (742, "<436S"),
-        "ControllerVersion": (0, "<h"),
-        "swversion": (688, "<16S"),
-        "header_version": (1992, "<f"),
-        "date": (20, "<10S"),
-        "ExperimentTimeLocal": (172, "<7S"),
-        "ExperimentTimeUTC": (179, "<7S"),
-        "exp_sec": (10, "<f"),
-        "DetTemperature": (36, "<f"),
-        "DetType": (40, "<h"),
-        "XPrePixels": (98, "<h"),
-        "XPostPixels": (100, "<h"),
-        "YPrePixels": (102, "<h"),
-        "YPostPixels": (104, "<h"),
-        "ReadoutTime": (672, "<f"),
-        "type": (704, "<h"),
-        "clkspd_us": (1428, "<f"),
+        "NumFrames": (1446, "<i"),
+
+        #ROI information
+        "NumROIsInExperiment": (1488, "<h"),
+        "NumROI": (1510, "<h"),
         "ROIs": (1512, np.dtype([("startx", "<H"),
                                  ("endx", "<H"),
                                  ("groupx", "<H"),
                                  ("starty", "<H"),
                                  ("endy", "<H"),
                                  ("groupy", "<H")]), 10),
-        "num_rois": (1510, "<h"),
-        "readoutMode": (1480, "<H"),
-        "WindowSize": (1482, "<H")
+
+        #chip-related sizes
+        "xDimDet": (6, "<H"),
+        "yDimDet": (18, "<H"),
+        "VChipXdim": (14, "<h"),
+        "VChipYdim": (16, "<h"),
+
+        #other stuff
+        "ControllerVersion": (0, "<h"),
+        "LogicOutput": (2, "<h"),
+        "AmpHiCapLowNoise": (4, "<H"), #enum?
+        "mode": (8, "<h"), #enum?
+        "exp_sec": (10, "<f"),
+        "date": (20, "<10S"),
+        "DetTemperature": (36, "<f"),
+        "DetType": (40, "<h"),
+        "stdiode": (44, "<h"),
+        "DelayTime": (46, "<f"),
+        "ShutterControl": (50, "<H"), #normal, disabled open, disabled closed
+                                      #but which one is which?
+        "AbsorbLive": (52, "<h"), #bool?
+        "AbsorbMode": (54, "<H"),
+        "CanDoVirtualChipFlag": (56, "<h"), #bool?
+        "ThresholdMinLive": (58, "<h"), #bool?
+        "ThresholdMinVal": (60, "<f"),
+        "ThresholdMinLive": (64, "<h"), #bool?
+        "ThresholdMinVal": (66, "<f"),
+        "ExperimentTimeLocal": (172, "<7S"),
+        "ExperimentTimeUTC": (179, "<7S"),
+        "ADCoffset": (188, "<H"),
+        "ADCrate": (190, "<H"),
+        "ADCtype": (192, "<H"),
+        "ADCresolution": (194, "<H"),
+        "ADCbitAdjust": (196, "<H"),
+        "gain": (198, "<H"),
+        "comments": (200, "<80S", 5),
+        "geometric": (600, "<H"), #flags
+        "swversion": (688, "<16S"),
+        "spare4": (742, "<436S"),
+        "XPrePixels": (98, "<h"),
+        "XPostPixels": (100, "<h"),
+        "YPrePixels": (102, "<h"),
+        "YPostPixels": (104, "<h"),
+        "ReadoutTime": (672, "<f"),
+        "type": (704, "<h"), #controllers
+        "clkspd_us": (1428, "<f"),
+        "readoutMode": (1480, "<H"), #readout_modes
+        "WindowSize": (1482, "<H"),
+        "file_header_ver": (1992, "<f")
     }
 
     data_start = 4100
@@ -157,13 +190,30 @@ class SpeStack(FramesSequence):
         #movie dimensions
         self._width = self.metadata.pop("xdim")
         self._height = self.metadata.pop("ydim")
-        self._len = self.metadata.pop("numframes")
+        self._len = self.metadata.pop("NumFrames")
 
         #The number of ROIs is given in the SPE file. Only return as many
         #ROIs as given
-        num_rois = self.metadata.pop("num_rois", None)
+        num_rois = self.metadata.pop("NumROI", None)
         num_rois = (1 if num_rois < 1 else num_rois)
         self.metadata["ROIs"] = self.metadata["ROIs"][:num_rois]
+
+        #chip sizes
+        self.metadata["ChipSize"] = (self.metadata.pop("xDimDet", None),
+                                     self.metadata.pop("yDimDet", None))
+        self.metadata["VirtChipSize"] = (self.metadata.pop("VChipXdim", None),
+                                         self.metadata.pop("VChipYdim", None))
+
+        #geometric operations
+        g = []
+        f = self.metadata.pop("geometric", 0)
+        if f & 1:
+            g.append("rotate")
+        if f & 2:
+            g.append("reverse")
+        if f & 4:
+            g.append("flip")
+        self.metadata["geometric"] = g
 
         #Make some additional information more human-readable
         t = self.metadata["type"]
