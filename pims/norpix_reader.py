@@ -234,6 +234,6 @@ Length: {count} frames
 Frame Shape: {w}w x {h}h
 Pixel Datatype: {dtype}""".format(filename=self.filename,
                                   count=len(self),
-                                  w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
+                                  h=self.frame_shape[0],
+                                  w=self.frame_shape[1],
                                   dtype=self.pixel_type)
