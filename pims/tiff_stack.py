@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
+from datetime import datetime
 import itertools
 import numpy as np
 from pims.frame import Frame
@@ -41,6 +42,12 @@ from pims.base_frames import FramesSequence
 _dtype_map = {4: np.uint8,
               8: np.uint8,
               16: np.uint16}
+
+def _tiff_datetime(dt_str):
+    """Convert the DateTime string of TIFF files to a datetime object"""
+    return datetime(year=int(dt_str[0:4]), month=int(dt_str[5:7]),
+                    day=int(dt_str[8:10]), hour=int(dt_str[11:13]),
+                    minute=int(dt_str[14:16]), second=int(dt_str[17:19]))
 
 
 class TiffStack_tifffile(FramesSequence):
@@ -119,10 +126,34 @@ class TiffStack_tifffile(FramesSequence):
         self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
+        t = self._tiff[j]
         # no idea why we need all of these flips...
-        data = np.flipud(self._tiff[j].asarray().T)
+        data = np.flipud(t.asarray().T)
         return Frame(self.process_func(data).astype(self._dtype),
-                      frame_no=j)
+                      frame_no=j, metadata=self._read_metadata(t))
+
+    def _read_metadata(self, tiff):
+        """Read metadata for current frame and return as dict"""
+        md = {}
+        try:
+            md["ImageDescription"] = (
+                tiff.tags["image_description"].value.decode())
+        except:
+            pass
+        try:
+            dt = tiff.tags["datetime"].value.decode()
+            md["DateTime"] = _tiff_datetime(dt)
+        except:
+            pass
+        try:
+            md["Software"] = tiff.tags["software"].value.decode()
+        except:
+            pass
+        try:
+            md["DocumentName"] = tiff.tags["document_name"].value.decode()
+        except:
+            pass
+        return md
 
     @property
     def pixel_type(self):
@@ -225,7 +256,39 @@ class TiffStack_libtiff(FramesSequence):
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
 
-        return Frame(self.process_func(res), frame_no=j)
+        return Frame(self.process_func(res), frame_no=j,
+                     metadata=self._read_metadata())
+
+    def _read_metadata(self):
+        """Read metadata for current frame and return as dict"""
+        md = {}
+        #explicit str() is needed for python2, otherwise the type would be
+        #unicode and then it won't work anymore
+        dt = self._tiff.GetField(str("ImageDescription"))
+        if dt is not None:
+            try:
+                md["ImageDescription"] = dt.decode()
+            except:
+                pass
+        dt = self._tiff.GetField(str("DateTime"))
+        if dt is not None:
+            try:
+                md["DateTime"] = _tiff_datetime(dt.decode())
+            except:
+                pass
+        dt = self._tiff.GetField(str("Software"))
+        if dt is not None:
+            try:
+                md["Software"] = dt.decode()
+            except:
+                pass
+        dt = self._tiff.GetField(str("DocumentName"))
+        if dt is not None:
+            try:
+                md["DocumentName"] = dt.decode()
+            except:
+                pass
+        return md
 
     @property
     def pixel_type(self):
@@ -340,7 +403,29 @@ class TiffStack_pil(FramesSequence):
         self.cur = self.im.tell()
         res = np.reshape(self.im.getdata(),
                          self._im_sz).astype(self._dtype).T[::-1]
-        return Frame(self.process_func(res), frame_no=j)
+        return Frame(self.process_func(res), frame_no=j,
+                     metadata=self._read_metadata())
+
+    def _read_metadata(self):
+        """Read metadata for current frame and return as dict"""
+        md = {}
+        try:
+            md["ImageDescription"] = self.im.tag[270]
+        except:
+            pass
+        try:
+            md["DateTime"] = _tiff_datetime(self.im.tag[306])
+        except:
+            pass
+        try:
+            md["Software"] = self.im.tag[305]
+        except:
+            pass
+        try:
+            md["DocumentName"] = self.im.tag[269]
+        except:
+            pass
+        return md
 
     @property
     def pixel_type(self):
