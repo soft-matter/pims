@@ -4,6 +4,8 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
+import sys
+import pickle
 import random
 import types
 import unittest
@@ -494,7 +496,19 @@ class TestVideo(_image_series, _image_rgb):
         self.expected_len = 480
 
 
-class TestTiffStack_libtiff(_image_series):
+class _tiff_image_series(_image_series):
+    def test_metadata(self):
+        m = self.v[0].metadata
+        if sys.version_info.major < 3:
+            pkl_path = os.path.join(path, 'stuck_metadata_py2.pkl')
+        else:
+            pkl_path = os.path.join(path, 'stuck_metadata_py3.pkl')
+        with open(pkl_path, 'rb') as p:
+            d = pickle.load(p)
+        assert_equal(m, d)
+
+
+class TestTiffStack_libtiff(_tiff_image_series):
     def check_skip(self):
         _skip_if_no_libtiff()
 
@@ -609,7 +623,7 @@ class TestImageSequenceNaturalSorting(_image_series):
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
-class TestTiffStack_pil(_image_series):
+class TestTiffStack_pil(_tiff_image_series):
     def check_skip(self):
         pass
 
@@ -624,7 +638,7 @@ class TestTiffStack_pil(_image_series):
         self.expected_len = 5
 
 
-class TestTiffStack_tifffile(_image_series):
+class TestTiffStack_tifffile(_tiff_image_series):
     def check_skip(self):
         pass
 
