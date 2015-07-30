@@ -629,8 +629,8 @@ class TestTiffStack_pil(_tiff_image_series):
 
     def setUp(self):
         self.filename = os.path.join(path, 'stuck.tif')
-        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy')).T[::-1]
-        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy')).T[::-1]
+        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
         self.klass = pims.TiffStack_pil
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
@@ -644,8 +644,8 @@ class TestTiffStack_tifffile(_tiff_image_series):
 
     def setUp(self):
         self.filename = os.path.join(path, 'stuck.tif')
-        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy')).T[::-1]
-        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy')).T[::-1]
+        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
         self.klass = pims.TiffStack_tifffile
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)

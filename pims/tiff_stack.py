@@ -127,8 +127,7 @@ class TiffStack_tifffile(FramesSequence):
 
     def get_frame(self, j):
         t = self._tiff[j]
-        # no idea why we need all of these flips...
-        data = np.flipud(t.asarray().T)
+        data = t.asarray()
         return Frame(self.process_func(data).astype(self._dtype),
                       frame_no=j, metadata=self._read_metadata(t))
 
@@ -402,7 +401,7 @@ class TiffStack_pil(FramesSequence):
             return None
         self.cur = self.im.tell()
         res = np.reshape(self.im.getdata(),
-                         self._im_sz).astype(self._dtype).T[::-1]
+                         self._im_sz).astype(self._dtype)
         return Frame(self.process_func(res), frame_no=j,
                      metadata=self._read_metadata())
 
