@@ -383,7 +383,6 @@ class TiffStack_pil(FramesSequence):
             self._im_sz = (w, h, samples_per_px)
         else:
             self._im_sz = (w, h)
-        self.cur = self.im.tell()
         # walk through stack to get length, there has to
         # be a better way to do this
         for j in itertools.count():
@@ -393,17 +392,23 @@ class TiffStack_pil(FramesSequence):
                 break
 
         self._count = j
-        self.im.seek(0)
+        self.cur = self.im.tell()
         self._validate_process_func(process_func)
         self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
         '''Extracts the jth frame from the image sequence.
         if the frame does not exist return None'''
-        try:
+        # PIL does not support random access. If we need to rewind, re-open
+        # the file.
+        if j < self.cur:
+            self.im = Image.open(self._filename)
             self.im.seek(j)
-        except EOFError:
-            return None
+        elif j > self.cur:
+            self.im.seek(j)
+        elif j > len(self):
+            raise IndexError("out of bounds; length is {0}".format(len(self)))
+        # If j == self.cur, do nothing.
         self.cur = self.im.tell()
         res = np.reshape(self.im.getdata(),
                          self._im_sz).astype(self._dtype)
