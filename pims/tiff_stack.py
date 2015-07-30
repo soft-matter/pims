@@ -376,8 +376,13 @@ class TiffStack_pil(FramesSequence):
             pass
         # get image dimensions from the meta data the order is flipped
         # due to row major v col major ordering in tiffs and numpy
-        self._im_sz = (self.im.tag[0x101][0],
-                      self.im.tag[0x100][0])
+        w = self.im.tag[0x101][0]
+        h = self.im.tag[0x100][0]
+        samples_per_px = self.im.tag[0x115][0]
+        if samples_per_px != 1:
+            self._im_sz = (w, h, samples_per_px)
+        else:
+            self._im_sz = (w, h)
         self.cur = self.im.tell()
         # walk through stack to get length, there has to
         # be a better way to do this
