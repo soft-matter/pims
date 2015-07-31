@@ -7,7 +7,7 @@ python:
 install:
   - conda update --yes conda
   - conda create -n testenv --yes numpy scipy nose pillow matplotlib scikit-image jinja2 pip python=$TRAVIS_PYTHON_VERSION
-  - conda install -n testenv -c soft-matter --yes pyav
+  - conda install -n testenv -c soft-matter --yes pyav tifffile
   - source activate testenv
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
   - pip install jpype1;
