@@ -271,10 +271,15 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         This determines which axes will be bundled into one Frame. The axes in
         the ndarray that is returned by get_frame have the same order as the
         order in this list. The last two elements have to be ['y', 'x'].
-        Defaults to ['z', 'y', 'x'].
-    default_coords: dict of int
+        If the 'z' axis exists then it defaults to ['z', 'y', 'x']
+    default_coords : dict of int
         When an axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used.
+    is_rgb : boolean
+        True when the input image is an RGB image.
+    is_interleaved : boolean
+        Applicable to RGB images. Signifies the position of the rgb axis in
+        the input image. True when color data is stored in the last dimension.
     """
     def __init__(self, path_spec, process_func=None, dtype=None,
                  as_grey=False, plugin=None, axes_identifiers='tzc'):
@@ -291,30 +296,30 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         if len(shape) == 2:
             self._init_axis('y', shape[0])
             self._init_axis('x', shape[1])
-            self.isRGB = False
+            self.is_rgb = False
         elif len(shape) == 3 and shape[2] in [3, 4]:
             self._init_axis('y', shape[0])
             self._init_axis('x', shape[1])
             self._init_axis('c', shape[2])
-            self.isRGB = True
-            self.isInterleaved = True
+            self.is_rgb = True
+            self.is_interleaved = True
         elif len(shape) == 3 and shape[0] in [3, 4]:
             self._init_axis('c', shape[0])
             self._init_axis('y', shape[1])
             self._init_axis('x', shape[2])
-            self.isRGB = True
-            self.isInterleaved = False
+            self.is_rgb = True
+            self.is_interleaved = False
         else:
             raise IOError("Could not interpret image shape.")
 
-        if self.isRGB and 'c' in self.axes_identifiers:
+        if self.is_rgb and 'c' in self.axes_identifiers:
             raise ValueError("Axis identifier 'c' is reserved when "
                              "images are rgb.")
 
         if 't' in self.axes:
-            self.iter_axes = 't'  # iterate over t
+            self.iter_axes = ['t']  # iterate over t
         if 'z' in self.axes:
-            self.bundle_axes = 'zyx'  # return z-stacks
+            self.bundle_axes = ['z', 'y', 'x']  # return z-stacks
 
     def _get_files(self, path_spec):
         super(ImageSequenceND, self)._get_files(path_spec)
@@ -333,7 +338,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         return Frame(self.process_func(frame), frame_no=i)
 
     def get_frame_2D(self, **ind):
-        if self.isRGB:
+        if self.is_rgb:
             c = ind['c']
             row = [ind[name] for name in self.axes_identifiers if name != 'c']
         else:
@@ -342,8 +347,8 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         res = self.imread(self._filepaths[i], **self.kwargs)
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
-        if self.isRGB:
-            if self.isInterleaved:
+        if self.is_rgb:
+            if self.is_interleaved:
                 return res[:, :, c]
             else:
                 return res[c]
