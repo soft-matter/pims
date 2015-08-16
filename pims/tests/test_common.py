@@ -725,7 +725,7 @@ class ImageSequenceND(_image_series):
         self.frame0 = np.array([frames[0], frames[2]])
         self.frame1 = np.array([frames[4], frames[6]])
         self.klass = pims.ImageSequenceND
-        self.kwargs = dict(dim_identifiers='tzc')
+        self.kwargs = dict(axes_identifiers='tzc')
         self.v = self.klass(self.filename, **self.kwargs)
         self.v.default_coords['c'] = 0
         self.expected_len = 3
@@ -751,8 +751,8 @@ class ImageSequenceND(_image_series):
         self.assertEqual(tzc, [47, 0, 34])
         tzc = pims.image_sequence.filename_to_indices('file_z4_c2.png')
         self.assertEqual(tzc, [0, 4, 2])
-        tzc = pims.image_sequence.filename_to_indices('file_x4_c2_y5_z1.png',
-                                                      ['x', 'y', 'z'])
+        tzc = pims.image_sequence.filename_to_indices('file_p4_c2_q5_r1.png',
+                                                      ['p', 'q', 'r'])
         self.assertEqual(tzc, [4, 5, 1])
 
     def test_sizeZ(self):
@@ -762,6 +762,45 @@ class ImageSequenceND(_image_series):
     def test_sizeC(self):
         self.check_skip()
         assert_equal(self.v.sizes['c'], self.expected_C)
+
+
+class ImageSequenceND_RGB(_image_series):
+    def check_skip(self):
+        pass
+
+    def setUp(self):
+        self.filepath = os.path.join(path, 'image_sequence3d')
+        self.filenames = ['file_t001_z001_c1.png',
+                          'file_t001_z002_c1.png',
+                          'file_t002_z001_c1.png',
+                          'file_t002_z002_c1.png',
+                          'file_t003_z001_c1.png',
+                          'file_t003_z002_c1.png']
+        shape = (10, 11, 3)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = os.path.join(self.filepath, '*.png')
+        self.frame0 = np.array([frames[0][:, :, 0], frames[1][:, :, 0]])
+        self.frame1 = np.array([frames[2][:, :, 0], frames[3][:, :, 0]])
+        self.klass = pims.ImageSequenceND
+        self.kwargs = dict(axes_identifiers='tz')
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.v.default_coords['c'] = 0
+        self.expected_len = 3
+        self.expected_Z = 2
+        self.expected_C = 3
+        self.expected_shape = (2, 10, 11)
+
+    def test_sizeZ(self):
+        self.check_skip()
+        assert_equal(self.v.sizes['z'], self.expected_Z)
+
+    def test_sizeC(self):
+        self.check_skip()
+        assert_equal(self.v.sizes['c'], self.expected_C)
+
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
 
 
 if __name__ == '__main__':

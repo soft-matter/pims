@@ -194,7 +194,7 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
 
 
 def filename_to_indices(filename, identifiers='tzc'):
-    """ Find ocurrences of dimension indices (e.g. t001, z06, c2)
+    """ Find ocurrences of axis indices (e.g. t001, z06, c2)
     in a filename and returns a list of indices.
 
     Parameters
@@ -202,24 +202,24 @@ def filename_to_indices(filename, identifiers='tzc'):
     filename : string
         filename to be searched for indices
     identifiers : string or list of strings, optional
-        iterable of N strings preceding dimension indices, in that order
+        iterable of N strings preceding axis indices, in that order
 
     Returns
     ---------
     list of int
-        dimension indices. Elements default to 0 when index was not found.
+        axis indices. Elements default to 0 when index was not found.
 
     """
     escaped = [re.escape(a) for a in identifiers]
-    dimensions = re.findall('(' + '|'.join(escaped) + r')(\d+)',
+    axes = re.findall('(' + '|'.join(escaped) + r')(\d+)',
                             filename)
-    if len(dimensions) > len(identifiers):
-        dimensions = dimensions[-3:]
-    order = [a[0] for a in dimensions]
+    if len(axes) > len(identifiers):
+        axes = axes[-3:]
+    order = [a[0] for a in axes]
     result = [0] * len(identifiers)
     for (i, col) in enumerate(identifiers):
         try:
-            result[i] = int(dimensions[order.index(col)][1])
+            result[i] = int(axes[order.index(col)][1])
         except ValueError:
             result[i] = 0
     return result
@@ -227,7 +227,7 @@ def filename_to_indices(filename, identifiers='tzc'):
 
 class ImageSequenceND(FramesSequenceND, ImageSequence):
     """Read a directory of multi-indexed image files into an iterable that
-    returns images as numpy arrays. By default, the extra dimensions are
+    returns images as numpy arrays. By default, the extra axes are
     denoted with t, z, c.
 
     Parameters
@@ -237,7 +237,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         which will ignore extraneous files or a list of files to open
         in the order they should be loaded. When a path to a zipfile is
         specified, all files in the zipfile will be loaded. The filenames
-        should contain the indices of T, Z and C, preceded by a dimension
+        should contain the indices of T, Z and C, preceded by a axis
         identifier such as: 'file_t001c05z32'.
     process_func : function, optional
         callable with signature `proc_img = process_func(img)`,
@@ -250,9 +250,9 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
         will be issued. Not available in combination with zipfiles.
-    dim_identifiers : iterable of strings, optional
-        N strings preceding dimension indices. Default 'tzc'. x and y are not
-        allowed.
+    axes_identifiers : iterable of strings, optional
+        N strings preceding axes indices. Default 'tzc'. x and y are not
+        allowed. c is not allowed when images are RGB.
 
     Attributes
     ----------
@@ -271,30 +271,61 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         This determines which axes will be bundled into one Frame. The axes in
         the ndarray that is returned by get_frame have the same order as the
         order in this list. The last two elements have to be ['y', 'x'].
-        Defaults to ['z', 'y', 'x'].
-    default_coords: dict of int
-        When a dimension is not present in both iter_axes and bundle_axes, the
+        If the 'z' axis exists then it defaults to ['z', 'y', 'x']
+    default_coords : dict of int
+        When an axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used.
+    is_rgb : boolean
+        True when the input image is an RGB image.
+    is_interleaved : boolean
+        Applicable to RGB images. Signifies the position of the rgb axis in
+        the input image. True when color data is stored in the last dimension.
     """
     def __init__(self, path_spec, process_func=None, dtype=None,
-                 as_grey=False, plugin=None, dim_identifiers='tzc'):
+                 as_grey=False, plugin=None, axes_identifiers='tzc'):
         if as_grey:
             raise ValueError('As grey not supported for ND images')
-        self.dim_identifiers = dim_identifiers
+        if 'x' in axes_identifiers:
+            raise ValueError("Axis 'x' is reserved")
+        if 'y' in axes_identifiers:
+            raise ValueError("Axis 'y' is reserved")
+        self.axes_identifiers = axes_identifiers
         super(ImageSequenceND, self).__init__(path_spec, process_func,
                                               dtype, as_grey, plugin)
-        self._init_axis('y', self._first_frame_shape[0])
-        self._init_axis('x', self._first_frame_shape[1])
+        shape = self._first_frame_shape
+        if len(shape) == 2:
+            self._init_axis('y', shape[0])
+            self._init_axis('x', shape[1])
+            self.is_rgb = False
+        elif len(shape) == 3 and shape[2] in [3, 4]:
+            self._init_axis('y', shape[0])
+            self._init_axis('x', shape[1])
+            self._init_axis('c', shape[2])
+            self.is_rgb = True
+            self.is_interleaved = True
+        elif len(shape) == 3 and shape[0] in [3, 4]:
+            self._init_axis('c', shape[0])
+            self._init_axis('y', shape[1])
+            self._init_axis('x', shape[2])
+            self.is_rgb = True
+            self.is_interleaved = False
+        else:
+            raise IOError("Could not interpret image shape.")
+
+        if self.is_rgb and 'c' in self.axes_identifiers:
+            raise ValueError("Axis identifier 'c' is reserved when "
+                             "images are rgb.")
+
         if 't' in self.axes:
-            self.iter_axes = 't'  # iterate over t
+            self.iter_axes = ['t']  # iterate over t
         if 'z' in self.axes:
-            self.bundle_axes = 'zyx'  # return z-stacks
+            self.bundle_axes = ['z', 'y', 'x']  # return z-stacks
 
     def _get_files(self, path_spec):
         super(ImageSequenceND, self)._get_files(path_spec)
-        self._toc = np.array([filename_to_indices(f, self.dim_identifiers)
+        self._toc = np.array([filename_to_indices(f, self.axes_identifiers)
                               for f in self._filepaths])
-        for n, name in enumerate(self.dim_identifiers):
+        for n, name in enumerate(self.axes_identifiers):
             if np.all(self._toc[:, n] == 0):
                 self._toc = np.delete(self._toc, n, axis=1)
             else:
@@ -307,12 +338,22 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         return Frame(self.process_func(frame), frame_no=i)
 
     def get_frame_2D(self, **ind):
-        row = [ind[name] for name in self.dim_identifiers]
+        if self.is_rgb:
+            c = ind['c']
+            row = [ind[name] for name in self.axes_identifiers if name != 'c']
+        else:
+            row = [ind[name] for name in self.axes_identifiers]
         i = np.argwhere(np.all(self._toc == row, 1))[0, 0]
         res = self.imread(self._filepaths[i], **self.kwargs)
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
-        return res
+        if self.is_rgb:
+            if self.is_interleaved:
+                return res[:, :, c]
+            else:
+                return res[c]
+        else:
+            return res
 
     def __repr__(self):
         try:
@@ -320,9 +361,9 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         except AttributeError:
             source = '(list of images)'
         s = "<ImageSequenceND>\nSource: {0}\n".format(source)
-        s += "Dimensions: {0}\n".format(self.ndim)
+        s += "Axes: {0}\n".format(self.ndim)
         for dim in self._sizes:
-            s += "Dimension '{0}' size: {1}\n".format(dim, self._sizes[dim])
+            s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
         s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s
 
