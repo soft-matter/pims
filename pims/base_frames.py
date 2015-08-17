@@ -578,6 +578,12 @@ def pipeline(func):
             s = SliceableIterable(img_or_iterable, range(_len), _len)
             s._proc_func = lambda image: func(image, *args, **kwargs)
             return s
+        elif isinstance(img_or_iterable, Frame):
+            # Fall back on normal behavior of func, interpreting input
+            # as a single image, but propagate frame_no and metadata.
+            return pims.Frame(func(img_or_iterable),
+                              frame_no=img_or_iterable.frame_no,
+                              metadata=img_or_iterable.metadata)
         else:
             # Fall back on normal behavior of func, interpreting input
             # as a single image.
