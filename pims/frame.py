@@ -9,6 +9,8 @@ from pims.display import _scrollable_stack, _as_png, to_rgb
 
 
 WIDTH = 512  # width of rich display, in pixels
+MAX_HEIGHT = 512  # maximum height of rich display, in pixels
+MAX_STACK_DEPTH = 128  # max stack count of scrollable stack (for 3D images)
 
 
 class Frame(ndarray):
@@ -92,14 +94,23 @@ class Frame(ndarray):
         # If Frame is 2D, display as a plain image.
         # We have to build the image tag ourselves; _repr_html_ expects HTML.
         if image.ndim == 2 or (image.ndim == 3 and has_color_channels):
+            width = WIDTH
+            if ((image.shape[0] * width) // image.shape[1]) > MAX_HEIGHT:
+                width = (image.shape[1] * MAX_HEIGHT) // image.shape[0]
             tag = Template('<img src="data:image/png;base64,{{data}}" '
                            'style="width: {{width}}" />')
             return tag.render(data=b64encode(_as_png(image,
-                                                     WIDTH)).decode('utf-8'),
-                              width=WIDTH)
+                                                     width)).decode('utf-8'),
+                              width=width)
         # If Frame is 3D, display as a scrollable stack.
         elif image.ndim == 3 or (image.ndim == 4 and has_color_channels):
-            return _scrollable_stack(image, width=WIDTH)
+            if image.shape[0] > MAX_STACK_DEPTH:          
+                raise ValueError("For 3D images, pims is limited to a stack "
+                                 "depth of {0}.".format(MAX_STACK_DEPTH))
+            width = WIDTH
+            if ((image.shape[1] * width) // image.shape[2]) > MAX_HEIGHT:
+                width = (image.shape[2] * MAX_HEIGHT) // image.shape[1]
+            return _scrollable_stack(image, width=width)
         else:
             # This exception will be caught by IPython and displayed
             # as a FormatterWarning.
