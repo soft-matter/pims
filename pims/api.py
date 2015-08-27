@@ -127,7 +127,7 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
         raise UnknownFormatError(
             "Could not detect your file type because it did not have an "
             "extension. Try specifying a loader class, e.g. "
-            "Video({1})".format(sequence))
+            "Video({0})".format(sequence))
     ext = ext.lower()[1:]
 
     all_handlers = _recursive_subclasses(FramesSequence)
