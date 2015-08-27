@@ -748,6 +748,9 @@ class FramesSequenceND(FramesSequence):
         invalid = [k for k in value if k not in self._sizes]
         if invalid:
             raise ValueError("axes %r do not exist" % invalid)
+        if 'x' in value or 'y' in value:
+            raise ValueError("axes 'y' and 'x' cannot have a default "
+                             "coordinate")
         self._default_coords.update(**value)
 
     @abstractmethod
@@ -795,7 +798,7 @@ class FramesSequenceND(FramesSequence):
                               dtype=self.pixel_type)
 
             # zero out all coords that will be bundled
-            coords.update(**{k: 0 for k in self._bundle_axes})
+            coords.update(**{k: 0 for k in self._bundle_axes[:-2]})
             # read all 2D frames and properly iterate through the coordinates
             mdlist = [{}] * Nframes
             for n in range(Nframes):
