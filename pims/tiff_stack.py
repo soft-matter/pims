@@ -112,7 +112,10 @@ class TiffStack_tifffile(FramesSequence):
                  as_grey=False):
         self._filename = filename
         record = tifffile.TiffFile(filename).series[0]
-        self._tiff = record['pages']
+        if hasattr(record, 'pages'):
+            self._tiff = record.pages
+        else:
+            self._tiff = record['pages']
 
         tmp = self._tiff[0]
         if dtype is None:
