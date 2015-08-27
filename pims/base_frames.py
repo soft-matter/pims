@@ -794,6 +794,8 @@ class FramesSequenceND(FramesSequence):
             result = np.empty([Nframes] + list(shape[-2:]),
                               dtype=self.pixel_type)
 
+            # zero out all coords that will be bundled
+            coords.update(**{k: 0 for k in self._bundle_axes})
             # read all 2D frames and properly iterate through the coordinates
             mdlist = [{}] * Nframes
             for n in range(Nframes):
