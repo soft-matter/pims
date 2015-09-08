@@ -18,10 +18,29 @@ except ImportError:
     mpl = None
     plt = None
 
+try:
+    import av
+except ImportError:
+    av = None
 
-def export(sequence, filename, rate=30, bitrate=None,
-           width=None, height=None, codec='mpeg4', format='yuv420p',
-           autoscale=True):
+try:
+    from moviepy.editor import VideoClip
+except ImportError:
+    VideoClip = None
+    
+def export(*args, **kwargs):
+    if av is not None:
+        return export_pyav(*args, **kwargs)
+    elif VideoClip is not None:
+        return export_moviepy(*args, **kwargs)
+    else:
+        if av is None:
+            raise("This feature requires either PyAV or moviepy to be "
+                  "installed.")
+
+def export_pyav(sequence, filename, rate=30, bitrate=None,
+                width=None, height=None, codec='mpeg4', format='yuv420p',
+                autoscale=True):
     """Export a sequence of images as a standard video file.
 
     N.B. If the quality and detail are insufficient, increase the
@@ -54,9 +73,7 @@ def export(sequence, filename, rate=30, bitrate=None,
         be set to True, as it is by default.
 
     """
-    try:
-        import av
-    except ImportError:
+    if av is None:
         raise("This feature requires PyAV with FFmpeg or libav installed.")
     output = av.open(filename, 'w')
     stream = output.add_stream(bytes(codec), rate)
@@ -141,11 +158,55 @@ def play(sequence, rate=30, bitrate=None,
     except ImportError:
         raise ImportError("This feature requires IPython.")
     with tempfile.NamedTemporaryFile(suffix='.webm') as temp:
-        export(sequence, bytes(temp.name), codec='libvpx', rate=rate,
-               width=width, height=height, bitrate=bitrate, format='yuv420p',
-               autoscale=True)
+        export_pyav(sequence, bytes(temp.name), codec='libvpx', rate=rate,
+                    width=width, height=height, bitrate=bitrate,
+                    format='yuv420p', autoscale=True)
         temp.flush()
         display(repr_video(temp.name, 'x-webm'))
+
+
+def export_moviepy(sequence, filename, autoscale=True, **kwargs):
+    """func takes exactly one argument, namely the image index"""
+    if VideoClip is None:
+        raise ImportError('The MoviePy exporter requires moviepy to work.')
+    _kwargs = dict(fps=10, codec='mpeg4', ffmpeg_params=['-qscale:v', '5'])
+    _kwargs.update(kwargs)
+    fps = _kwargs['fps']
+    if fps < 10:
+        raise ValueError('FPS must be greater than 10, else there will be '
+                         'playback issues even in VLC.')
+    def func_wrapped(t):
+        image = sequence[int(round(t*fps))]
+        ndim = image.ndim
+        shape = image.shape
+        if autoscale:
+            image = (image / image.max() * 255).astype(np.uint8)
+        elif image.dtype is not np.uint8:
+            if issubclass(image.dtype, np.integer):
+                image = image / np.iinfo(image.dtype).max
+                image = (image * 255).astype(np.uint8)
+            else:
+                image = (image * 255).astype(np.uint8)
+
+        if ndim == 3 and shape.count(3) == 1:
+            # This is a color image. Ensure that the color axis is axis 2.
+            color_axis = shape.index(3)
+            image = np.rollaxis(image, color_axis, 3)
+        elif image.ndim == 3 and shape.count(4) == 1:
+            # This is an RGBA image. Drop the A values.
+            color_axis = shape.index(4)
+            image = np.rollaxis(image, color_axis, 4)[:, :, :3]
+        elif ndim == 2:
+            # Expand into color to satisfy moviepy's expectation
+            image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
+        else:
+            raise ValueError("Images have the wrong shape.")
+
+        return image
+
+    clip = VideoClip(func_wrapped)
+    clip.duration = (len(sequence) - 1) / fps
+    clip.write_videofile(filename, **_kwargs)
 
 
 def repr_video(fname, mimetype):
