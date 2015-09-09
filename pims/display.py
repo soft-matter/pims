@@ -30,16 +30,6 @@ try:
         from moviepy.editor import VideoClip
 except ImportError:
     VideoClip = None
-    
-def export(*args, **kwargs):
-    if av is not None:
-        return export_pyav(*args, **kwargs)
-    elif VideoClip is not None:
-        return export_moviepy(*args, **kwargs)
-    else:
-        if av is None:
-            raise("This feature requires either PyAV or moviepy to be "
-                  "installed.")
 
 def export_pyav(sequence, filename, rate=30, bitrate=None,
                 width=None, height=None, codec='mpeg4', format='yuv420p',
@@ -168,18 +158,38 @@ def play(sequence, rate=30, bitrate=None,
         display(repr_video(temp.name, 'x-webm'))
 
 
-def export_moviepy(sequence, filename, autoscale=True, **kwargs):
-    """func takes exactly one argument, namely the image index"""
+def export_moviepy(sequence, filename, rate=30, codec='mpeg4',
+                   autoscale=True, **kwargs):
+    """Export a sequence of images as a standard video file.
+
+    N.B. If the quality and detail are insufficient, increase the
+    bitrate.
+
+    Parameters
+    ----------
+    sequence : any iterator or array of array-like images
+        The images should have two dimensions plus an
+        optional third dimensions representing color.
+    filename : string
+        name of output file
+    rate : integer, optional
+        frame rate of output file, 30 by default
+    codec : string, optional
+        a valid video encoding, 'mpeg4' by default
+    autoscale : boolean, optional
+        Linearly rescale the brightness to use the full gamut of black to
+        white values. True by default.
+    """
     if VideoClip is None:
         raise ImportError('The MoviePy exporter requires moviepy to work.')
-    _kwargs = dict(fps=10, codec='mpeg4', ffmpeg_params=['-qscale:v', '5'])
+    _kwargs = dict(fps=rate, codec=codec, ffmpeg_params=['-qscale:v', '5'])
     _kwargs.update(kwargs)
-    fps = _kwargs['fps']
-    if fps < 10:
-        raise ValueError('FPS must be greater than 10, else there will be '
-                         'playback issues even in VLC.')
-    def func_wrapped(t):
-        image = sequence[int(round(t*fps))]
+
+    if rate < 10:
+        raise ValueError('Framerate must be greater than 10, else there will '
+                         'be playback issues.')
+    def func(t):
+        image = sequence[int(round(t*rate))]
         ndim = image.ndim
         shape = image.shape
         if autoscale:
@@ -207,10 +217,14 @@ def export_moviepy(sequence, filename, autoscale=True, **kwargs):
 
         return image
 
-    clip = VideoClip(func_wrapped)
-    clip.duration = (len(sequence) - 1) / fps
+    clip = VideoClip(func)
+    clip.duration = (len(sequence) - 1) / rate
     clip.write_videofile(filename, **_kwargs)
 
+if av is not None:
+    export = export_pyav
+elif VideoClip is not None:
+    export = export_moviepy
 
 def repr_video(fname, mimetype):
     """Load the video in the file `fname`, with given mimetype,
