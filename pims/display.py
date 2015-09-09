@@ -8,6 +8,7 @@ import tempfile
 from io import BytesIO
 from base64 import b64encode
 from contextlib import contextmanager
+import warnings
 
 try:
     from matplotlib.colors import ColorConverter
@@ -24,7 +25,9 @@ except ImportError:
     av = None
 
 try:
-    from moviepy.editor import VideoClip
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from moviepy.editor import VideoClip
 except ImportError:
     VideoClip = None
     

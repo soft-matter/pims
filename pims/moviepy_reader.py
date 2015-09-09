@@ -5,11 +5,18 @@ import six
 
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
+import warnings
 
 try:
-    from moviepy.editor import VideoFileClip
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from moviepy.editor import VideoFileClip
 except ImportError:
     VideoFileClip = None
+
+
+def available():
+    return VideoFileClip is not None
 
 
 class MoviePyReader(FramesSequence):

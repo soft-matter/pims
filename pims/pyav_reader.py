@@ -12,18 +12,13 @@ from pims.frame import Frame
 
 try:
     import av
+    from PIL import Image
 except ImportError:
     av = None
 
 
 def available():
-    try:
-        import av
-        from PIL import Image
-    except ImportError:
-        return False
-    else:
-        return True
+    return av is not None
 
 
 class PyAVVideoReader(FramesSequence):
