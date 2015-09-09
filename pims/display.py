@@ -349,11 +349,10 @@ def _to_rgb_uint8(image, autoscale):
         image = (normalize(image) * 255).astype(np.uint8)
     elif image.dtype is not np.uint8:
         if np.issubdtype(image.dtype, np.integer):
-            # many cameras have 12-bit images stored as 16-bit
-            if image.dtype is np.uint16 and image.max() < 2**12:
+            max_value = np.iinfo(image.dtype).max
+            # sometimes 12-bit images are stored as unsigned 16-bit
+            if max_value == 2**16 - 1 and image.max() < 2**12:
                 max_value = 2**12 - 1
-            else:
-                max_value = np.iinfo(image.dtype).max
             image = (image / max_value * 255).astype(np.uint8)
         else:
             image = (image * 255).astype(np.uint8)
