@@ -31,6 +31,7 @@ try:
 except ImportError:
     VideoClip = None
 
+
 def export_pyav(sequence, filename, rate=30, bitrate=None,
                 width=None, height=None, codec='mpeg4', format='yuv420p',
                 autoscale=True):
@@ -72,7 +73,6 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
     stream = output.add_stream(bytes(codec), rate)
     stream.pix_fmt = bytes(format)
 
-    ndim = None
     for frame_no, img in enumerate(sequence):
         if not frame_no:
             # Inspect first frame to set up stream.
@@ -86,31 +86,9 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
                 stream.width = width
                 stream.height = (height or
                                  width * img.shape[0] // img.shape[1])
-            ndim = img.ndim
 
-        if ndim == 3:
-            if img.shape.count(3) != 1:
-                raise ValueError("Images have the wrong shape.")
-            # This is a color image. Ensure that the color axis is axis 2.
-            color_axis = img.shape.index(3)
-            img = np.rollaxis(img, color_axis, 3)
-        elif ndim == 2:
-            # Expand into color to satisfy PyAV's expectation that images
-            # be in color. (Without this, an assert is tripped.)
-            img = np.repeat(np.expand_dims(img, 2), 3, axis=2)
-        else:
-            raise ValueError("Images have the wrong shape.")
-
-        # PyAV requires uint8.
-        if img.dtype is not np.uint8 and (not autoscale):
-            raise ValueError("Autoscaling must be turned on if the image "
-                             "data type is not uint8. Convert the datatype "
-                             "manually if you want to turn off autoscale.")
-        if autoscale:
-            normed = (img - img.min()) / (img.max() - img.min())
-            img = (255 * normed).astype('uint8')
-
-        frame = av.VideoFrame.from_ndarray(np.asarray(img), format=b'bgr24')
+        frame = av.VideoFrame.from_ndarray(_to_rgb_uint8(img, autoscale),
+                                           format=b'bgr24')
         packet = stream.encode(frame)
         output.mux(packet)
 
@@ -188,36 +166,9 @@ def export_moviepy(sequence, filename, rate=30, codec='mpeg4',
     if rate < 10:
         raise ValueError('Framerate must be greater than 10, else there will '
                          'be playback issues.')
-    def func(t):
-        image = sequence[int(round(t*rate))]
-        ndim = image.ndim
-        shape = image.shape
-        if autoscale:
-            image = (image / image.max() * 255).astype(np.uint8)
-        elif image.dtype is not np.uint8:
-            if issubclass(image.dtype, np.integer):
-                image = image / np.iinfo(image.dtype).max
-                image = (image * 255).astype(np.uint8)
-            else:
-                image = (image * 255).astype(np.uint8)
 
-        if ndim == 3 and shape.count(3) == 1:
-            # This is a color image. Ensure that the color axis is axis 2.
-            color_axis = shape.index(3)
-            image = np.rollaxis(image, color_axis, 3)
-        elif image.ndim == 3 and shape.count(4) == 1:
-            # This is an RGBA image. Drop the A values.
-            color_axis = shape.index(4)
-            image = np.rollaxis(image, color_axis, 4)[:, :, :3]
-        elif ndim == 2:
-            # Expand into color to satisfy moviepy's expectation
-            image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
-        else:
-            raise ValueError("Images have the wrong shape.")
-
-        return image
-
-    clip = VideoClip(func)
+    clip = VideoClip(lambda t: _to_rgb_uint8(sequence[int(round(t*rate))],
+                                             autoscale))
     clip.duration = (len(sequence) - 1) / rate
     clip.write_videofile(filename, **_kwargs)
 
@@ -355,6 +306,35 @@ def normalize(arr):
         ptp = 1
     scaled_arr = (arr - arr.min()) / ptp
     return scaled_arr
+
+
+def _to_rgb_uint8(image, autoscale):
+    if autoscale:
+        image = (normalize(image) * 255).astype(np.uint8)
+    elif image.dtype is not np.uint8:
+        if np.issubdtype(image.dtype, np.integer):
+            image = image / np.iinfo(image.dtype).max
+            image = (image * 255).astype(np.uint8)
+        else:
+            image = (image * 255).astype(np.uint8)
+
+    ndim = image.ndim
+    shape = image.shape
+    if ndim == 3 and shape.count(3) == 1:
+        # This is a color image. Ensure that the color axis is axis 2.
+        color_axis = shape.index(3)
+        image = np.rollaxis(image, color_axis, 3)
+    elif image.ndim == 3 and shape.count(4) == 1:
+        # This is an RGBA image. Drop the A values.
+        color_axis = shape.index(4)
+        image = np.rollaxis(image, color_axis, 4)[:, :, :3]
+    elif ndim == 2:
+        # Expand into color to satisfy moviepy's expectation
+        image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
+    else:
+        raise ValueError("Images have the wrong shape.")
+
+    return np.asarray(image)
 
 
 def _estimate_bitrate(shape, frame_rate):
