@@ -10,7 +10,7 @@ install:
   - conda install -n testenv -c soft-matter --yes pyav tifffile
   - source activate testenv
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
-  - pip install jpype1;
+  - pip install slicerator jpype1;
   - python setup.py build_ext install
 
 
