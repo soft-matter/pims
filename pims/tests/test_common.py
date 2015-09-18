@@ -33,6 +33,13 @@ def _skip_if_no_libtiff():
         raise nose.SkipTest('libtiff not installed. Skipping.')
 
 
+def _skip_if_no_tifffile():
+    try:
+        import tifffile
+    except ImportError:
+        raise nose.SkipTest('tifffile not installed. Skipping.')
+
+
 def assert_image_equal(actual, expected):
     if np.issubdtype(actual.dtype, np.integer):
         assert_equal(actual, expected)
@@ -643,6 +650,7 @@ class TestTiffStack_tifffile(_tiff_image_series):
         pass
 
     def setUp(self):
+        _skip_if_no_tifffile()
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
@@ -697,6 +705,7 @@ class TestOpenFiles(unittest.TestCase):
         pims.open(os.path.join(path, 'bulk-water.mov'))
 
     def test_open_tiff(self):
+        _skip_if_no_tifffile()
         pims.open(os.path.join(path, 'stuck.tif'))
 
 
