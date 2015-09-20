@@ -61,7 +61,7 @@ def clean_dummy_png(filepath, filenames):
         os.rmdir(filepath)
 
 
-class _image_single(unittest.TestCase):
+class _image_single(object):
     def check_skip(self):
         pass
 
@@ -313,12 +313,12 @@ class TestMultidimensional(unittest.TestCase):
         self.v.iter_axes = 't'
         for i in np.random.randint(0, 100, 10):
             assert_equal(self.v[i].frame_no, i)
-        self.v.iter_axes = 'zc'    
+        self.v.iter_axes = 'zc'
         for i in np.random.randint(0, 3*20, 10):
             assert_equal(self.v[i].frame_no, i)
 
     def test_metadata(self):
-        # if no metadata is provided by the reader, metadata should be {} 
+        # if no metadata is provided by the reader, metadata should be {}
         assert_equal(self.v[0].metadata, {})
 
         class MetadataReturningReader(pims.FramesSequenceND):
@@ -459,7 +459,7 @@ class _image_series(_image_single):
         list(self.v[[0, -1]])
 
 
-class _image_rgb(unittest.TestCase):
+class _image_rgb(_image_single):
     # Only include these tests for 2D RGB files.
     def test_greyscale_process_func(self):
         self.check_skip()
@@ -480,7 +480,7 @@ class _image_rgb(unittest.TestCase):
         self.assertEqual(ndim, 2)
 
 
-class TestVideo(_image_series, _image_rgb):
+class TestVideo(_image_series, _image_rgb, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_PyAV()
 
@@ -508,7 +508,7 @@ class _tiff_image_series(_image_series):
         assert_equal(m, d)
 
 
-class TestTiffStack_libtiff(_tiff_image_series):
+class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_libtiff()
 
@@ -524,7 +524,7 @@ class TestTiffStack_libtiff(_tiff_image_series):
         self.expected_len = 5
 
 
-class TestImageSequenceWithPIL(_image_series):
+class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
     def setUp(self):
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
@@ -550,7 +550,7 @@ class TestImageSequenceWithPIL(_image_series):
         clean_dummy_png(self.filepath, self.filenames)
 
 
-class TestImageSequenceWithMPL(_image_series):
+class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
     def setUp(self):
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
@@ -570,7 +570,7 @@ class TestImageSequenceWithMPL(_image_series):
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
-class TestImageSequenceAcceptsList(_image_series):
+class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
     def setUp(self):
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
@@ -592,7 +592,7 @@ class TestImageSequenceAcceptsList(_image_series):
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
-class TestImageSequenceNaturalSorting(_image_series):
+class TestImageSequenceNaturalSorting(_image_series, unittest.TestCase):
     def setUp(self):
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F1.png', 'T76S3F20.png',
@@ -623,7 +623,7 @@ class TestImageSequenceNaturalSorting(_image_series):
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
-class TestTiffStack_pil(_tiff_image_series):
+class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -638,7 +638,7 @@ class TestTiffStack_pil(_tiff_image_series):
         self.expected_len = 5
 
 
-class TestTiffStack_tifffile(_tiff_image_series):
+class TestTiffStack_tifffile(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -653,7 +653,7 @@ class TestTiffStack_tifffile(_tiff_image_series):
         self.expected_len = 5
 
 
-class TestSpeStack(_image_series):
+class TestSpeStack(_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -674,6 +674,9 @@ class TestSpeStack(_image_series):
                 d = pickle.load(p)
             else:
                 d = pickle.load(p, encoding="latin1")
+                # unpickling fails on Py3.4, Win7, 64-bit:
+                # UnpicklingError: the STRING opcode argument must be quoted
+
                 #spare4 is actually a byte array
                 d["spare4"] = d["spare4"].encode("latin1")
 
@@ -700,7 +703,7 @@ class TestOpenFiles(unittest.TestCase):
         pims.open(os.path.join(path, 'stuck.tif'))
 
 
-class ImageSequenceND(_image_series):
+class ImageSequenceND(_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -764,7 +767,7 @@ class ImageSequenceND(_image_series):
         assert_equal(self.v.sizes['c'], self.expected_C)
 
 
-class ImageSequenceND_RGB(_image_series):
+class ImageSequenceND_RGB(_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
