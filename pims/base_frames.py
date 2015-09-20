@@ -10,7 +10,7 @@ import collections
 import itertools
 import functools
 import contextlib
-from slicerator import Slicerator
+from slicerator import slicerate
 from threading import Lock
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
@@ -150,10 +150,11 @@ class FramesSequence(FramesStream):
     Must be finite length.
 
     """
+    @slicerate()
     def __getitem__(self, key):
         """__getitem__ is handled by Slicerator. In all pims readers, the data
         returning function is get_frame."""
-        return Slicerator(self, 'get_frame')[key]
+        return self.get_frame(key)
 
     def __iter__(self):
         return iter(self[:])
