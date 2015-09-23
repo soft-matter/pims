@@ -13,7 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from pims.frame import Frame
-from pims.base_frames import FramesSequenceMappable
+from pims.base_frames import FramesSequence, propagate, propagate_indexed
 from pims.utils.misc import FileLocker
 import time
 import struct
@@ -208,7 +208,7 @@ SETUP_FIELDS = [
 ]
 
 
-class Cine(FramesSequenceMappable):
+class Cine(FramesSequence):
     """Read cine files
 
     Read cine files, the out put from Vision Research high-speed phantom
@@ -521,6 +521,7 @@ class Cine(FramesSequenceMappable):
 
     len = __len__
 
+    @propagate_indexed
     def get_time(self, i):
         '''Returm the time of frame i in seconds.'''
         # TODO: This is not guaranteed to be the actual time.
@@ -528,7 +529,7 @@ class Cine(FramesSequenceMappable):
         # The actual time is available from the timestamp tagged block,
         # which is read above.
         # See NorpixSeq for a timestamp API that solves this problem.
-        return float(self._map_index(i)) / self.frame_rate
+        return float(i) / self.frame_rate
 
     def get_fps(self):
         return self.frame_rate
