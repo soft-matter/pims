@@ -440,7 +440,7 @@ def plots_to_frame(figures, width=512, close_fig=False, **imsave_kwargs):
         if (im.shape[0] != h) or (im.shape[1] != width):
             im = np.pad(im[:h, :width], ((0, max(0, h - im.shape[0])),
                                          (0, max(0, width - im.shape[1])),
-                                         (0, 0)), mode=b'constant')
+                                         (0, 0)), mode=str('constant'))
         frames.append(im)
 
     return Frame(np.array(frames))
