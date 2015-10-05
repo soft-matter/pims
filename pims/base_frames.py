@@ -63,7 +63,7 @@ class FramesStream(with_metaclass(ABCMeta, object)):
 
         Calls relevant classmethod.
         """
-        return type(self).class_ext()
+        return type(self).class_exts()
 
     def close(self):
         """
