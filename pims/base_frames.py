@@ -10,7 +10,7 @@ import collections
 import itertools
 import functools
 import contextlib
-from slicerator import slicerate, propagate, propagate_indexed
+from slicerator import Slicerator, propagate_attr, index_attr
 from threading import Lock
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
@@ -138,7 +138,7 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   dtype=self.pixel_type)
 
-
+@Slicerator.from_class
 class FramesSequence(FramesStream):
     """Baseclass for wrapping data buckets that have random access.
 
@@ -150,8 +150,8 @@ class FramesSequence(FramesStream):
     Must be finite length.
 
     """
-    @slicerate(propagate=['frame_shape', 'pixel_type'],
-               propagate_indexed=['get_frame'])
+    propagate_attrs = ['frame_shape', 'pixel_type']
+
     def __getitem__(self, key):
         """__getitem__ is handled by Slicerator. In all pims readers, the data
         returning function is get_frame."""

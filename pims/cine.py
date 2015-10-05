@@ -13,7 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from pims.frame import Frame
-from pims.base_frames import FramesSequence, propagate, propagate_indexed
+from pims.base_frames import FramesSequence, index_attr
 from pims.utils.misc import FileLocker
 import time
 import struct
@@ -233,8 +233,10 @@ class Cine(FramesSequence):
     # TODO: Unit tests using a small sample cine file.
     @classmethod
     def class_exts(cls):
-        return {'cine'} | super(Cine,
-                                cls).class_exts()
+        return {'cine'} | super(Cine, cls).class_exts()
+
+    propagate_attrs = ['frame_shape', 'pixel_type', 'filename', 'frame_rate',
+                       'get_fps', 'compression', 'cfa', 'off_set']
 
     def __init__(self, filename, process_func=None,
                  dtype=None, as_grey=False):
@@ -521,7 +523,7 @@ class Cine(FramesSequence):
 
     len = __len__
 
-    @propagate_indexed
+    @index_attr
     def get_time(self, i):
         '''Returm the time of frame i in seconds.'''
         # TODO: This is not guaranteed to be the actual time.

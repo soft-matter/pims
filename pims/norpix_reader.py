@@ -10,7 +10,7 @@ import six
 from six.moves import range
 
 from pims.frame import Frame
-from pims.base_frames import FramesSequence, propagate, propagate_indexed
+from pims.base_frames import FramesSequence, index_attr
 from pims.utils.misc import FileLocker
 import os, struct, itertools
 from warnings import warn
@@ -69,6 +69,10 @@ class NorpixSeq(FramesSequence):
     @classmethod
     def class_exts(cls):
         return {'seq'} | super(NorpixSeq, cls).class_exts()
+
+    propagate_attrs = ['frame_shape', 'pixel_type', 'get_time',
+                       'get_time_float', 'filename', 'width', 'height',
+                       'frame_rate']
 
     def __init__(self, filename, process_func=None, dtype=None, as_grey=False):
         super(NorpixSeq, self).__init__()
@@ -180,7 +184,7 @@ class NorpixSeq(FramesSequence):
                             + self._image_bytes)
             return self._read_timestamp()
 
-    @propagate_indexed
+    @index_attr
     def get_time(self, i):
         """Return the time of frame i as a datetime instance.
 
@@ -190,7 +194,7 @@ class NorpixSeq(FramesSequence):
         """
         return self._get_time(i)[1]
 
-    @propagate_indexed
+    @index_attr
     def get_time_float(self, i):
         """Return the time of frame i as a floating-point number of seconds."""
         return self._get_time(i)[0]

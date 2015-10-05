@@ -408,13 +408,13 @@ class _image_series(_image_single):
         assert_image_equal(frame1, self.frame1)
 
     def test_pipeline_simple(self):
-        rescale = pims.pipeline()(_rescale)
+        rescale = pims.pipeline(_rescale)
         rescaled_v = rescale(self.v[:1])
 
         assert_image_equal(rescaled_v[0], _rescale(self.frame0))
 
     def test_pipeline_with_args(self):
-        color_channel = pims.pipeline()(_color_channel)
+        color_channel = pims.pipeline(_color_channel)
         red = color_channel(self.v, 0)
         green = color_channel(self.v, 1)
 
@@ -426,8 +426,8 @@ class _image_series(_image_single):
         assert_image_equal(red[0], _color_channel(self.frame0, 0))
 
     def test_composed_pipelines(self):
-        color_channel = pims.pipeline()(_color_channel)
-        rescale = pims.pipeline()(_rescale)
+        color_channel = pims.pipeline(_color_channel)
+        rescale = pims.pipeline(_rescale)
 
         composed = rescale(color_channel(self.v, 0))
 
