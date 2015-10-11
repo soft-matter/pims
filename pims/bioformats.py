@@ -306,6 +306,8 @@ class BioformatsReader(FramesSequenceND):
             return {}
 
     class_priority = 5
+    propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
+                       'get_metadata_raw', 'reader_class_name']
 
     @property
     def pixel_type(self):

@@ -10,7 +10,7 @@ import six
 from six.moves import range
 
 from pims.frame import Frame
-from pims.base_frames import FramesSequenceMappable
+from pims.base_frames import FramesSequence, index_attr
 from pims.utils.misc import FileLocker
 import os, struct, itertools
 from warnings import warn
@@ -44,7 +44,7 @@ HEADER_FIELDS = [
 ]
 
 
-class NorpixSeq(FramesSequenceMappable):
+class NorpixSeq(FramesSequence):
     """Read Norpix sequence (.seq) files
 
     This is the native format of StreamPix software, owned by NorPix Inc.
@@ -69,6 +69,10 @@ class NorpixSeq(FramesSequenceMappable):
     @classmethod
     def class_exts(cls):
         return {'seq'} | super(NorpixSeq, cls).class_exts()
+
+    propagate_attrs = ['frame_shape', 'pixel_type', 'get_time',
+                       'get_time_float', 'filename', 'width', 'height',
+                       'frame_rate']
 
     def __init__(self, filename, process_func=None, dtype=None, as_grey=False):
         super(NorpixSeq, self).__init__()
@@ -180,6 +184,7 @@ class NorpixSeq(FramesSequenceMappable):
                             + self._image_bytes)
             return self._read_timestamp()
 
+    @index_attr
     def get_time(self, i):
         """Return the time of frame i as a datetime instance.
 
@@ -187,15 +192,16 @@ class NorpixSeq(FramesSequenceMappable):
         was recorded will result in an offset. The .seq format does not
         store UTC or timezone information.
         """
-        return self._get_time(self._map_index(i))[1]
+        return self._get_time(i)[1]
 
+    @index_attr
     def get_time_float(self, i):
         """Return the time of frame i as a floating-point number of seconds."""
-        return self._get_time(self._map_index(i))[0]
+        return self._get_time(i)[0]
 
     def dump_times_float(self):
         """Return all frame times in file, as an array of floating-point numbers."""
-        return np.array([self._get_time(i)[0] for i in self._all_indices()])
+        return np.array([self._get_time(i)[0] for i in range(len(self))])
 
     @property
     def filename(self):
