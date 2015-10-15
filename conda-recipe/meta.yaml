@@ -20,6 +20,7 @@ requirements:
 
   run:
     - python
+    - slicerator >=0.9.3
     - six >=1.8
     - numpy >=1.7
     - scikit-image  # one of { scikit-image | matplotlib | scipy }
