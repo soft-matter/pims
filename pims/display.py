@@ -15,7 +15,6 @@ except ImportError:
     ColorConverter = None
     mpl = None
     plt = None
-from PIL import Image
 
 
 def export(sequence, filename, rate=30, bitrate=None,
@@ -244,7 +243,10 @@ def scrollable_stack(sequence, width=512, normed=True):
 
 def _as_png(arr, width, normed=True):
     "Create a PNG image buffer from an array."
-    from PIL import Image
+    try:
+        from PIL import Image
+    except ImportError:
+        raise ImportError("This feature requires PIL/Pillow.")
     w = width  # for brevity
     h = arr.shape[0] * w // arr.shape[1]
     if normed:

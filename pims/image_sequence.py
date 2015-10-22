@@ -17,7 +17,6 @@ from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
-from PIL import Image
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
 try:
@@ -111,8 +110,8 @@ class ImageSequence(FramesSequence):
 
     def imread(self, filename, **kwargs):
         if self._is_zipfile:
-            img = StringIO(self._zipfile.read(filename))
-            return np.array(Image.open(img))
+            file_handle = StringIO(self._zipfile.read(filename))
+            return imread(file_handle, **kwargs)
         else:
             return imread(filename, **kwargs)
 
