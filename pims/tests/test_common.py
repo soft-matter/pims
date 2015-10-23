@@ -40,6 +40,19 @@ def _skip_if_no_tifffile():
         raise nose.SkipTest('tifffile not installed. Skipping.')
 
 
+def _skip_if_no_imread():
+    if pims.imagesequence.imread is None:
+        raise nose.SkipTest('ImageSequence requires either scipy, matplotlib or'
+                            'scikit-image. Skipping.')
+
+
+def _skip_if_no_skimage():
+    try:
+        import skimage
+    except ImportError:
+        raise nose.SkipTest('skimage not installed. Skipping.')
+
+
 def assert_image_equal(actual, expected):
     if np.issubdtype(actual.dtype, np.integer):
         assert_equal(actual, expected)
@@ -180,6 +193,7 @@ def compare_slice_to_list(actual, expected):
 class TestRecursiveSlicing(unittest.TestCase):
 
     def setUp(self):
+        _skip_if_no_imread()
         class DemoReader(pims.ImageSequence):
             def imread(self, filename, **kwargs):
                 return np.array([[filename]])
@@ -533,6 +547,7 @@ class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
 
 class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
@@ -559,6 +574,7 @@ class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
 
 class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
@@ -579,6 +595,7 @@ class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
 
 class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
@@ -601,6 +618,7 @@ class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
 
 class TestImageSequenceNaturalSorting(_image_series, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F1.png', 'T76S3F20.png',
                      'T76S3F3.png', 'T76S3F4.png',
@@ -713,10 +731,8 @@ class TestOpenFiles(unittest.TestCase):
 
 
 class ImageSequenceND(_image_series, unittest.TestCase):
-    def check_skip(self):
-        pass
-
     def setUp(self):
+        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence3d')
         self.filenames = ['file_t001_z001_c1.png',
                           'file_t001_z001_c2.png',
@@ -777,10 +793,8 @@ class ImageSequenceND(_image_series, unittest.TestCase):
 
 
 class ImageSequenceND_RGB(_image_series, unittest.TestCase):
-    def check_skip(self):
-        pass
-
     def setUp(self):
+        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence3d')
         self.filenames = ['file_t001_z001_c1.png',
                           'file_t001_z002_c1.png',

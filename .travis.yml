@@ -4,11 +4,11 @@ sudo: false
 matrix:
   include:
     - python: "2.7"
-      env: DEPS="numpy=1.9* scipy"
+      env: DEPS="numpy=1.9*"
     - python: "2.7"
       env: DEPS="numpy=1.9* scipy pillow<3 matplotlib scikit-image jinja2"
     - python: "3.4"
-      env: DEPS="numpy=1.9* scipy"
+      env: DEPS="numpy=1.9*"
     - python: "3.4"
       env: DEPS="numpy=1.9* scipy pillow<3 matplotlib scikit-image jinja2"
 

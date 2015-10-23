@@ -25,7 +25,10 @@ except ImportError:
     try:
         from matplotlib.pyplot import imread
     except ImportError:
-        from scipy.ndimage import imread
+        try:
+            from scipy.ndimage import imread
+        except:
+            imread = None
 
 
 class ImageSequence(FramesSequence):
@@ -84,6 +87,11 @@ class ImageSequence(FramesSequence):
             self.kwargs = dict()
         else:
             self.kwargs = dict(plugin=plugin)
+
+        if imread is None:
+            raise ImportError("One of the following packages are required for "
+                              "using the ImageSequence reader: "
+                              "scipy, matplotlib or scikit-image.")
 
         self._is_zipfile = False
         self._zipfile = None
