@@ -2,9 +2,17 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import six
+import nose
 import numpy as np
 from pims.frame import Frame
 from nose.tools import assert_true, assert_equal
+
+
+def _skip_if_no_PIL():
+    try:
+        from PIL import Image
+    except ImportError:
+        raise nose.SkipTest('PIL/Pillow not installed. Skipping.')
 
 
 def test_scalar_casting():
@@ -25,6 +33,7 @@ def test_creation_md():
 
 
 def test_repr_html_():
+    _skip_if_no_PIL()
     # This confims a bugfix, where 16-bit images would raise
     # an error.
     Frame(10000*np.ones((50, 50), dtype=np.uint16))._repr_html_()

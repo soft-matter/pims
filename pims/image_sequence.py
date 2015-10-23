@@ -17,7 +17,6 @@ from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
-from PIL import Image
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
 try:
@@ -26,7 +25,10 @@ except ImportError:
     try:
         from matplotlib.pyplot import imread
     except ImportError:
-        from scipy.ndimage import imread
+        try:
+            from scipy.ndimage import imread
+        except:
+            imread = None
 
 
 class ImageSequence(FramesSequence):
@@ -110,9 +112,13 @@ class ImageSequence(FramesSequence):
         self.close()
 
     def imread(self, filename, **kwargs):
+        if imread is None:
+            raise ImportError("One of the following packages are required for "
+                              "using the ImageSequence reader: "
+                              "scipy, matplotlib or scikit-image.")
         if self._is_zipfile:
-            img = StringIO(self._zipfile.read(filename))
-            return np.array(Image.open(img))
+            file_handle = StringIO(self._zipfile.read(filename))
+            return imread(file_handle, **kwargs)
         else:
             return imread(filename, **kwargs)
 

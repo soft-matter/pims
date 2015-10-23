@@ -1,14 +1,21 @@
 language: python
 sudo: false
 
-python:
-  - 2.7
-  - 3.4
+matrix:
+  include:
+    - python: "2.7"
+      env: DEPS="numpy=1.9*" DEPSSM="tifffile"
+    - python: "2.7"
+      env: DEPS="numpy=1.9* scipy pillow<3 matplotlib scikit-image jinja2" DEPSSM="pyav tifffile"
+    - python: "3.4"
+      env: DEPS="numpy=1.9*" DEPSSM="tifffile"
+    - python: "3.4"
+      env: DEPS="numpy=1.9* scipy pillow<3 matplotlib scikit-image jinja2" DEPSSM="pyav tifffile"
 
 install:
   - conda update --yes conda
-  - conda create -n testenv --yes numpy=1.9* scipy nose "pillow<3" matplotlib scikit-image jinja2 pip python=$TRAVIS_PYTHON_VERSION
-  - conda install -n testenv -c soft-matter --yes pyav tifffile
+  - conda create -n testenv --yes $DEPS nose pip python=$TRAVIS_PYTHON_VERSION
+  - conda install -n testenv -c soft-matter --yes $DEPSSM
   - source activate testenv
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
   - pip install slicerator jpype1;

@@ -33,7 +33,7 @@ try:
     else:
         raise ImportError()
 except (ImportError, IOError):
-    Video = not_available("PyAV")
+    Video = not_available("PyAV and/or PIL/Pillow")
 
 import pims.tiff_stack
 from pims.tiff_stack import (TiffStack_pil, TiffStack_libtiff,
