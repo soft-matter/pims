@@ -14,7 +14,6 @@ import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 from nose.tools import assert_true
 import pims
-from PIL import Image
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -41,9 +40,9 @@ def _skip_if_no_tifffile():
 
 
 def _skip_if_no_imread():
-    if pims.imagesequence.imread is None:
+    if pims.image_sequence.imread is None:
         raise nose.SkipTest('ImageSequence requires either scipy, matplotlib or'
-                            'scikit-image. Skipping.')
+                            ' scikit-image. Skipping.')
 
 
 def _skip_if_no_skimage():
@@ -63,6 +62,7 @@ def assert_image_equal(actual, expected):
 
 
 def save_dummy_png(filepath, filenames, shape):
+    from PIL import Image
     if not os.path.isdir(filepath):
         os.mkdir(filepath)
     frames = []

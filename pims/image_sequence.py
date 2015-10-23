@@ -88,11 +88,6 @@ class ImageSequence(FramesSequence):
         else:
             self.kwargs = dict(plugin=plugin)
 
-        if imread is None:
-            raise ImportError("One of the following packages are required for "
-                              "using the ImageSequence reader: "
-                              "scipy, matplotlib or scikit-image.")
-
         self._is_zipfile = False
         self._zipfile = None
         self._get_files(path_spec)
@@ -117,6 +112,10 @@ class ImageSequence(FramesSequence):
         self.close()
 
     def imread(self, filename, **kwargs):
+        if imread is None:
+            raise ImportError("One of the following packages are required for "
+                              "using the ImageSequence reader: "
+                              "scipy, matplotlib or scikit-image.")
         if self._is_zipfile:
             file_handle = StringIO(self._zipfile.read(filename))
             return imread(file_handle, **kwargs)
