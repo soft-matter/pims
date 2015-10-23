@@ -52,6 +52,13 @@ def _skip_if_no_skimage():
         raise nose.SkipTest('skimage not installed. Skipping.')
 
 
+def _skip_if_no_PIL():
+    try:
+        from PIL import Image
+    except ImportError:
+        raise nose.SkipTest('PIL/Pillow not installed. Skipping.')
+
+
 def assert_image_equal(actual, expected):
     if np.issubdtype(actual.dtype, np.integer):
         assert_equal(actual, expected)
@@ -653,6 +660,7 @@ class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
         pass
 
     def setUp(self):
+        _skip_if_no_PIL()
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
@@ -711,6 +719,9 @@ class TestSpeStack(_image_series, unittest.TestCase):
 
 
 class TestOpenFiles(unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_PIL()
+
     def test_open_pngs(self):
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',

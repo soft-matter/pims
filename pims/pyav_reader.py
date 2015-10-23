@@ -19,6 +19,7 @@ except ImportError:
 def available():
     try:
         import av
+        from PIL import Image
     except ImportError:
         return False
     else:
