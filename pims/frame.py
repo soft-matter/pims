@@ -6,7 +6,6 @@ import six
 
 from numpy import ndarray, asarray
 from pims.display import _scrollable_stack, _as_png, to_rgb
-from warnings import warn
 
 
 WIDTH = 512  # width of rich display, in pixels
@@ -80,7 +79,7 @@ class Frame(ndarray):
         try:
             from PIL import Image
         except ImportError:
-            warn('Rich display in IPython requires PIL/Pillow.')
+            raise ImportError('Rich display in IPython requires PIL/Pillow.')
         ndim = self.ndim
         shape = self.shape
         image = self

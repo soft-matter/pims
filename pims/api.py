@@ -69,6 +69,12 @@ except (ImportError, IOError):
     Bioformats = not_available("JPype")
 
 
+try:
+    from pims_nd2 import ND2_Reader
+except ImportError:
+    ND2_Reader = not_available("pims_nd2")
+
+
 def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     """Read a filename, list of filenames, or directory of image files into an
     iterable that returns images as numpy arrays.
