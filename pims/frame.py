@@ -80,7 +80,7 @@ class Frame(ndarray):
         try:
             from PIL import Image
         except ImportError:
-            warn('Rich display in IPython requires PIL/Pillow.')
+            raise ImportError('Rich display in IPython requires PIL/Pillow.')
         ndim = self.ndim
         shape = self.shape
         image = self
