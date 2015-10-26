@@ -4,8 +4,16 @@ from setuptools import setup
 import versioneer
 
 
-def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+try:
+    descr = open(os.path.join(os.path.dirname(__file__), 'README.md')).read()
+except IOError:
+    descr = ''
+
+try:
+    from pypandoc import convert
+    descr = convert(descr, 'rst', format='md')
+except ImportError:
+    pass
 
 
 setup_parameters = dict(
@@ -20,6 +28,6 @@ setup_parameters = dict(
     packages=['pims',
               'pims.utils',
               'pims.tests'],
-    long_description=read('README.md'))
+    long_description=descr)
 
 setup(**setup_parameters)
