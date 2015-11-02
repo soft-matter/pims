@@ -6,15 +6,10 @@ from six import with_metaclass
 from six.moves import range
 import os
 import numpy as np
-import collections
 import itertools
-import functools
-import contextlib
 from slicerator import Slicerator, propagate_attr, index_attr
-from threading import Lock
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
-from functools import wraps
 from warnings import warn
 
 
@@ -187,54 +182,6 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   dtype=self.pixel_type)
 
 
-class FramesSequenceMappable(FramesSequence):
-    """Version of FramesSequence that allows SliceableIterable objects
-    to temporarily remap its indices. This is to allow methods like get_time()
-    to use the same index mapping that's used for frame images.
-
-    This feature is nominally thread-safe.
-    """
-    def __init__(self):
-        super(FramesSequenceMappable, self).__init__()
-        # Allow frame numbers to be temporarily re-mapped.
-        self._indexing_lock = Lock()
-        self._indices = None
-
-    @contextlib.contextmanager
-    def _use_indices(self, indices=None):
-        """Context manager to temporarily re-assign indices.
-
-        Only affects methods that are index-aware.
-        """
-        self._indexing_lock.acquire()
-        try:
-            self._indices = list(indices)
-            yield
-        finally:
-            self._indices = None
-            self._indexing_lock.release()
-
-    def _all_indices(self):
-        """Returns iterable of all indices.
-
-        Affected by _use_indices()
-        """
-        if self._indices is None:
-            return range(len(self))
-        else:
-            return self._indices[:]
-
-    def _map_index(self, index):
-        """Returns absolute frame number corresponding to supplied index.
-
-        Affected by _use_indices()
-        """
-        if self._indices is None:
-            return index
-        else:
-            return self._indices[index]
-
-
 class FrameRewindableStream(FramesStream):
     """
     A base class for holding the common code for
@@ -341,40 +288,6 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   h=self.frame_shape[1],
                                   count=len(self),
                                   dtype=self.pixel_type)
-
-
-def _index_generator(new_indices, old_indices):
-    """Find locations of new_indicies in the ref. frame of the old_indices.
-    
-    Example: (1, 3), (1, 3, 5, 10) -> (3, 10)
-
-    The point of all this trouble is that this is done lazily, returning
-    a generator without actually looping through the inputs."""
-    # Use iter() to be safe. On a generator, this returns an identical ref.
-    new_indices = iter(new_indices)
-    n = next(new_indices)
-    last_n = None
-    done = False
-    while True:
-        old_indices_, old_indices = itertools.tee(iter(old_indices))
-        for i, o in enumerate(old_indices_):
-            # If new_indices is not strictly monotonically increasing, break
-            # and start again from the beginning of old_indices.
-            if last_n is not None and n <= last_n:
-                last_n = None
-                break
-            if done:
-                raise StopIteration
-            if i == n:
-                last_n = n
-                try:
-                    n = next(new_indices)
-                except StopIteration:
-                    done = True
-                    # Don't stop yet; we still have one last thing to yield.
-                yield o
-            else:
-                continue
 
 
 class FramesSequenceND(FramesSequence):
