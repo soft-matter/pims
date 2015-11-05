@@ -391,7 +391,11 @@ def plot_to_frame(fig, dpi, **imsave_kwargs):
     pims.Frame object containing RGBA values (dtype uint8)
     """
     if mpl is None:
-        raise ImportError('Module matplotlib not found')
+        raise ImportError("This feature requires matplotlib.")
+    try:
+        from PIL import Image
+    except ImportError:
+        raise ImportError("This feature requires PIL/Pillow.")
     from pims import Frame
     buffer = six.BytesIO()
     if isinstance(fig, mpl.axes.Axes):
@@ -419,7 +423,7 @@ def plots_to_frame(figures, width=512, close_fig=False, **imsave_kwargs):
     pims.Frame object containing a stack of RGBA values (dtype uint8)
     """
     if mpl is None:
-        raise ImportError('Module matplotlib not found')
+        raise ImportError("This feature requires matplotlib.")
     from pims import Frame
     if 'dpi' in imsave_kwargs or 'format' in imsave_kwargs:
         raise ValueError('Do not specify dpi or format imsave kwargs.')
