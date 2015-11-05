@@ -151,8 +151,7 @@ class PyAVVideoReader(FramesSequence):
         return """<Frames>
 Source: {filename}
 Length: {count} frames
-Frame Shape: {w} x {h}
-""".format(w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
-                                  count=len(self),
-                                  filename=self.filename)
+Frame Shape: {frame_shape!r}
+""".format(frame_shape=self.frame_shape,
+           count=len(self),
+           filename=self.filename)

@@ -128,9 +128,8 @@ class FramesStream(with_metaclass(ABCMeta, object)):
     def __repr__(self):
         # May be overwritten by subclasses
         return """<Frames>
-Frame Shape: {w} x {h}
-Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
+Frame Shape: {frame_shape!r}
+Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
                                   dtype=self.pixel_type)
 
 @Slicerator.from_class

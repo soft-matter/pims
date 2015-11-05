@@ -191,9 +191,8 @@ class ImageSequence(FramesSequence):
         return """<Frames>
 Source: {pathname}
 Length: {count} frames
-Frame Shape: {w} x {h}
-Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
+Frame Shape: {frame_shape!r}
+Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
                                   count=len(self),
                                   pathname=source,
                                   dtype=self.pixel_type)
