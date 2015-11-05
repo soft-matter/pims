@@ -29,6 +29,7 @@ Depending on what file formats you want to read, you will also need:
 * [Pillow](http://pillow.readthedocs.org/en/latest/) (improved TIFF support)
 * [libtiff](https://code.google.com/p/pylibtiff/) (alternative TIFF support)
 * [tifffile](http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html) (alterative TIFF support)
+* [pims_nd2](https://github.com/soft-matter/pims_nd2) (improved Nikon .nd2 support)
 
 Basic Installation
 ------------------
