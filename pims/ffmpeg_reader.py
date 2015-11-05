@@ -243,9 +243,8 @@ class FFmpegVideoReader(FramesSequence):
         return """<Frames>
 Source: {filename}
 Length: {count} frames
-Frame Shape: {w} x {h}
-Pixel Format: {pix_fmt}""".format(w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
+Frame Shape: {frame_shape!r}
+Pixel Format: {pix_fmt}""".format(frame_shape=self.frame_shape,
                                   count=len(self),
                                   filename=self.filename,
                                   pix_fmt=self.pix_fmt)
