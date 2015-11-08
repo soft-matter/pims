@@ -33,7 +33,7 @@ class MoviePyReader(FramesSequence):
         self._dtype = first_frame.dtype
 
     def get_frame(self, i):
-        return Frame(self.clip.get_frame(i / self._fps))
+        return Frame(self.clip.get_frame(i / self._fps), frame_no=i)
 
     def __len__(self):
         return self._len
