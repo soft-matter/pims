@@ -9,7 +9,7 @@ import fnmatch
 from warnings import warn
 import re
 import zipfile
-from six.moves import StringIO
+from io import BytesIO
 
 import numpy as np
 
@@ -117,7 +117,7 @@ class ImageSequence(FramesSequence):
                               "using the ImageSequence reader: "
                               "scipy, matplotlib or scikit-image.")
         if self._is_zipfile:
-            file_handle = StringIO(self._zipfile.read(filename))
+            file_handle = BytesIO(self._zipfile.read(filename))
             return imread(file_handle, **kwargs)
         else:
             return imread(filename, **kwargs)

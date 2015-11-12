@@ -4,6 +4,7 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
+import zipfile
 import sys
 import random
 import types
@@ -570,13 +571,20 @@ class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = shape
         self.expected_len = 5
+        with zipfile.ZipFile('test.zip', 'w') as archive:
+            for fn in self.filenames:
+                archive.write(os.path.join(self.filepath, fn))
 
     def test_bad_path_raises(self):
         raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
         self.assertRaises(IOError, raises)
 
+    def test_zipfile(self):
+        pims.ImageSequence('test.zip')[0]
+
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
+        os.remove('test.zip')
 
 
 class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
