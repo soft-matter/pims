@@ -39,9 +39,10 @@ class ImageIOReader(FramesSequence):
         return self._len
 
     def __iter__(self):
-        return map(lambda x: Frame(x[1], frame_no=x[0],
-                                   metadata=dict(x[1].meta)),
-                   enumerate(self.reader.iter_data()))
+        iterable = self.reader.iter_data()
+        for i in range(len(self)):
+            frame = next(iterable)
+            yield Frame(frame, frame_no=i, metadata=frame.meta)
 
     @property
     def frame_shape(self):
