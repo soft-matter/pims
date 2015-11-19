@@ -4,11 +4,14 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
+import tempfile
+import zipfile
 import sys
 import random
 import types
 import unittest
 import pickle
+from io import BytesIO
 import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
@@ -570,13 +573,24 @@ class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = shape
         self.expected_len = 5
+        self.tempdir = tempfile.mkdtemp()
+        self.tempfile = os.path.join(self.tempdir, 'test.zip')
+
+        with zipfile.ZipFile(self.tempfile, 'w') as archive:
+            for fn in self.filenames:
+                archive.write(os.path.join(self.filepath, fn))
 
     def test_bad_path_raises(self):
         raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
         self.assertRaises(IOError, raises)
 
+    def test_zipfile(self):
+        pims.ImageSequence(self.tempfile)[0]
+
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
+        os.remove(self.tempfile)
+        os.rmdir(self.tempdir)
 
 
 class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
