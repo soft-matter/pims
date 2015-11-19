@@ -4,21 +4,20 @@ sudo: false
 matrix:
   include:
     - python: "2.7"
-      env: DEPS="nomkl numpy=1.9*" DEPSSM="tifffile" BUILD_DOCS=false
+      env: DEPS="nomkl numpy=1.9*" DEPSSM="tifffile" DEPSPIP="slicerator libtiff" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="nomkl numpy=1.9* scipy pillow matplotlib scikit-image jinja2" DEPSSM="pyav tifffile" BUILD_DOCS=false
+      env: DEPS="nomkl numpy=1.9* scipy pillow matplotlib scikit-image jinja2" DEPSSM="pyav tifffile" DEPSPIP="slicerator libtiff moviepy imageio jpype1" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="numpy=1.9*" DEPSSM="tifffile" BUILD_DOCS=false
+      env: DEPS="numpy=1.9*" DEPSSM="tifffile" DEPSPIP="slicerator" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="numpy=1.9* scipy pillow matplotlib scikit-image jinja2 ipython sphinx sphinx_rtd_theme numpydoc" DEPSSM="pyav tifffile" BUILD_DOCS=true
+      env: DEPS="numpy=1.9* scipy pillow matplotlib scikit-image jinja2 ipython sphinx sphinx_rtd_theme numpydoc" DEPSSM="pyav tifffile" DEPSPIP="slicerator moviepy imageio jpype1" BUILD_DOCS=true
 
 install:
   - conda update --yes conda
   - conda create -n testenv --yes $DEPS nose pip python=$TRAVIS_PYTHON_VERSION
   - conda install -n testenv -c soft-matter --yes $DEPSSM
   - source activate testenv
-  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
-  - pip install slicerator jpype1
+  - pip install $DEPSPIP
   - python setup.py build_ext install
 
 
