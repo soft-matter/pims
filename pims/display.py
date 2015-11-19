@@ -212,6 +212,8 @@ if av is not None:
     export = export_pyav
 elif VideoClip is not None:
     export = export_moviepy
+else:
+    export = None
 
 def repr_video(fname, mimetype):
     """Load the video in the file `fname`, with given mimetype,
