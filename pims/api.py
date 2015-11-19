@@ -27,6 +27,9 @@ def not_available(requirement):
             "This reader requires {0}.".format(requirement))
     return raiser
 
+if export is None:
+    export = not_available("PyAV or MoviePy")
+
 try:
     import pims.pyav_reader
     if pims.pyav_reader.available():
@@ -63,7 +66,7 @@ except (ImportError, IOError):
     MoviePyReader = not_available("MoviePy")
 
 if Video is None:
-    Video = not_available("PyAV, MoviePy, and ImageIO")
+    Video = not_available("PyAV, MoviePy, or ImageIO")
 
 import pims.tiff_stack
 from pims.tiff_stack import (TiffStack_pil, TiffStack_libtiff,
