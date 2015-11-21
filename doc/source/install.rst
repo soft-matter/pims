@@ -29,6 +29,11 @@ active development, with the latest tested code, use the development channel.
    conda config --add channels soft-matter
    conda install -c soft-matter/channel/dev pims
 
+.. note::
+
+   There is a known issue with Pillow version 3.0.0. Check your Pillow version
+   and if necessary, downgrade to 2.9.0.
+
 pip
 ---
 

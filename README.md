@@ -102,7 +102,10 @@ On first use of `pims.Bioformats(filename)`, the required java library
 `loci_tools.jar` will be automatically downloaded from
 [openmicroscopy.org](http://downloads.openmicroscopy.org/bio-formats/).
 
-#### Troubleshooting
+Troubleshooting
+---------------
+
+### PyAv
 
 If you use conda / Anaconda, watch out for an error like:
 
@@ -121,7 +124,20 @@ and/or
 which will cause PyAV to use the your operating system's version of the
 library.
 
-### Updating Your Installation
+### Pillow
+
+If you get the following error message:
+
+    File ".../PIL/TiffImagePlugin.py", line 608, in save
+    TypeError: object of type 'int' has no len()
+
+This is a known issue having to do with Pillow 3.0.0. This is solved with a
+downgrade to Pillow 2.9.0.
+
+    pip install pillow==2.9.0
+
+Updating Your Installation
+--------------------------
 
 The code is under active development. To update to the current development
 version, run this in the command prompt:

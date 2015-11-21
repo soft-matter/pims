@@ -8,7 +8,7 @@ often a time series or "Z stack."
 single-image tiff files (e.g., :file:`img-1.tif`, :file:`img-2.tif`) see
 :doc:`image_sequence`.
 
-Dependences
+Dependencies
 -----------
 
 There are several Python packages for reading TIFFs. One may work better than
