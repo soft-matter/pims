@@ -376,7 +376,7 @@ def to_rgb(image, colors=None, normed=True):
     return result
 
 
-def plot_to_frame(fig, dpi, **imsave_kwargs):
+def plot_to_frame(fig, dpi, close_fig=False):
     """ Renders a matplotlib figure or axes object into a numpy array
     containing RGBA data of the rendered image.
 
@@ -384,7 +384,6 @@ def plot_to_frame(fig, dpi, **imsave_kwargs):
     ----------
     fig : matplotlib Figure or Axes object
     dpi : number, dots per inch used in figure rendering
-    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
 
     Returns
     -------
@@ -392,22 +391,23 @@ def plot_to_frame(fig, dpi, **imsave_kwargs):
     """
     if mpl is None:
         raise ImportError("This feature requires matplotlib.")
-    try:
-        from PIL import Image
-    except ImportError:
-        raise ImportError("This feature requires PIL/Pillow.")
     from pims import Frame
-    buffer = six.BytesIO()
     if isinstance(fig, mpl.axes.Axes):
         fig = fig.figure
-    fig.savefig(buffer, format='tif', dpi=dpi, **imsave_kwargs)
-    buffer.seek(0)
-    im = np.asarray(Image.open(buffer))
-    buffer.close()
-    return Frame(im)
+
+    agg = fig.canvas.switch_backends(mpl.backends.backend_agg.FigureCanvasAgg)
+    original_dpi = fig.dpi
+    fig.dpi = dpi
+    buf, (width, height) = agg.print_to_buffer()
+    image = np.frombuffer(buf, dtype=np.uint8).reshape(height, width, 4)
+    if close_fig:
+        plt.close(fig)
+    else:
+        fig.dpi = original_dpi
+    return Frame(image)
 
 
-def plots_to_frame(figures, width=512, close_fig=False, **imsave_kwargs):
+def plots_to_frame(figures, width=512, close_fig=False):
     """ Renders an iterable of matplotlib figures or axes objects into a
     pims Frame object, that will be displayed as scrollable stack in IPython.
 
@@ -425,23 +425,20 @@ def plots_to_frame(figures, width=512, close_fig=False, **imsave_kwargs):
     if mpl is None:
         raise ImportError("This feature requires matplotlib.")
     from pims import Frame
-    if 'dpi' in imsave_kwargs or 'format' in imsave_kwargs:
-        raise ValueError('Do not specify dpi or format imsave kwargs.')
     if isinstance(figures, mpl.axes.Axes) or \
        isinstance(figures, mpl.figure.Figure):
         raise ValueError('Use plot_to_frame for single figures, or supply '
                          'an iterable of figures to plots_to_frame.')
 
     # render first image to calculate the correct dpi and image size
-    size = plot_to_frame(figures[0], 100, **imsave_kwargs).shape
+    size = plot_to_frame(figures[0], 100).shape
     dpi = width * 100 / size[1]
-    h = width * size[0] / size[1]
+    h = int(width * size[0] / size[1])
+    width = int(width)
 
     frames = []
     for n, fig in enumerate(figures):
-        im = plot_to_frame(fig, dpi, **imsave_kwargs)
-        if close_fig:
-            plt.close(fig)
+        im = plot_to_frame(fig, dpi, close_fig)
         # make the image the same size as the first image
         if (im.shape[0] != h) or (im.shape[1] != width):
             im = np.pad(im[:h, :width], ((0, max(0, h - im.shape[0])),
