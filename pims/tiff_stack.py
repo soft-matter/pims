@@ -419,22 +419,26 @@ class TiffStack_pil(FramesSequence):
 
     def _read_metadata(self):
         """Read metadata for current frame and return as dict"""
+        try:
+            tags = self.im.tag_v2  # for Pillow >= v3.0.0
+        except AttributeError:
+            tags = self.im.tag  # for Pillow < v3.0.0
         md = {}
         try:
-            md["ImageDescription"] = self.im.tag[270]
-        except:
+            md["ImageDescription"] = tags[270]
+        except KeyError:
             pass
         try:
-            md["DateTime"] = _tiff_datetime(self.im.tag[306])
-        except:
+            md["DateTime"] = _tiff_datetime(tags[306])
+        except KeyError:
             pass
         try:
-            md["Software"] = self.im.tag[305]
-        except:
+            md["Software"] = tags[305]
+        except KeyError:
             pass
         try:
-            md["DocumentName"] = self.im.tag[269]
-        except:
+            md["DocumentName"] = tags[269]
+        except KeyError:
             pass
         return md
 
