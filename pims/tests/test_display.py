@@ -41,11 +41,11 @@ class TestPlotToFrame(unittest.TestCase):
 
     def test_ax_to_frame(self):
         frame = plot_to_frame(self.axes[0])
-        assert_equal(frame.shape, self.expected_shape[1:])
+        assert_equal(frame.shape, (384, 512, 4))
 
     def test_plot_to_frame(self):
         frame = plot_to_frame(self.figures[0])
-        assert_equal(frame.shape, self.expected_shape[1:])
+        assert_equal(frame.shape, (384, 512, 4))
 
     def test_axes_to_frame(self):
         frame = plots_to_frame(self.axes)
@@ -59,6 +59,22 @@ class TestPlotToFrame(unittest.TestCase):
         width = np.random.randint(100, 1000)
         frame = plot_to_frame(self.figures[0], width)
         assert_equal(frame.shape[1], width)
+
+    def test_plot_tight(self):
+        frame = plot_to_frame(self.figures[0], bbox_inches='tight')
+        assert_equal(frame.shape, (384, 512, 4))
+
+    def test_plots_tight(self):
+        frame = plots_to_frame(self.figures, bbox_inches='tight')
+        assert_equal(frame.shape, (10, 384, 512, 4))
+
+    def test_plot_resize(self):
+        frame = plot_to_frame(self.figures[0], fig_size_inches=(4, 4))
+        assert_equal(frame.shape, (512, 512, 4))
+
+    def test_plots_resize(self):
+        frame = plots_to_frame(self.figures, fig_size_inches=(4, 4))
+        assert_equal(frame.shape, (10, 512, 512, 4))
 
     def test_plots_width(self):
         width = np.random.randint(100, 1000)
