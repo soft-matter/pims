@@ -376,16 +376,15 @@ def to_rgb(image, colors=None, normed=True):
     return result
 
 
-def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
+def plot_to_frame(fig, dpi, **imsave_kwargs):
     """ Renders a matplotlib figure or axes object into a numpy array
     containing RGBA data of the rendered image.
 
     Parameters
     ----------
     fig : matplotlib Figure or Axes object
-    width : integer
-    close_fig : boolean
-    bbox_inches :
+    dpi : number, dots per inch used in figure rendering
+    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
 
     Returns
     -------
@@ -393,31 +392,22 @@ def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
     """
     if mpl is None:
         raise ImportError("This feature requires matplotlib.")
+    try:
+        from PIL import Image
+    except ImportError:
+        raise ImportError("This feature requires PIL/Pillow.")
     from pims import Frame
+    buffer = six.BytesIO()
     if isinstance(fig, mpl.axes.Axes):
         fig = fig.figure
-
-    agg = fig.canvas.switch_backends(mpl.backends.backend_agg.FigureCanvasAgg)
-    original_bbox = fig.bbox_inches
-    if bbox_inches is not None:
-        fig.bbox_inches = bbox_inches
-
-    original_dpi = fig.dpi
-    orig_width, orig_height = agg.get_width_height()
-    fig.dpi = original_dpi * width / orig_width
-
-    buf, (width, height) = agg.print_to_buffer()
-    image = np.frombuffer(buf, dtype=np.uint8).reshape(height, width, 4)
-
-    fig.dpi = original_dpi
-    if bbox_inches is not None:
-        fig.bbox_inches = original_bbox
-    if close_fig:
-        plt.close(fig)
-    return Frame(image)
+    fig.savefig(buffer, format='tif', dpi=dpi, **imsave_kwargs)
+    buffer.seek(0)
+    im = np.asarray(Image.open(buffer))
+    buffer.close()
+    return Frame(im)
 
 
-def plots_to_frame(figures, width=512, close_fig=False, bbox_inches=None):
+def plots_to_frame(figures, width=512, close_fig=False, **imsave_kwargs):
     """ Renders an iterable of matplotlib figures or axes objects into a
     pims Frame object, that will be displayed as scrollable stack in IPython.
 
@@ -435,24 +425,28 @@ def plots_to_frame(figures, width=512, close_fig=False, bbox_inches=None):
     if mpl is None:
         raise ImportError("This feature requires matplotlib.")
     from pims import Frame
+    if 'dpi' in imsave_kwargs or 'format' in imsave_kwargs:
+        raise ValueError('Do not specify dpi or format imsave kwargs.')
     if isinstance(figures, mpl.axes.Axes) or \
        isinstance(figures, mpl.figure.Figure):
         raise ValueError('Use plot_to_frame for single figures, or supply '
                          'an iterable of figures to plots_to_frame.')
 
-    width = int(width)
-    h = None
+    # render first image to calculate the correct dpi and image size
+    size = plot_to_frame(figures[0], 100, **imsave_kwargs).shape
+    dpi = width * 100 / size[1]
+    h = width * size[0] / size[1]
 
     frames = []
     for n, fig in enumerate(figures):
-        im = plot_to_frame(fig, width, close_fig, bbox_inches)
-        if h is None:
-            h = im.shape[0]
-        else:
-            # make the image the same size as the first image
-            if im.shape[0] != h:
-                im = np.pad(im[:h], ((0, max(0, h - im.shape[0])), (0, 0),
-                                     (0, 0)), mode=str('constant'))
+        im = plot_to_frame(fig, dpi, **imsave_kwargs)
+        if close_fig:
+            plt.close(fig)
+        # make the image the same size as the first image
+        if (im.shape[0] != h) or (im.shape[1] != width):
+            im = np.pad(im[:h, :width], ((0, max(0, h - im.shape[0])),
+                                         (0, max(0, width - im.shape[1])),
+                                         (0, 0)), mode=str('constant'))
         frames.append(im)
 
     return Frame(np.array(frames))

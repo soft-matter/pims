@@ -124,6 +124,18 @@ and/or
 which will cause PyAV to use the your operating system's version of the
 library.
 
+### Pillow
+
+If you get the following error message:
+
+    File ".../PIL/TiffImagePlugin.py", line 608, in save
+    TypeError: object of type 'int' has no len()
+
+This is a known issue having to do with Pillow 3.0.0. This is solved with a
+downgrade to Pillow 2.9.0.
+
+    pip install pillow==2.9.0
+
 Updating Your Installation
 --------------------------
 
