@@ -376,14 +376,16 @@ def to_rgb(image, colors=None, normed=True):
     return result
 
 
-def plot_to_frame(fig, dpi, close_fig=False):
+def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
     """ Renders a matplotlib figure or axes object into a numpy array
     containing RGBA data of the rendered image.
 
     Parameters
     ----------
     fig : matplotlib Figure or Axes object
-    dpi : number, dots per inch used in figure rendering
+    width : integer
+    close_fig : boolean
+    bbox_inches :
 
     Returns
     -------
@@ -396,18 +398,26 @@ def plot_to_frame(fig, dpi, close_fig=False):
         fig = fig.figure
 
     agg = fig.canvas.switch_backends(mpl.backends.backend_agg.FigureCanvasAgg)
+    original_bbox = fig.bbox_inches
+    if bbox_inches is not None:
+        fig.bbox_inches = bbox_inches
+
     original_dpi = fig.dpi
-    fig.dpi = dpi
+    orig_width, orig_height = agg.get_width_height()
+    fig.dpi = original_dpi * width / orig_width
+
     buf, (width, height) = agg.print_to_buffer()
     image = np.frombuffer(buf, dtype=np.uint8).reshape(height, width, 4)
+
+    fig.dpi = original_dpi
+    if bbox_inches is not None:
+        fig.bbox_inches = original_bbox
     if close_fig:
         plt.close(fig)
-    else:
-        fig.dpi = original_dpi
     return Frame(image)
 
 
-def plots_to_frame(figures, width=512, close_fig=False):
+def plots_to_frame(figures, width=512, close_fig=False, bbox_inches=None):
     """ Renders an iterable of matplotlib figures or axes objects into a
     pims Frame object, that will be displayed as scrollable stack in IPython.
 
