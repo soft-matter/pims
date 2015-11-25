@@ -47,15 +47,24 @@ class TestPlotToFrame(unittest.TestCase):
         frame = plot_to_frame(self.figures[0])
         assert_equal(frame.shape, self.expected_shape[1:])
 
-    def test_change_width(self):
-        width = np.random.randint(100, 1000)
-        frame = plot_to_frame(self.figures[0], width)
-        assert_equal(frame.shape[1], width)
-
     def test_axes_to_frame(self):
         frame = plots_to_frame(self.axes)
         assert_equal(frame.shape, (10, 384, 512, 4))
 
     def test_plots_to_frame(self):
         frame = plots_to_frame(self.figures)
+        assert_equal(frame.shape, (10, 384, 512, 4))
+
+    def test_plot_width(self):
+        width = np.random.randint(100, 1000)
+        frame = plot_to_frame(self.figures[0], width)
+        assert_equal(frame.shape[1], width)
+
+    def test_plots_width(self):
+        width = np.random.randint(100, 1000)
+        frame = plots_to_frame(self.figures, width)
+        assert_equal(frame.shape[2], width)
+
+    def test_plots_from_generator(self):
+        frame = plots_to_frame(iter(self.figures))
         assert_equal(frame.shape, (10, 384, 512, 4))

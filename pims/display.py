@@ -440,20 +440,19 @@ def plots_to_frame(figures, width=512, close_fig=False, bbox_inches=None):
         raise ValueError('Use plot_to_frame for single figures, or supply '
                          'an iterable of figures to plots_to_frame.')
 
-    # render first image to calculate the correct dpi and image size
-    size = plot_to_frame(figures[0], 100).shape
-    dpi = width * 100 / size[1]
-    h = int(width * size[0] / size[1])
     width = int(width)
+    h = None
 
     frames = []
     for n, fig in enumerate(figures):
-        im = plot_to_frame(fig, dpi, close_fig)
-        # make the image the same size as the first image
-        if (im.shape[0] != h) or (im.shape[1] != width):
-            im = np.pad(im[:h, :width], ((0, max(0, h - im.shape[0])),
-                                         (0, max(0, width - im.shape[1])),
-                                         (0, 0)), mode=str('constant'))
+        im = plot_to_frame(fig, width, close_fig, bbox_inches)
+        if h is None:
+            h = im.shape[0]
+        else:
+            # make the image the same size as the first image
+            if im.shape[0] != h:
+                im = np.pad(im[:h], ((0, max(0, h - im.shape[0])), (0, 0),
+                                     (0, 0)), mode=str('constant'))
         frames.append(im)
 
     return Frame(np.array(frames))
