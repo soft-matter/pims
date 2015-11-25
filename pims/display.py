@@ -7,6 +7,8 @@ import numpy as np
 import tempfile
 from io import BytesIO
 from base64 import b64encode
+from contextlib import contextmanager
+
 try:
     from matplotlib.colors import ColorConverter
     import matplotlib as mpl
@@ -376,6 +378,28 @@ def to_rgb(image, colors=None, normed=True):
     return result
 
 
+@contextmanager
+def _fig_size_cntx(fig, fig_size_inches):
+    """Resize a figure in a context
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        The figure to resize
+    fig_size_inches : tuple
+        The (height, width) to use in the context.  If None, the size
+        is not changed
+
+    """
+    orig_size = fig.get_size_inches()
+    if fig_size_inches is not None:
+        fig.set_size_inches(*fig_size_inches)
+    try:
+        yield fig
+    finally:
+        fig.set_size_inches(*orig_size)
+
+
 def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
     """ Renders a matplotlib figure or axes object into a numpy array
     containing RGBA data of the rendered image.
@@ -397,21 +421,20 @@ def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
     if isinstance(fig, mpl.axes.Axes):
         fig = fig.figure
 
-    agg = fig.canvas.switch_backends(mpl.backends.backend_agg.FigureCanvasAgg)
-    original_bbox = fig.bbox_inches
     if bbox_inches is not None:
-        fig.bbox_inches = bbox_inches
+        if bbox_inches[0] == 0 or bbox_inches[1] == 0:
+            raise NotImplemented('Must save whole figure')
+        bbox_inches = bbox_inches[2:]
+    buf = BytesIO()
 
-    original_dpi = fig.dpi
-    orig_width, orig_height = agg.get_width_height()
-    fig.dpi = original_dpi * width / orig_width
+    with _fig_size_cntx(fig, bbox_inches) as fig:
+        width_in, height_in = fig.get_size_inches()
+        dpi = width / width_in
+        buf_shape = (height_in * dpi, width_in * dpi, 4)
+        fig.savefig(buf, format='rgba', dpi=dpi)
 
-    buf, (width, height) = agg.print_to_buffer()
-    image = np.frombuffer(buf, dtype=np.uint8).reshape(height, width, 4)
-
-    fig.dpi = original_dpi
-    if bbox_inches is not None:
-        fig.bbox_inches = original_bbox
+    buf.seek(0)
+    image = np.fromstring(buf.read(), dtype='uint8').reshape(*buf_shape)
     if close_fig:
         plt.close(fig)
     return Frame(image)
