@@ -417,8 +417,8 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
         The width of the resulting frame, in pixels
     close_fig : boolean
         When True, the figure will be closed after plotting
-    fig_size_inches : tuple of numbers
-        The figure size in inches
+    fig_size_inches : tuple
+        The figure (height, width) in inches. If None, the size is not changed.
     bbox_inches : {'tight', None}
         When 'tight', tight layout is used.
 
@@ -434,7 +434,6 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
     if fig_size_inches is not None:
         if fig_size_inches[0] == 0 or fig_size_inches[1] == 0:
             raise ValueError('Figure size cannot be zero.')
-        fig_size_inches = fig_size_inches[:2]
     if bbox_inches is None:
         tight_layout = None
     elif str(bbox_inches) == 'tight':
