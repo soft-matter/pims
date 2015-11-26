@@ -127,7 +127,7 @@ def open(sequence, **kwargs):
                          _recursive_subclasses(FramesSequenceND))
     # keep handlers that support the file ext. use set to avoid duplicates.
     eligible_handlers = set(h for h in all_handlers
-                            if ext and ext in h.class_exts())
+                            if ext and ext in _drop_dot_iter(h.class_exts()))
     if len(eligible_handlers) < 1:
         raise UnknownFormatError(
             "Could not autodetect how to load a file of type {0}. "
@@ -164,3 +164,12 @@ def _recursive_subclasses(cls):
     # Source: http://stackoverflow.com/a/3862957/1221924
     return (cls.__subclasses__() +
         [g for s in cls.__subclasses__() for g in _recursive_subclasses(s)])
+
+def _drop_dot(s):
+    if len(s) == 0 or s[0] != '.':
+        return s
+    else:
+        return s[1:]
+
+def _drop_dot_iter(s_iter):
+    return (_drop_dot(s) for s in s_iter)
