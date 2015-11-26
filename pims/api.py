@@ -6,6 +6,7 @@ from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.display import (export, play, scrollable_stack, to_rgb, normalize,
                           plot_to_frame, plots_to_frame)
+from itertools import chain
 
 import six
 import glob
@@ -75,28 +76,18 @@ except ImportError:
     ND2_Reader = not_available("pims_nd2")
 
 
-def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
+def open(sequence, **kwargs):
     """Read a filename, list of filenames, or directory of image files into an
     iterable that returns images as numpy arrays.
 
     Parameters
     ----------
     sequence : string, list of strings, or glob
-       The sequence you want to load. This can be a directory containing
-       images, a glob ('/path/foo*.png') pattern of images,
-       a video file, or a tiff stack
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
-    plugin : string
-        Passed on to skimage.io.imread if scikit-image is available.
-        If scikit-image is not available, this will be ignored and a warning
-        will be issued.
+        The sequence you want to load. This can be a directory containing
+        images, a glob ('/path/foo*.png') pattern of images,
+        a video file, or a tiff stack
+    kwargs :
+        All keyword arguments will be passed to the reader.
 
     Examples
     --------
@@ -121,13 +112,8 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type,
         #       delegate to subclasses as needed
-        return ImageSequence(sequence, process_func, dtype, as_grey, plugin)
+        return ImageSequence(sequence, **kwargs)
 
-    # We are now not in an image sequence, so warn if plugin is specified,
-    # since we will not be able to use it
-    if plugin is not None:
-        warn("scikit-image plugin specification ignored because such plugins "
-             "only apply when loading a sequence of image files. ")
     _, ext = os.path.splitext(sequence)
     if ext is None or len(ext) < 2:
         raise UnknownFormatError(
@@ -136,9 +122,12 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
             "Video({0})".format(sequence))
     ext = ext.lower()[1:]
 
-    all_handlers = _recursive_subclasses(FramesSequence)
-    eligible_handlers = [h for h in all_handlers
-                         if ext and ext in h.class_exts()]
+    # list all readers derived from the pims baseclasses
+    all_handlers = chain(_recursive_subclasses(FramesSequence),
+                         _recursive_subclasses(FramesSequenceND))
+    # keep handlers that support the file ext. use set to avoid duplicates.
+    eligible_handlers = set(h for h in all_handlers
+                            if ext and ext in h.class_exts())
     if len(eligible_handlers) < 1:
         raise UnknownFormatError(
             "Could not autodetect how to load a file of type {0}. "
@@ -155,12 +144,15 @@ def open(sequence, process_func=None, dtype=None, as_grey=False, plugin=None):
                 return 10
         return sorted(handlers, key=priority, reverse=True)
 
-    handler = sort_on_priority(eligible_handlers)[0]
-
-    # TODO maybe we should wrap this in a try and loop to try all the
-    # handlers if early ones throw exceptions
-    return handler(sequence, process_func=process_func,
-                   dtype=dtype, as_grey=as_grey)
+    exceptions = ''
+    for handler in sort_on_priority(eligible_handlers):
+        try:
+            return handler(sequence, **kwargs)
+        except Exception as e:
+            message = '{0} errored: {1}'.format(str(handler), str(e))
+            warn(message)
+            exceptions += message + '\n'
+    raise UnknownFormatError("All handlers returned exceptions:\n" + exceptions)
 
 
 class UnknownFormatError(Exception):

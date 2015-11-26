@@ -32,13 +32,17 @@ def assert_image_equal(actual, expected):
         assert_allclose(actual, expected, atol=1/256.)
 
 
-class _image_single(unittest.TestCase):
+class _image_single(object):
     def check_skip(self):
         pass
 
     def test_bool(self):
         self.check_skip()
         pass
+
+    def test_open(self):
+        self.v.close()
+        self.v = pims.open(self.filename)
 
     def test_integer_attributes(self):
         self.check_skip()
@@ -99,7 +103,7 @@ class _image_series(_image_single):
         list(self.v[[0, -1]])
 
 
-class _image_stack(unittest.TestCase):
+class _image_stack(object):
     def check_skip(self):
         pass
 
@@ -112,7 +116,7 @@ class _image_stack(unittest.TestCase):
         assert_equal(self.v.sizes['z'], self.expected_Z)
 
 
-class _image_multichannel(unittest.TestCase):
+class _image_multichannel(object):
     def check_skip(self):
         pass
 
@@ -131,7 +135,7 @@ class _image_multichannel(unittest.TestCase):
         assert_equal(self.v.sizes['c'], self.expected_C)
 
 
-class TestBioformatsTiff(_image_series):
+class TestBioformatsTiff(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
 
@@ -155,7 +159,7 @@ class TestBioformatsTiff(_image_series):
         self.v.close()
 
 
-class TestBioformatsND2(_image_series, _image_multichannel):
+class TestBioformatsND2(_image_series, _image_multichannel, unittest.TestCase):
     # Nikon NIS-Elements ND2
     # 38 x 31 pixels, 16 bits, 2 channels, 3 time points, 10 focal planes
     def check_skip(self):
@@ -176,7 +180,7 @@ class TestBioformatsND2(_image_series, _image_multichannel):
         self.v.close()
 
 
-class TestBioformatsMOV(_image_series):
+class TestBioformatsMOV(_image_series, unittest.TestCase):
     # QuickTime movie format, 320 x 240 pixels, 8 bits per sample
     # 108 time points, grayscale image stored as interleaved RGB
     # A sample timelapse dataset in QuickTime movie format.
@@ -199,7 +203,8 @@ class TestBioformatsMOV(_image_series):
         self.v.close()
 
 
-class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel):
+class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel,
+                        unittest.TestCase):
     # Image-Pro workspace format, 256 x 256 pixels, 8 bits per sample
     # 7 time points, 24 focal planes, 2 channels
     # A sample 4D series with intensity and transmitted channels in Image-Pro
@@ -224,7 +229,7 @@ class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel):
         self.v.close()
 
 
-class TestBioformatsDM3(_image_single):
+class TestBioformatsDM3(_image_single, unittest.TestCase):
     # Image-Pro workspace format, 4096 x 4096 pixels, 16 bits per sample
     # Jay Campbell of UW-Madison's John White Laboratory has provided an image
     # in Gatan Digital Micrograph (DM3) format.
@@ -246,7 +251,8 @@ class TestBioformatsDM3(_image_single):
         self.v.close()
 
 
-class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel):
+class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel,
+                        unittest.TestCase):
     # Zeiss Laser Scanning Microscopy format, 400 x 300 pixels, 8 bits per sample
     # 19 time points, 21 focal planes, 2 channels
     # Zeiss has provided a sample multi-channel 4D series in Zeiss LSM format.
@@ -269,7 +275,8 @@ class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel):
     def tearDown(self):
         self.v.close()
 
-class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel):
+class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel,
+                              unittest.TestCase):
     # Andor Bio-imaging Division TIFF format, 256 x 256 pixels, 16 bits per sample
     # 5 time points, 4 focal planes, 2 channels
     # Mark Browne of Andor Technology's Bio-imaging Division has provided a
@@ -294,7 +301,7 @@ class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel):
         self.v.close()
 
 
-class TestBioformatsOlympusTiff(_image_series, _image_stack):
+class TestBioformatsOlympusTiff(_image_series, _image_stack, unittest.TestCase):
     # Olympus Fluoview TIFF format, 512 x 512 pixels, 16 bits per sample
     # 16 time points, 21 focal planes
     # Timothy Gomez of the Department of Anatomy at the UW-Madison has provided
@@ -318,7 +325,8 @@ class TestBioformatsOlympusTiff(_image_series, _image_stack):
         self.v.close()
 
 
-class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel):
+class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
+                               unittest.TestCase):
     # Leica LIF format, 512 x 512 pixels, 16 bits per sample
     # Series 1: XYZ, 25 focal planes, 4 channels
     # Jean-Yves Tinevez of the PFID Imagopole at Institut Pasteur has provided
@@ -353,7 +361,8 @@ class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel)
         self.v.close()
 
 
-class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel):
+class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
+                               unittest.TestCase):
     # Series 2: XZY, 46 focal planes, 4 channels
     def check_skip(self):
         _skip_if_no_bioformats()
@@ -375,7 +384,7 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel)
         self.v.close()
 
 
-class TestBioformatsIPL(_image_single):
+class TestBioformatsIPL(_image_single, unittest.TestCase):
     # IPLab format, 650 x 515 pixels, 8 bits per sample, 3 channels
     # Scanalytics has provided a sample multi-channel image in IPLab format.
     def check_skip(self):
@@ -396,7 +405,7 @@ class TestBioformatsIPL(_image_single):
         self.v.close()
 
 
-class TestBioformatsSEQ(_image_single, _image_stack):
+class TestBioformatsSEQ(_image_single, _image_stack, unittest.TestCase):
     # Image-Pro sequence format
     # 512 x 512 pixels, 8 bits per sample, 30 focal planes
     def check_skip(self):
@@ -418,7 +427,7 @@ class TestBioformatsSEQ(_image_single, _image_stack):
         self.v.close()
 
 
-class TestBioformatsLEI(_image_single, _image_stack):
+class TestBioformatsLEI(_image_single, _image_stack, unittest.TestCase):
     # Leica format
     # 256 x 256 pixels, 8 bits per sample, 3 focal planes
     # Clay Glennon of the Wisconsin National Primate Research Center at the
@@ -442,7 +451,7 @@ class TestBioformatsLEI(_image_single, _image_stack):
         self.v.close()
 
 
-class TestBioformatsICS(_image_single):
+class TestBioformatsICS(_image_single, unittest.TestCase):
     # Image Cytometry Standard format
     # 256 x 256 pixels, 8 bits per sample
     # Nico urman of the Department of Cellular and Molecular Pharmacology at
@@ -466,7 +475,7 @@ class TestBioformatsICS(_image_single):
         self.v.close()
 
 
-class TestBioformatsZPO(_image_stack, _image_multichannel):
+class TestBioformatsZPO(_image_stack, _image_multichannel, unittest.TestCase):
     # PerkinElmer format, 672 x 512 pixels
     # 1 time point, 29 focal planes, 3 channels
     # Kevin O'Connell of NIH/NIDDK's Laboratory of Biochemistry and Genetics

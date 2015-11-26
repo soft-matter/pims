@@ -300,8 +300,8 @@ class BioformatsReader(FramesSequenceND):
     @classmethod
     def class_exts(cls):
         try:
-            return {'.lsm', '.ipl', '.dm3', '.seq', '.nd2', '.ics', '.ids',
-                    '.mov', '.ipw', '.tif', '.tiff', '.jpg', '.bmp', '.lif'}
+            return {'lsm', 'ipl', 'dm3', 'seq', 'nd2', 'ics', 'ids',
+                    'mov', 'ipw', 'tif', 'tiff', 'jpg', 'bmp', 'lif', 'lei'}
         except AttributeError:
             return {}
 
