@@ -42,9 +42,6 @@ To get started with Python on any platform, download and install
 [Anaconda](https://store.continuum.io/cshop/anaconda/). It comes with the
 common scientific Python packages built in.
 
-If you are using Windows, I recommend 32-bit Anaconda even if your system is 64-bit.
-(One of the optional dependencies is not yet compatible with 64-bit Python.)
-
 Open a command prompt. That's "Terminal" on a Mac, and
 "Start > Applications > Command Prompt" on Windows. Type these
 lines:
