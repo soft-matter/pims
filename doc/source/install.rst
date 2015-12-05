@@ -1,7 +1,17 @@
 Installation
 ============
 
-PIMS is easy to install on Windows, OSX, or Linux.
+PIMS is easy to install on Windows, OSX, or Linux. Its dependencies are:
+
+* `numpy <http://www.numpy.org/>`_
+* `slicerator https://github.com/soft-matter/slicerator/`_
+
+For basic image reading one of the following is required:
+
+* `scikit-image <http://scikit-image.org/>`_
+* `matplotlib <http://matplotlib.org/>`_
+* `scipy <http://www.scipy.org/>`_
+
 
 Recommended: conda 
 ------------------
