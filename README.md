@@ -16,11 +16,13 @@ Everything is demonstrated in [this IPython notebook](http://nbviewer.ipython.or
 Dependencies
 ------------
 
-One of the following is required:
+PIMS depends on [numpy](http://www.numpy.org) and [slicerator](https://github.com/soft-matter/slicerator).
 
-* [scikit-image]
-* [matplotlib]
-* [scipy]
+For basic image reading one of the following is required:
+
+* [scikit-image](http://scikit-image.org/)
+* [matplotlib](http://matplotlib.org/)
+* [scipy](http://www.scipy.org/)
 
 Depending on what file formats you want to read, you will also need:
 
