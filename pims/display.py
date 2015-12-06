@@ -463,9 +463,14 @@ def plots_to_frame(figures, width=512, close_fig=False, fig_size_inches=None,
     Parameters
     ----------
     figures : iterable of matplotlib Figure or Axes objects
-    width : integer, width in pixels
-    close_fig : boolean, when True, closes figures after drawing
-    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
+    width : integer
+        The width of the resulting frame, in pixels
+    close_fig : boolean
+        When True, the figure will be closed after plotting
+    fig_size_inches : tuple
+        The figure (height, width) in inches. If None, the size is not changed.
+    bbox_inches : {'tight', None}
+        When 'tight', tight layout is used.
 
     Returns
     -------
