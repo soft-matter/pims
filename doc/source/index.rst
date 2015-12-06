@@ -11,6 +11,9 @@ Key features:
 Example
 -------
 
+Everything is demonstrated in `this IPython
+notebook <http://nbviewer.ipython.org/github/soft-matter/pims/blob/master/examples/loading%20video%20frames.ipynb>`__.
+
 Load a sequence of images from a directory, where the images are named
 :file:`img-0.png`, :file:`img-1.png`, etc.
 
