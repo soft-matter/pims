@@ -379,7 +379,7 @@ def to_rgb(image, colors=None, normed=True):
 
 
 @contextmanager
-def _fig_size_cntx(fig, fig_size_inches):
+def _fig_size_cntx(fig, fig_size_inches, tight_layout=None):
     """Resize a figure in a context
 
     Parameters
@@ -387,20 +387,26 @@ def _fig_size_cntx(fig, fig_size_inches):
     fig : matplotlib.figure.Figure
         The figure to resize
     fig_size_inches : tuple
-        The (height, width) to use in the context.  If None, the size
+        The (height, width) to use in the context. If None, the size
         is not changed
-
+    tight_layout : boolean or None
+        When True, tight layout is used.
     """
     orig_size = fig.get_size_inches()
+    orig_layout = fig.get_tight_layout()
     if fig_size_inches is not None:
         fig.set_size_inches(*fig_size_inches)
+    if tight_layout is not None:
+        fig.set_tight_layout(tight_layout)
     try:
         yield fig
     finally:
         fig.set_size_inches(*orig_size)
+        fig.set_tight_layout(orig_layout)
 
 
-def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
+def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
+                  bbox_inches=None):
     """ Renders a matplotlib figure or axes object into a numpy array
     containing RGBA data of the rendered image.
 
@@ -408,8 +414,13 @@ def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
     ----------
     fig : matplotlib Figure or Axes object
     width : integer
+        The width of the resulting frame, in pixels
     close_fig : boolean
-    bbox_inches :
+        When True, the figure will be closed after plotting
+    fig_size_inches : tuple
+        The figure (height, width) in inches. If None, the size is not changed.
+    bbox_inches : {'tight', None}
+        When 'tight', tight layout is used.
 
     Returns
     -------
@@ -420,14 +431,18 @@ def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
     from pims import Frame
     if isinstance(fig, mpl.axes.Axes):
         fig = fig.figure
+    if fig_size_inches is not None:
+        if fig_size_inches[0] == 0 or fig_size_inches[1] == 0:
+            raise ValueError('Figure size cannot be zero.')
+    if bbox_inches is None:
+        tight_layout = None
+    elif str(bbox_inches) == 'tight':
+        tight_layout = True
+    else:
+        raise ValueError('Only bbox_inches=`tight` is allowed.')
 
-    if bbox_inches is not None:
-        if bbox_inches[0] == 0 or bbox_inches[1] == 0:
-            raise NotImplemented('Must save whole figure')
-        bbox_inches = bbox_inches[2:]
     buf = BytesIO()
-
-    with _fig_size_cntx(fig, bbox_inches) as fig:
+    with _fig_size_cntx(fig, fig_size_inches, tight_layout) as fig:
         width_in, height_in = fig.get_size_inches()
         dpi = width / width_in
         buf_shape = (height_in * dpi, width_in * dpi, 4)
@@ -440,16 +455,22 @@ def plot_to_frame(fig, width=512, close_fig=False, bbox_inches=None):
     return Frame(image)
 
 
-def plots_to_frame(figures, width=512, close_fig=False, bbox_inches=None):
+def plots_to_frame(figures, width=512, close_fig=False, fig_size_inches=None,
+                   bbox_inches=None):
     """ Renders an iterable of matplotlib figures or axes objects into a
     pims Frame object, that will be displayed as scrollable stack in IPython.
 
     Parameters
     ----------
     figures : iterable of matplotlib Figure or Axes objects
-    width : integer, width in pixels
-    close_fig : boolean, when True, closes figures after drawing
-    imsave_kwargs : keyword arguments passed to `Figure.imsave(...)`
+    width : integer
+        The width of the resulting frame, in pixels
+    close_fig : boolean
+        When True, the figure will be closed after plotting
+    fig_size_inches : tuple
+        The figure (height, width) in inches. If None, the size is not changed.
+    bbox_inches : {'tight', None}
+        When 'tight', tight layout is used.
 
     Returns
     -------
@@ -468,7 +489,7 @@ def plots_to_frame(figures, width=512, close_fig=False, bbox_inches=None):
 
     frames = []
     for n, fig in enumerate(figures):
-        im = plot_to_frame(fig, width, close_fig, bbox_inches)
+        im = plot_to_frame(fig, width, close_fig, fig_size_inches, bbox_inches)
         if h is None:
             h = im.shape[0]
         else:
