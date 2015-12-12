@@ -17,6 +17,18 @@ def available():
 
 
 class ImageIOReader(FramesSequence):
+    class_priority = 3
+    @classmethod
+    def class_exts(cls):
+        return {'tiff', 'bmp', 'cut', 'dds', 'exr', 'g3', 'hdr', 'iff', 'j2k',
+                'jng', 'jp2', 'jpeg', 'jpg', 'koala', 'pbm', 'pbmraw', 'pcd',
+                'pcx', 'pfm', 'pgm', 'pgmraw', 'pict', 'png', 'ppm', 'ppmraw',
+                'psd', 'ras', 'raw', 'sgi', 'targa', 'fi_tiff', 'wbmp', 'webp',
+                'xbm', 'xpm', 'ico', 'gif', 'dicom', 'npz', 'fits', 'itk',
+                'gdal', 'dummy', 'gif', 'ffmpeg', 'avbin', 'swf', 'fits',
+                'gdal', 'mov', 'mp4', 'avi', 'mpeg',
+                'wmv'} | super(ImageIOReader, cls).class_exts()
+
     def __init__(self, filename, **kwargs):
         if imageio is None:
             raise ImportError('The ImageIOReader requires imageio to work.')

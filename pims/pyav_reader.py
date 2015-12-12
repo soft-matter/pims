@@ -56,6 +56,7 @@ class PyAVVideoReader(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
+    class_priority = 2
     @classmethod
     def class_exts(cls):
         return {'mov', 'avi',

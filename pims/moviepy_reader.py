@@ -20,6 +20,11 @@ def available():
 
 
 class MoviePyReader(FramesSequence):
+    class_priority = 4
+    @classmethod
+    def class_exts(cls):
+        return {'mov', 'mp4', 'avi', 'mpeg',
+                'wmv'} | super(MoviePyReader, cls).class_exts()
     def __init__(self, filename):
         if VideoFileClip is None:
             raise ImportError('The MoviePyReader requires moviepy to work.')
