@@ -20,9 +20,10 @@ from threading import Lock
 
 __all__ = ['NorpixSeq',]
 
-DWORD = 'L'
+DWORD = 'L' # unsigned long
 LONG = 'l'
 DOUBLE = 'd'
+USHORT = 'H'
 
 HEADER_FIELDS = [
     ('magic', DWORD),
@@ -41,6 +42,17 @@ HEADER_FIELDS = [
     ('true_image_size', DWORD),
     ('suggested_frame_rate', DOUBLE),
     ('description_format', LONG),
+    ('reference_frame', DWORD),
+    ('fixed_size', DWORD),
+    ('flags', DWORD),
+    ('bayer_pattern', LONG),
+    ('time_offset_us', LONG),
+    ('extended_header_size', LONG),
+    ('compression_format', DWORD),
+    ('reference_time_s', LONG),
+    ('reference_time_ms', USHORT),
+    ('reference_time_us', USHORT)
+    # More header values not implemented
 ]
 
 
@@ -50,7 +62,8 @@ class NorpixSeq(FramesSequence):
     This is the native format of StreamPix software, owned by NorPix Inc.
     The format is described in the StreamPix documentation.
 
-    Currently supports uncompressed 8-bit monochrome files only.
+    Currently supports uncompressed files only, either monochrome
+    or as_raw color.
 
     Nominally thread-safe.
 
@@ -65,6 +78,8 @@ class NorpixSeq(FramesSequence):
         Image arrays will be converted to this datatype.
     as_grey : boolean, optional
         Ignored.
+    as_raw : boolean, optional
+        Required for non-monochrome frames.
     """
     @classmethod
     def class_exts(cls):
@@ -74,7 +89,7 @@ class NorpixSeq(FramesSequence):
                        'get_time_float', 'filename', 'width', 'height',
                        'frame_rate']
 
-    def __init__(self, filename, process_func=None, dtype=None, as_grey=False):
+    def __init__(self, filename, process_func=None, dtype=None, as_grey=False, as_raw = False):
         super(NorpixSeq, self).__init__()
         self._file = open(filename, 'rb')
         self._filename = filename
@@ -83,8 +98,10 @@ class NorpixSeq(FramesSequence):
 
         if self.header_dict['magic'] != 0xFEED:
             raise IOError('The format of this .seq file is unrecognized')
-        if self.header_dict['image_format'] != 100:
-            raise IOError('Only uncompressed mono images are supported in .seq files')
+        if self.header_dict['compression_format'] != 0:
+            raise IOError('Only uncompressed images are supported in .seq files')
+        if self.header_dict['image_format'] != 100 and not as_raw:
+            raise IOError('Non-monochrome images are only supported as_raw in .seq files')
 
         # File-level metadata
         if self.header_dict['version'] >= 5:  # StreamPix version 6
