@@ -135,7 +135,7 @@ class NorpixSeq(FramesSequence):
             self._dtype_native = 'uint8'
         else:
             try:
-        self._pixel_count = self._width * self._height
+                self._pixel_count = self._width * self._height
                 dtype_native = 'uint%i' % self.header_dict['bit_depth']
                 self._dtype_native = np.dtype(dtype_native)
                 self._shape = (self._height, self._width)
