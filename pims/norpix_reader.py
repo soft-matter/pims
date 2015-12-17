@@ -23,6 +23,7 @@ __all__ = ['NorpixSeq',]
 DWORD = 'L'
 LONG = 'l'
 DOUBLE = 'd'
+USHORT = 'H'
 
 HEADER_FIELDS = [
     ('magic', DWORD),
@@ -41,6 +42,17 @@ HEADER_FIELDS = [
     ('true_image_size', DWORD),
     ('suggested_frame_rate', DOUBLE),
     ('description_format', LONG),
+    ('reference_frame', DWORD),
+    ('fixed_size', DWORD),
+    ('flags', DWORD),
+    ('bayer_pattern', LONG),
+    ('time_offset_us', LONG),
+    ('extended_header_size', LONG),
+    ('compression_format', DWORD),
+    ('reference_time_s', LONG),
+    ('reference_time_ms', USHORT),
+    ('reference_time_us', USHORT)
+    # More header values not implemented
 ]
 
 
@@ -50,7 +62,8 @@ class NorpixSeq(FramesSequence):
     This is the native format of StreamPix software, owned by NorPix Inc.
     The format is described in the StreamPix documentation.
 
-    Currently supports uncompressed 8-bit monochrome files only.
+    Currently supports uncompressed files only, either
+    uint8/16/32 monochrome or as_raw color or monochrome.
 
     Nominally thread-safe.
 
@@ -65,6 +78,11 @@ class NorpixSeq(FramesSequence):
         Image arrays will be converted to this datatype.
     as_grey : boolean, optional
         Ignored.
+    as_raw : boolean, optional
+        Required for non-monochrome frames.
+        Images will be returned as an ndarray of bytes.
+        2-dimensional if the image height evenly divides the bytes per image,
+        1-dimensional otherwise.
     """
     @classmethod
     def class_exts(cls):
@@ -74,7 +92,7 @@ class NorpixSeq(FramesSequence):
                        'get_time_float', 'filename', 'width', 'height',
                        'frame_rate']
 
-    def __init__(self, filename, process_func=None, dtype=None, as_grey=False):
+    def __init__(self, filename, process_func=None, dtype=None, as_grey=False, as_raw = False):
         super(NorpixSeq, self).__init__()
         self._file = open(filename, 'rb')
         self._filename = filename
@@ -83,8 +101,10 @@ class NorpixSeq(FramesSequence):
 
         if self.header_dict['magic'] != 0xFEED:
             raise IOError('The format of this .seq file is unrecognized')
-        if self.header_dict['image_format'] != 100:
-            raise IOError('Only uncompressed mono images are supported in .seq files')
+        if self.header_dict['compression_format'] != 0:
+            raise IOError('Only uncompressed images are supported in .seq files')
+        if self.header_dict['image_format'] != 100 and not as_raw:
+            raise IOError('Non-monochrome images are only supported as_raw in .seq files')
 
         # File-level metadata
         if self.header_dict['version'] >= 5:  # StreamPix version 6
@@ -105,9 +125,22 @@ class NorpixSeq(FramesSequence):
         # Image metadata
         self._width = self.header_dict['width']
         self._height = self.header_dict['height']
-        self._pixel_count = self._width * self._height
         self._image_bytes = self.header_dict['image_size_bytes']
-        self._dtype_native = np.dtype('uint%i' % self.header_dict['bit_depth'])
+        if as_raw:
+            self._pixel_count = self._image_bytes
+            if self._pixel_count % self._height == 0:
+                self._shape = (self._height, int(self._pixel_count / self._height))
+            else:
+                self._shape = (self._image_bytes,)
+            self._dtype_native = 'uint8'
+        else:
+            try:
+        self._pixel_count = self._width * self._height
+                dtype_native = 'uint%i' % self.header_dict['bit_depth']
+                self._dtype_native = np.dtype(dtype_native)
+                self._shape = (self._height, self._width)
+            except TypeError as e:
+                raise IOError(dtype + " pixels not supported; use as_raw and convert")
 
         # Public metadata
         self.metadata = {k: self.header_dict[k] for k in
@@ -121,7 +154,7 @@ class NorpixSeq(FramesSequence):
         else:
             self._dtype = dtype
 
-        self._validate_process_func(process_func)
+        self.set_process_func(process_func)
 
         self._file_lock = Lock()
 
@@ -150,12 +183,17 @@ class NorpixSeq(FramesSequence):
         if i >= self._image_count or i < 0:
             raise ValueError("Frame number is out of range: " + str(i))
 
+    def set_process_func(self, process_func):
+        # Expose the _validate_process_func for use after the header is
+        # available
+        self._validate_process_func(process_func)
+
     def get_frame(self, i):
         self._verify_frame_no(i)
         with FileLocker(self._file_lock):
             self._file.seek(self._image_offset + self._image_block_size * i)
             imdata = np.fromfile(self._file, self._dtype_native, self._pixel_count
-                                 ).reshape((self.height, self.width))
+                                 ).reshape(self._shape)
             # Timestamp immediately follows
             tfloat, ts = self._read_timestamp()
             md = {'time': ts, 'time_float': tfloat,
