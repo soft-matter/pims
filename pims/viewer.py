@@ -1,14 +1,16 @@
 import os
 import numpy as np
-from pims import pipeline, to_rgb
+from pims import pipeline, to_rgb, FramesSequenceND
+from pims.display import _to_rgb_uint8
 from types import FunctionType
-from skimage.viewer.widgets import Slider
+from skimage.viewer.widgets import Slider, CheckBox
 from skimage.viewer.qt import (Qt, QtWidgets, QtGui, QtCore, Signal, has_qt,
                                FigureCanvasQTAgg)
 from skimage.viewer.utils import (init_qtapp, start_qtapp)
 import matplotlib as mpl
-from matplotlib.figure import Figure
-
+import matplotlib.pyplot as plt
+from pyqtgraph.Qt import QtCore, QtGui
+import pyqtgraph.opengl as gl
 
 def available():
     try:
@@ -20,25 +22,53 @@ def available():
         return True
 
 
-dtype_range = {np.bool_: (False, True),
-               np.bool8: (False, True),
-               np.uint8: (0, 255),
-               np.uint16: (0, 65535),
-               np.int8: (-128, 127),
-               np.int16: (-32768, 32767),
-               np.int64: (-2**63, 2**63 - 1),
-               np.uint64: (0, 2**64 - 1),
-               np.int32: (-2**31, 2**31 - 1),
-               np.uint32: (0, 2**32 - 1),
-               np.float32: (-1, 1),
-               np.float64: (-1, 1)}
-
-
 class DockWidgetCloseable(QtWidgets.QDockWidget):
     close_event_signal = Signal()
     def closeEvent(self, event):
         self.close_event_signal.emit()
         super(DockWidgetCloseable, self).closeEvent(event)
+
+
+def to_rgb_uint8(image, autoscale=True):
+    ndim = image.ndim
+    shape = image.shape
+    try:
+        colors = image.colors
+    except AttributeError:
+        colors = None
+
+    # 2D, grayscale
+    if ndim == 2:
+        stack = False
+    # 2D, has colors attribute
+    elif ndim == 3 and colors is not None:
+        stack = False
+        image = to_rgb(image, colors, False)
+    # 2D, RGB
+    elif ndim == 3 and shape[2] in [3, 4]:
+        stack = False
+    # 2D, is multichannel
+    elif ndim == 3 and shape[0] < 5:  # guessing; could be small z-stack
+        stack = False
+        image = to_rgb(image, None, False)
+    # 3D, grayscale
+    elif ndim == 3:
+        stack = True
+    # 3D, has colors attribute
+    elif ndim == 4 and colors is not None:
+        stack = True
+        image = to_rgb(image, colors, False)
+    # 3D, RGB
+    elif ndim == 4 and shape[3] in [3, 4]:
+        stack = True
+    # 3D, is multichannel
+    elif ndim == 4 and shape[0] < 5:
+        stack = True
+        image = to_rgb(image, None, False)
+    else:
+        raise ValueError("No display possible for frames of shape {0}".format(shape))
+
+    return _to_rgb_uint8(image, autoscale)
 
 
 class BlitManager(object):
@@ -93,47 +123,29 @@ class FigureCanvas(FigureCanvasQTAgg):
 
 
 class DisplayMPL(object):
-    def __init__(self, image, useblit=True):
+    def __init__(self, shape, useblit=True):
         scale = 1
         dpi = mpl.rcParams['figure.dpi']
+        h, w = shape[:2]
 
-        plot_image = self._format_image(image)
-        h, w = plot_image.shape[:2]
         figsize = np.array((w, h), dtype=float) / dpi * scale
 
-        self.fig = Figure(figsize=figsize, dpi=dpi)
+        self.fig = plt.Figure(figsize=figsize, dpi=dpi)
         self.canvas = FigureCanvas(self.fig)
 
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
         self.ax.set_axis_off()
-        self.ax.imshow(plot_image, interpolation='nearest', cmap='gray')
-        self.canvas.draw()
-
+        self.ax.imshow(np.zeros(shape, dtype=np.bool),
+                       interpolation='nearest', cmap='gray')
         self.ax.autoscale(enable=False)
 
-        self._tools = []
         self.useblit = useblit
         if useblit:
             self._blit_manager = BlitManager(self.ax)
 
         self._image_plot = self.ax.images[0]
-
-    def _format_image(self, image):
-        ndim = image.ndim
-        shape = image.shape
-
-        # has colors attribute
-        if ndim == 3 and hasattr(image, 'colors'):
-            return to_rgb(image, image.colors, False)
-
-        # grayscale or RGB, matplotlib can handle that
-        if ndim == 2 or (ndim == 3 and shape[2] in [3, 4]):
-            return image
-
-        # is multichannel without colors attribute
-        if ndim == 3 and shape[0] < 5:
-            return to_rgb(image, None, False)
+        self._image_plot.set_clim((0, 255))
 
     def connect_event(self, event, callback):
         """Connect callback function to matplotlib event and return id."""
@@ -150,26 +162,15 @@ class DisplayMPL(object):
         else:
             self.canvas.draw_idle()
 
-    @property
-    def image(self):
-        return self._img
-
     def update_image(self, image):
-        self._img = image
-        plot_image = self._format_image(image)
-        self._image_plot.set_array(plot_image)
+        self.image = image
+        self._image_plot.set_array(image)
 
         # Adjust size if new image shape doesn't match the original
-        h, w = plot_image.shape[:2]
+        h, w = image.shape[:2]
         self._image_plot.set_extent((0, w, h, 0))
         self.ax.set_xlim(0, w)
         self.ax.set_ylim(h, 0)
-
-        # update color range
-        clim = dtype_range[plot_image.dtype.type]
-        if clim[0] < 0 and image.min() >= 0:
-            clim = (0, clim[1])
-        self._image_plot.set_clim(clim)
 
         if self.useblit:
             self._blit_manager.background = None
@@ -184,6 +185,31 @@ class DisplayMPL(object):
     @property
     def widget(self):
         return self.canvas
+
+    def close(self):
+        plt.close(self.fig)
+        self.canvas.close()
+
+class DisplayVolume(object):
+    def __init__(self, image):
+        widget = gl.GLViewWidget()
+        widget.opts['distance'] = 50
+        widget.show()
+
+        plot_shape = (image.shape[0], image.shape[1], image.shape[2], 4)
+        data_plot = np.empty(plot_shape, dtype=np.ubyte)
+        data_plot[:, :, :, :3] = image
+        data_plot[:, :, :, 3] = 100
+
+        volume = gl.GLVolumeItem(data_plot)
+        volume.translate(image.shape[0] // -2, image.shape[1] // -2,
+                         image.shape[2] // -2)
+        widget.addItem(volume)
+
+        ax = gl.GLAxisItem()
+        widget.addItem(ax)
+
+        self.widget = widget
 
 
 class Viewer(QtWidgets.QMainWindow):
@@ -201,14 +227,14 @@ class Viewer(QtWidgets.QMainWindow):
 
     def __init__(self, reader=None, useblit=True):
         self.pipelines = []
-        self.index = 0
+        self.plugins = []
+        self.reader = None
+        self.renderer = None
+        self.sliders = dict()
+        self.useblit = useblit
+        self.is_multichannel = False
+        self.is_ND = False
 
-        if reader is None:
-            self.reader = np.zeros((1, 128, 128))
-        else:
-            self.reader = reader
-
-        image = reader[0]
         # Start main loop
         init_qtapp()
         super(Viewer, self).__init__()
@@ -225,34 +251,19 @@ class Viewer(QtWidgets.QMainWindow):
                                  Qt.CTRL + Qt.Key_Q)
         self.menuBar().addMenu(self.file_menu)
 
+
         self.main_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.main_widget)
 
-        self.renderer = DisplayMPL(image, useblit)
-
-        self.original_image = image
-        self.update_image()
-        self.plugins = []
-
-        status_bar = self.statusBar()
-        self.status_message = status_bar.showMessage
-        statusbar_height = status_bar.sizeHint().height()
-        canvas_height, canvas_width = self.renderer.size
-        self.resize(canvas_width, canvas_height + statusbar_height)
-
-        self.renderer.connect_event('motion_notify_event',
-                                    self._update_status_bar)
-
-        self.slider = Slider('index', low=0, high=len(self.reader) - 1,
-                             value=0, update_on='release', value_type='int',
-                             callback=lambda x, y: self.update_index(y))
-
         self.layout = QtWidgets.QVBoxLayout(self.main_widget)
-        self.layout.addWidget(self.renderer.widget)
-        self.layout.addWidget(self.slider)
+
+        self._add_widget_size(self.file_menu, dimension='height')
+
+        if reader is not None:
+            self.update_reader(reader)
 
     def __add__(self, plugin):
-        """Add plugin to Viewer"""
+        """Add plugin to ImageViewer"""
         plugin.pipeline_changed.connect(self.update_pipeline)
         plugin.attach(self)
 
@@ -267,7 +278,7 @@ class Viewer(QtWidgets.QMainWindow):
 
             horiz = (self.dock_areas['left'], self.dock_areas['right'])
             dimension = 'width' if location in horiz else 'height'
-            self._add_widget_size(plugin, dimension=dimension)
+            self._add_widget_size(dock, dimension=dimension)
 
         return self
 
@@ -275,18 +286,18 @@ class Viewer(QtWidgets.QMainWindow):
         widget_size = widget.sizeHint()
         viewer_size = self.frameGeometry()
 
-        dx = dy = 0
+        dx = 0
+        dy = 72
         if dimension == 'width':
-            dx = widget_size.width()
+            dx += widget_size.width()
         elif dimension == 'height':
-            dy = widget_size.height()
-
+            dy += widget_size.height()
         w = viewer_size.width()
         h = viewer_size.height()
         self.resize(w + dx, h + dy)
 
     def open_file(self, filename=None):
-        """Open image sequence and display in viewer."""
+        """Open image file and display in viewer."""
         if filename is None:
             try:
                 cur_dir = os.path.dirname(self.reader.filename)
@@ -300,25 +311,127 @@ class Viewer(QtWidgets.QMainWindow):
             return
         import pims
         reader = pims.open(filename)
-        try:   # attempt to close current reader
-            self.reader.close()
-        except:
-            pass
+        if self.reader is not None:
+            self.close_reader()
+        self.update_reader(reader)
+
+    def close_reader(self):
+        self.reader.close()
+        self.renderer.close()
+        self.slider.close()
+
+    def update_reader(self, reader):
         self.reader = reader
-        self.slider.slider.setRange(0, self.num_images - 1)
-        self.slider.val = 0
-        self.slider.editbox.setText('0')
-        self.update_index(0)
+
+        if isinstance(reader, FramesSequenceND):
+            reader.bundle_axes = 'yx'
+            shape = reader.frame_shape
+            reader.iter_axes = ''
+            index = reader.default_coords.copy()
+            self.is_ND = True
+        else:
+            index = 0
+            shape = reader.frame_shape
+            # identify shape
+            if len(shape) == 2:
+                pass
+            elif (len(shape) == 3) and (shape[2] in [3, 4]):
+                shape = shape[:2]
+            elif (len(shape) == 3) and (shape[0] < 5):
+                shape = shape[1:]
+            else:
+                raise ValueError('Unsupported image shape')
+            self.is_ND = False
+
+        self.renderer = DisplayMPL(shape + (3,), self.useblit)
+
+        # resize the window
+        status_bar = self.statusBar()
+        statusbar_height = status_bar.sizeHint().height()
+        canvas_height, canvas_width = self.renderer.size
+        self.resize(canvas_width, canvas_height + statusbar_height)
+        # connect the statusbar
+        self.status_message = status_bar.showMessage
+        self.renderer.connect_event('motion_notify_event',
+                                    self._update_status_bar)
+
+
+        # add sliders
+        slider_widget = QtWidgets.QWidget()
+        slider_layout = QtWidgets.QGridLayout(slider_widget)
+        self.sliders = dict()
+        if self.is_ND:
+            for axis in reader.sizes:
+                if axis in ['x', 'y'] or reader.sizes[axis] <= 1:
+                    continue
+                slider = Slider(axis, low=0, high=reader.sizes[axis] - 1,
+                                value=index[axis], update_on='release',
+                                value_type='int',
+                                callback=self.slider_callback_ND)
+                slider_layout.addWidget(slider, len(self.sliders), 0)
+                self.sliders[axis] = slider
+                if axis == 'c':
+                    checkbox = CheckBox('multichannel', True,
+                                        callback=self.display_multichannel)
+                    self.display_multichannel(None, True)
+                    slider_layout.addWidget(checkbox, len(self.sliders)-1, 1)
+        elif len(self.reader) > 1:
+            slider = Slider('index', low=0, high=len(self.reader) - 1,
+                            value=index, update_on='release', value_type='int',
+                            callback=self.slider_callback)
+            slider_layout.addWidget(slider, 0, 0)
+            self.sliders['index'] = slider
+
+        if len(self.sliders) > 0:
+            dock_location = Qt.DockWidgetArea(self.dock_areas['bottom'])
+            dock = DockWidgetCloseable()
+            dock.setWidget(slider_widget)
+            dock.setWindowTitle('Axes sliders')
+            dock.setFeatures(QtGui.QDockWidget.DockWidgetFloatable |
+                             QtGui.QDockWidget.DockWidgetMovable)
+            self.addDockWidget(dock_location, dock)
+            self._add_widget_size(dock, dimension='height')
+
+        self.layout.addWidget(self.renderer.widget)
+
+        self.index = None
+        self.update_index(index)
+
+    def slider_callback(self, name, index):
+        self.update_index(index)
+
+    def slider_callback_ND(self, name, index):
+        if self.index[name] == index:
+            return
+        new_index = self.index.copy()
+        new_index[name] = index
+        self.update_index(new_index)
+
+    def display_multichannel(self, name, value):
+        if value:
+            self.is_multichannel = True
+            self.sliders['c'].setDisabled(True)
+            self.reader.bundle_axes = 'cyx'
+        else:
+            self.is_multichannel = False
+            self.sliders['c'].setDisabled(False)
+            self.reader.bundle_axes = 'yx'
+        if name is not None:
+            self.update_index(self.index)
 
     def update_index(self, index):
-        """Select image to display using index into image sequence."""
-        index = min(max(int(round(index)), 0), len(self.reader) - 1)
-        if index == self.index:
-            return
-
+        """Select image on display using index into image collection."""
         self.index = index
-        self.slider.val = index
-        image = self.reader[self.index]
+
+        if self.is_ND:
+            for name in self.sliders:
+                self.sliders[name].val = index[name]
+            self.reader.default_coords.update(index)
+            image = self.reader[0]
+        else:
+            self.sliders['index'].val = index
+            image = self.reader[index]
+
         self.original_image = image
         self.update_image()
 
@@ -339,6 +452,10 @@ class Viewer(QtWidgets.QMainWindow):
         self.close()
 
     def show(self, main_window=True):
+        """Show ImageViewer and attached plugins.
+
+        This behaves much like `matplotlib.pyplot.show` and `QWidget.show`.
+        """
         self.move(0, 0)
         for p in self.plugins:
             p.show()
@@ -360,18 +477,23 @@ class Viewer(QtWidgets.QMainWindow):
 
     @property
     def image(self):
-        return self.renderer.image
+        return self._img
 
     @image.setter
     def image(self, image):
-        self.renderer.update_image(image)
+        self._img = image
+        self.renderer.update_image(to_rgb_uint8(image, autoscale=True))
 
     def _update_status_bar(self, event):
         if event.inaxes and event.inaxes.get_navigate():
             x = int(event.xdata + 0.5)
             y = int(event.ydata + 0.5)
             try:
-                msg = "%4s @ [%4s, %4s]" % (self.image[y, x], x, y)
+                if self.is_multichannel:
+                    val = self.image[:, y, x]
+                else:
+                    val = self.image[y, x]
+                msg = "%4s @ [%4s, %4s]" % (val, x, y)
             except IndexError:
                 msg = ""
         else:
@@ -380,7 +502,7 @@ class Viewer(QtWidgets.QMainWindow):
 
 
 class PipelinePlugin(QtWidgets.QDialog):
-    """Base class for plugins that interact with the Viewer.
+    """Base class for plugins that interact with an ImageViewer.
 
     A plugin connects an image filter (or another function) to an image viewer.
     Note that a Plugin is initialized *without* an image viewer and attached in
@@ -388,10 +510,13 @@ class PipelinePlugin(QtWidgets.QDialog):
 
     Parameters
     ----------
-    image_viewer : Viewer
+    image_viewer : ImageViewer
         Window containing image used in measurement/manipulation.
     image_filter : function
-        Function that gets called to update image in image viewer.
+        Function that gets called to update image in image viewer. This value
+        can be `None` if, for example, you have a plugin that extracts
+        information from an image and doesn't manipulate it. Alternatively,
+        this function can be defined as a method in a Plugin subclass.
     height, width : int
         Size of plugin window in pixels. Note that Qt will automatically resize
         a window to fit components. So if you're adding rows of components, you
@@ -405,8 +530,38 @@ class PipelinePlugin(QtWidgets.QDialog):
     ----------
     image_viewer : ImageViewer
         Window containing image used in measurement.
-    name : str, optional
+    name : str
         Name of plugin. This is displayed as the window title.
+    artist : list
+        List of Matplotlib artists and canvastools. Any artists created by the
+        plugin should be added to this list so that it gets cleaned up on
+        close.
+
+    Examples
+    --------
+    >>> from skimage.viewer import ImageViewer
+    >>> from skimage.viewer.widgets import Slider
+    >>> from skimage import data
+    >>>
+    >>> plugin = Plugin(image_filter=lambda img,
+    ...                 threshold: img > threshold) # doctest: +SKIP
+    >>> plugin += Slider('threshold', 0, 255)       # doctest: +SKIP
+    >>>
+    >>> image = data.coins()
+    >>> viewer = ImageViewer(image)       # doctest: +SKIP
+    >>> viewer += plugin                  # doctest: +SKIP
+    >>> thresholded = viewer.show()[0][0] # doctest: +SKIP
+
+    The plugin will automatically delegate parameters to `image_filter` based
+    on its parameter type, i.e., `ptype` (widgets for required arguments must
+    be added in the order they appear in the function). The image attached
+    to the viewer is **automatically passed as the first argument** to the
+    filter function.
+
+    #TODO: Add flag so image is not passed to filter function by default.
+
+    `ptype = 'kwarg'` is the default for most widgets so it's unnecessary here.
+
     """
     # Signals used when viewers are linked to the Plugin output.
     pipeline_changed = Signal(int, FunctionType)
@@ -437,10 +592,9 @@ class PipelinePlugin(QtWidgets.QDialog):
         self.keyword_arguments = {}
 
         self.useblit = useblit
-        self.pipeline_index = None
 
     def attach(self, image_viewer):
-        """Attach the plugin to a Viewer.
+        """Attach the plugin to an ImageViewer.
 
         Note that the ImageViewer will automatically call this method when the
         plugin is added to the ImageViewer. For example::
@@ -491,12 +645,12 @@ class PipelinePlugin(QtWidgets.QDialog):
         return self
 
     def filter_image(self, *widget_arg):
-        """Update the image pipeline.
+        """Call `image_filter` with widget args and kwargs
 
-        Note: a `pipeline_changed` signal is automatically emitted
-        `widget_arg` is passed by the active widget but is unused since all
-        filter arguments are pulled directly from attached the widgets.
+        Note: `display_filtered_image` is automatically called.
         """
+        # `widget_arg` is passed by the active widget but is unused since all
+        # filter arguments are pulled directly from attached the widgets.
         kwargs = dict([(name, self._get_value(a))
                        for name, a in self.keyword_arguments.items()])
         func = lambda x: self.image_filter(x, *self.arguments, **kwargs)
@@ -505,6 +659,14 @@ class PipelinePlugin(QtWidgets.QDialog):
     def _get_value(self, param):
         # If param is a widget, return its `val` attribute.
         return param if not hasattr(param, 'val') else param.val
+
+    def update_plugin(self, name, value):
+        """Update keyword parameters of the plugin itself.
+
+        These parameters will typically be implemented as class properties so
+        that they update the image or some other component.
+        """
+        setattr(self, name, value)
 
     def show(self, main_window=True):
         """Show plugin."""
