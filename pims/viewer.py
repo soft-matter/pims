@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from pims import pipeline, to_rgb, FramesSequenceND
-from pims.display import _to_rgb_uint8
 from types import FunctionType
 from skimage.viewer.widgets import Slider, CheckBox
 from skimage.viewer.qt import (Qt, QtWidgets, QtGui, QtCore, Signal, has_qt,
@@ -29,6 +28,26 @@ class DockWidgetCloseable(QtWidgets.QDockWidget):
         super(DockWidgetCloseable, self).closeEvent(event)
 
 
+def normalize(arr):
+    """This normalizes an array to values between 0 and 1.
+
+    Parameters
+    ----------
+    arr : ndarray
+
+    Returns
+    -------
+    ndarray of float
+        normalized array
+    """
+    ptp = arr.max() - arr.min()
+    # Handle edge case of a flat image.
+    if ptp == 0:
+        ptp = 1
+    scaled_arr = (arr - arr.min()) / ptp
+    return scaled_arr
+
+
 def to_rgb_uint8(image, autoscale=True):
     ndim = image.ndim
     shape = image.shape
@@ -39,36 +58,47 @@ def to_rgb_uint8(image, autoscale=True):
 
     # 2D, grayscale
     if ndim == 2:
-        stack = False
+        pass
     # 2D, has colors attribute
     elif ndim == 3 and colors is not None:
-        stack = False
         image = to_rgb(image, colors, False)
     # 2D, RGB
     elif ndim == 3 and shape[2] in [3, 4]:
-        stack = False
+        pass
     # 2D, is multichannel
     elif ndim == 3 and shape[0] < 5:  # guessing; could be small z-stack
-        stack = False
         image = to_rgb(image, None, False)
     # 3D, grayscale
     elif ndim == 3:
-        stack = True
+        pass
     # 3D, has colors attribute
     elif ndim == 4 and colors is not None:
-        stack = True
         image = to_rgb(image, colors, False)
     # 3D, RGB
     elif ndim == 4 and shape[3] in [3, 4]:
-        stack = True
+        pass
     # 3D, is multichannel
     elif ndim == 4 and shape[0] < 5:
-        stack = True
         image = to_rgb(image, None, False)
     else:
         raise ValueError("No display possible for frames of shape {0}".format(shape))
 
-    return _to_rgb_uint8(image, autoscale)
+    if autoscale:
+        image = (normalize(image) * 255).astype(np.uint8)
+    elif image.dtype is not np.uint8:
+        if np.issubdtype(image.dtype, np.integer):
+            max_value = np.iinfo(image.dtype).max
+            # sometimes 12-bit images are stored as unsigned 16-bit
+            if max_value == 2**16 - 1 and image.max() < 2**12:
+                max_value = 2**12 - 1
+            image = (image / max_value * 255).astype(np.uint8)
+        else:
+            image = (image * 255).astype(np.uint8)
+
+    if image.shape[-1] != 3:
+        image = np.repeat(image[..., np.newaxis], 3, axis=image.ndim)
+
+    return image
 
 
 class BlitManager(object):
@@ -123,6 +153,7 @@ class FigureCanvas(FigureCanvasQTAgg):
 
 
 class DisplayMPL(object):
+  #  mouse_position = Signal(int, int)
     def __init__(self, shape, useblit=True):
         scale = 1
         dpi = mpl.rcParams['figure.dpi']
@@ -136,7 +167,7 @@ class DisplayMPL(object):
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
         self.ax.set_axis_off()
-        self.ax.imshow(np.zeros(shape, dtype=np.bool),
+        self.ax.imshow(np.zeros((h, w, 3), dtype=np.bool),
                        interpolation='nearest', cmap='gray')
         self.ax.autoscale(enable=False)
 
@@ -146,6 +177,8 @@ class DisplayMPL(object):
 
         self._image_plot = self.ax.images[0]
         self._image_plot.set_clim((0, 255))
+
+        self.connect_event('motion_notify_event', self.update_mouse_position)
 
     def connect_event(self, event, callback):
         """Connect callback function to matplotlib event and return id."""
@@ -190,26 +223,43 @@ class DisplayMPL(object):
         plt.close(self.fig)
         self.canvas.close()
 
+    def update_mouse_position(self, event):
+        if event.inaxes and event.inaxes.get_navigate():
+            x = int(event.xdata + 0.5)
+            y = int(event.ydata + 0.5)
+       #     self.mouse_position.emit(y, x)
+
 class DisplayVolume(object):
-    def __init__(self, image):
+    status_msg = Signal(str)
+    def __init__(self, shape):
         widget = gl.GLViewWidget()
         widget.opts['distance'] = 50
         widget.show()
 
-        plot_shape = (image.shape[0], image.shape[1], image.shape[2], 4)
-        data_plot = np.empty(plot_shape, dtype=np.ubyte)
-        data_plot[:, :, :, :3] = image
-        data_plot[:, :, :, 3] = 100
+        self.data_plot = np.zeros(tuple(shape[:3]) + (4,), dtype=np.ubyte)
 
-        volume = gl.GLVolumeItem(data_plot)
-        volume.translate(image.shape[0] // -2, image.shape[1] // -2,
-                         image.shape[2] // -2)
+        volume = gl.GLVolumeItem(self.data_plot)
+        center = [int(s // -2) for s in shape[:3]]
+        volume.translate(*center)
         widget.addItem(volume)
 
         ax = gl.GLAxisItem()
         widget.addItem(ax)
 
+        self.volume = volume
         self.widget = widget
+
+    def update_image(self, image):
+        self.image = image
+        self.data_plot[:, :, :, :3] = image
+        self.data_plot[:, :, :, 3] = np.mean(image, axis=3)
+
+    @property
+    def size(self):
+        return (512, 512)
+
+    def close(self):
+        pass
 
 
 class Viewer(QtWidgets.QMainWindow):
@@ -233,6 +283,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.sliders = dict()
         self.useblit = useblit
         self.is_multichannel = False
+        self.is_volume = False
         self.is_ND = False
 
         # Start main loop
@@ -320,9 +371,27 @@ class Viewer(QtWidgets.QMainWindow):
         self.renderer.close()
         self.slider.close()
 
+    def update_display(self, shape, mode='mpl'):
+        if mode == 'mpl':
+            self.renderer = DisplayMPL(shape)
+        elif mode == 'volume':
+            self.renderer = DisplayVolume(shape)
+        else:
+            raise ValueError('Unknown display mode')
+
+        # resize the window
+        status_bar = self.statusBar()
+        statusbar_height = status_bar.sizeHint().height()
+        canvas_height, canvas_width = self.renderer.size
+        self.resize(canvas_width, canvas_height + statusbar_height)
+        # connect the statusbar
+        self.status_message = status_bar.showMessage
+        #self.renderer.mouse_position.connect(self.update_status_bar)
+
+        self.layout.addWidget(self.renderer.widget)
+
     def update_reader(self, reader):
         self.reader = reader
-
         if isinstance(reader, FramesSequenceND):
             reader.bundle_axes = 'yx'
             shape = reader.frame_shape
@@ -343,18 +412,7 @@ class Viewer(QtWidgets.QMainWindow):
                 raise ValueError('Unsupported image shape')
             self.is_ND = False
 
-        self.renderer = DisplayMPL(shape + (3,), self.useblit)
-
-        # resize the window
-        status_bar = self.statusBar()
-        statusbar_height = status_bar.sizeHint().height()
-        canvas_height, canvas_width = self.renderer.size
-        self.resize(canvas_width, canvas_height + statusbar_height)
-        # connect the statusbar
-        self.status_message = status_bar.showMessage
-        self.renderer.connect_event('motion_notify_event',
-                                    self._update_status_bar)
-
+        self.update_display(shape, 'mpl')
 
         # add sliders
         slider_widget = QtWidgets.QWidget()
@@ -375,6 +433,10 @@ class Viewer(QtWidgets.QMainWindow):
                                         callback=self.display_multichannel)
                     self.display_multichannel(None, True)
                     slider_layout.addWidget(checkbox, len(self.sliders)-1, 1)
+                if axis == 'z':
+                    checkbox = CheckBox('volume', False,
+                                        callback=self.display_volume)
+                    slider_layout.addWidget(checkbox, len(self.sliders)-1, 1)
         elif len(self.reader) > 1:
             slider = Slider('index', low=0, high=len(self.reader) - 1,
                             value=index, update_on='release', value_type='int',
@@ -391,8 +453,6 @@ class Viewer(QtWidgets.QMainWindow):
                              QtGui.QDockWidget.DockWidgetMovable)
             self.addDockWidget(dock_location, dock)
             self._add_widget_size(dock, dimension='height')
-
-        self.layout.addWidget(self.renderer.widget)
 
         self.index = None
         self.update_index(index)
@@ -418,6 +478,23 @@ class Viewer(QtWidgets.QMainWindow):
             self.reader.bundle_axes = 'yx'
         if name is not None:
             self.update_index(self.index)
+
+    def display_volume(self, name, value):
+        if value == self.is_volume:
+            return
+        if value:
+            self.renderer.close()
+            self.reader.bundle_axes = 'zyx'
+            self.update_display(self.reader.frame_shape, 'volume')
+            self.sliders['z'].setDisabled(True)
+        else:
+            self.renderer.close()
+            self.reader.bundle_axes = 'yx'
+            self.update_display(self.reader.frame_shape, 'mpl')
+            self.sliders['z'].setDisabled(False)
+        if name is not None:
+            self.update_index(self.index)
+
 
     def update_index(self, index):
         """Select image on display using index into image collection."""
@@ -484,19 +561,14 @@ class Viewer(QtWidgets.QMainWindow):
         self._img = image
         self.renderer.update_image(to_rgb_uint8(image, autoscale=True))
 
-    def _update_status_bar(self, event):
-        if event.inaxes and event.inaxes.get_navigate():
-            x = int(event.xdata + 0.5)
-            y = int(event.ydata + 0.5)
-            try:
-                if self.is_multichannel:
-                    val = self.image[:, y, x]
-                else:
-                    val = self.image[y, x]
-                msg = "%4s @ [%4s, %4s]" % (val, x, y)
-            except IndexError:
-                msg = ""
-        else:
+    def update_status_bar(self, y, x):
+        try:
+            if self.is_multichannel:
+                val = self.image[:, y, x]
+            else:
+                val = self.image[y, x]
+            msg = "%4s @ [%4s, %4s]" % (val, x, y)
+        except IndexError:
             msg = ""
         self.status_message(msg)
 
