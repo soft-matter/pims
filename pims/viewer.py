@@ -1,11 +1,13 @@
 import os
 import numpy as np
-from pims import pipeline
+from pims import pipeline, to_rgb
 from types import FunctionType
 from skimage.viewer.widgets import Slider
-from skimage.viewer.qt import Qt, QtWidgets, QtGui, QtCore, Signal, has_qt
-from skimage.viewer.utils import (init_qtapp, figimage, start_qtapp,
-                                  update_axes_image)
+from skimage.viewer.qt import (Qt, QtWidgets, QtGui, QtCore, Signal, has_qt,
+                               FigureCanvasQTAgg)
+from skimage.viewer.utils import (init_qtapp, start_qtapp)
+import matplotlib as mpl
+from matplotlib.figure import Figure
 
 
 def available():
@@ -45,7 +47,6 @@ class BlitManager(object):
         self.ax = ax
         self.canvas = ax.figure.canvas
         self.canvas.mpl_connect('draw_event', self.on_draw_event)
-        self.ax = ax
         self.background = None
         self.artists = []
 
@@ -72,6 +73,117 @@ class BlitManager(object):
     def draw_artists(self):
         for artist in self.artists:
             self.ax.draw_artist(artist)
+
+
+class FigureCanvas(FigureCanvasQTAgg):
+    """Canvas for displaying images."""
+    def __init__(self, figure, **kwargs):
+        self.fig = figure
+        FigureCanvasQTAgg.__init__(self, self.fig)
+        FigureCanvasQTAgg.setSizePolicy(self,
+                                        QtWidgets.QSizePolicy.Expanding,
+                                        QtWidgets.QSizePolicy.Expanding)
+        FigureCanvasQTAgg.updateGeometry(self)
+
+    def resizeEvent(self, event):
+        FigureCanvasQTAgg.resizeEvent(self, event)
+        # Call to `resize_event` missing in FigureManagerQT.
+        # See https://github.com/matplotlib/matplotlib/pull/1585
+        self.resize_event()
+
+
+class DisplayMPL(object):
+    def __init__(self, image, useblit=True):
+        scale = 1
+        dpi = mpl.rcParams['figure.dpi']
+
+        plot_image = self._format_image(image)
+        h, w = plot_image.shape[:2]
+        figsize = np.array((w, h), dtype=float) / dpi * scale
+
+        self.fig = Figure(figsize=figsize, dpi=dpi)
+        self.canvas = FigureCanvas(self.fig)
+
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
+        self.ax.set_axis_off()
+        self.ax.imshow(plot_image, interpolation='nearest', cmap='gray')
+        self.canvas.draw()
+
+        self.ax.autoscale(enable=False)
+
+        self._tools = []
+        self.useblit = useblit
+        if useblit:
+            self._blit_manager = BlitManager(self.ax)
+
+        self._image_plot = self.ax.images[0]
+
+    def _format_image(self, image):
+        ndim = image.ndim
+        shape = image.shape
+
+        # has colors attribute
+        if ndim == 3 and hasattr(image, 'colors'):
+            return to_rgb(image, image.colors, False)
+
+        # grayscale or RGB, matplotlib can handle that
+        if ndim == 2 or (ndim == 3 and shape[2] in [3, 4]):
+            return image
+
+        # is multichannel without colors attribute
+        if ndim == 3 and shape[0] < 5:
+            return to_rgb(image, None, False)
+
+    def connect_event(self, event, callback):
+        """Connect callback function to matplotlib event and return id."""
+        cid = self.canvas.mpl_connect(event, callback)
+        return cid
+
+    def disconnect_event(self, callback_id):
+        """Disconnect callback by its id (returned by `connect_event`)."""
+        self.canvas.mpl_disconnect(callback_id)
+
+    def redraw(self):
+        if self.useblit:
+            self._blit_manager.redraw()
+        else:
+            self.canvas.draw_idle()
+
+    @property
+    def image(self):
+        return self._img
+
+    def update_image(self, image):
+        self._img = image
+        plot_image = self._format_image(image)
+        self._image_plot.set_array(plot_image)
+
+        # Adjust size if new image shape doesn't match the original
+        h, w = plot_image.shape[:2]
+        self._image_plot.set_extent((0, w, h, 0))
+        self.ax.set_xlim(0, w)
+        self.ax.set_ylim(h, 0)
+
+        # update color range
+        clim = dtype_range[plot_image.dtype.type]
+        if clim[0] < 0 and image.min() >= 0:
+            clim = (0, clim[1])
+        self._image_plot.set_clim(clim)
+
+        if self.useblit:
+            self._blit_manager.background = None
+
+        self.redraw()
+
+    @property
+    def size(self):
+        result = self.canvas.sizeHint()
+        return result.height(), result.width()
+
+    @property
+    def widget(self):
+        return self.canvas
 
 
 class Viewer(QtWidgets.QMainWindow):
@@ -101,10 +213,8 @@ class Viewer(QtWidgets.QMainWindow):
         init_qtapp()
         super(Viewer, self).__init__()
 
-        #TODO: Add ImageViewer to skimage.io window manager
-
         self.setAttribute(Qt.WA_DeleteOnClose)
-        self.setWindowTitle("Image Viewer")
+        self.setWindowTitle("Python IMage Sequence Viewer")
 
         self.file_menu = QtWidgets.QMenu('&File', self)
         self.file_menu.addAction('Open file', self.open_file,
@@ -118,41 +228,31 @@ class Viewer(QtWidgets.QMainWindow):
         self.main_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.main_widget)
 
-        self.fig, self.ax = figimage(image)
-        self.canvas = self.fig.canvas
-        self.canvas.setParent(self)
-        self.ax.autoscale(enable=False)
+        self.renderer = DisplayMPL(image, useblit)
 
-        self._tools = []
-        self.useblit = useblit
-        if useblit:
-            self._blit_manager = BlitManager(self.ax)
-
-        self._image_plot = self.ax.images[0]
         self.original_image = image
         self.update_image()
         self.plugins = []
 
-        self.layout = QtWidgets.QVBoxLayout(self.main_widget)
-        self.layout.addWidget(self.canvas)
-
         status_bar = self.statusBar()
         self.status_message = status_bar.showMessage
-        sb_size = status_bar.sizeHint()
-        cs_size = self.canvas.sizeHint()
-        self.resize(cs_size.width(), cs_size.height() + sb_size.height())
+        statusbar_height = status_bar.sizeHint().height()
+        canvas_height, canvas_width = self.renderer.size
+        self.resize(canvas_width, canvas_height + statusbar_height)
 
-        self.connect_event('motion_notify_event', self._update_status_bar)
+        self.renderer.connect_event('motion_notify_event',
+                                    self._update_status_bar)
 
-        slider_kws = dict(value=0, low=0, high=len(self.reader) - 1)
-        slider_kws['update_on'] = 'release'
-        slider_kws['callback'] = lambda x, y: self.update_index(y)
-        slider_kws['value_type'] = 'int'
-        self.slider = Slider('index', **slider_kws)
+        self.slider = Slider('index', low=0, high=len(self.reader) - 1,
+                             value=0, update_on='release', value_type='int',
+                             callback=lambda x, y: self.update_index(y))
+
+        self.layout = QtWidgets.QVBoxLayout(self.main_widget)
+        self.layout.addWidget(self.renderer.widget)
         self.layout.addWidget(self.slider)
 
     def __add__(self, plugin):
-        """Add plugin to ImageViewer"""
+        """Add plugin to Viewer"""
         plugin.pipeline_changed.connect(self.update_pipeline)
         plugin.attach(self)
 
@@ -186,7 +286,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.resize(w + dx, h + dy)
 
     def open_file(self, filename=None):
-        """Open image file and display in viewer."""
+        """Open image sequence and display in viewer."""
         if filename is None:
             try:
                 cur_dir = os.path.dirname(self.reader.filename)
@@ -211,7 +311,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.update_index(0)
 
     def update_index(self, index):
-        """Select image on display using index into image collection."""
+        """Select image to display using index into image sequence."""
         index = min(max(int(round(index)), 0), len(self.reader) - 1)
         if index == self.index:
             return
@@ -239,10 +339,6 @@ class Viewer(QtWidgets.QMainWindow):
         self.close()
 
     def show(self, main_window=True):
-        """Show ImageViewer and attached plugins.
-
-        This behaves much like `matplotlib.pyplot.show` and `QWidget.show`.
-        """
         self.move(0, 0)
         for p in self.plugins:
             p.show()
@@ -260,44 +356,15 @@ class Viewer(QtWidgets.QMainWindow):
         return result
 
     def redraw(self):
-        if self.useblit:
-            self._blit_manager.redraw()
-        else:
-            self.canvas.draw_idle()
+        self.renderer.redraw()
 
     @property
     def image(self):
-        return self._img
+        return self.renderer.image
 
     @image.setter
     def image(self, image):
-        self._img = image
-        update_axes_image(self._image_plot, image)
-
-        # update display (otherwise image doesn't fill the canvas)
-        h, w = image.shape[:2]
-        self.ax.set_xlim(0, w)
-        self.ax.set_ylim(h, 0)
-
-        # update color range
-        clim = dtype_range[image.dtype.type]
-        if clim[0] < 0 and image.min() >= 0:
-            clim = (0, clim[1])
-        self._image_plot.set_clim(clim)
-
-        if self.useblit:
-            self._blit_manager.background = None
-
-        self.redraw()
-
-    def connect_event(self, event, callback):
-        """Connect callback function to matplotlib event and return id."""
-        cid = self.canvas.mpl_connect(event, callback)
-        return cid
-
-    def disconnect_event(self, callback_id):
-        """Disconnect callback by its id (returned by `connect_event`)."""
-        self.canvas.mpl_disconnect(callback_id)
+        self.renderer.update_image(image)
 
     def _update_status_bar(self, event):
         if event.inaxes and event.inaxes.get_navigate():
@@ -313,7 +380,7 @@ class Viewer(QtWidgets.QMainWindow):
 
 
 class PipelinePlugin(QtWidgets.QDialog):
-    """Base class for plugins that interact with an ImageViewer.
+    """Base class for plugins that interact with the Viewer.
 
     A plugin connects an image filter (or another function) to an image viewer.
     Note that a Plugin is initialized *without* an image viewer and attached in
@@ -321,13 +388,10 @@ class PipelinePlugin(QtWidgets.QDialog):
 
     Parameters
     ----------
-    image_viewer : ImageViewer
+    image_viewer : Viewer
         Window containing image used in measurement/manipulation.
     image_filter : function
-        Function that gets called to update image in image viewer. This value
-        can be `None` if, for example, you have a plugin that extracts
-        information from an image and doesn't manipulate it. Alternatively,
-        this function can be defined as a method in a Plugin subclass.
+        Function that gets called to update image in image viewer.
     height, width : int
         Size of plugin window in pixels. Note that Qt will automatically resize
         a window to fit components. So if you're adding rows of components, you
@@ -341,38 +405,8 @@ class PipelinePlugin(QtWidgets.QDialog):
     ----------
     image_viewer : ImageViewer
         Window containing image used in measurement.
-    name : str
+    name : str, optional
         Name of plugin. This is displayed as the window title.
-    artist : list
-        List of Matplotlib artists and canvastools. Any artists created by the
-        plugin should be added to this list so that it gets cleaned up on
-        close.
-
-    Examples
-    --------
-    >>> from skimage.viewer import ImageViewer
-    >>> from skimage.viewer.widgets import Slider
-    >>> from skimage import data
-    >>>
-    >>> plugin = Plugin(image_filter=lambda img,
-    ...                 threshold: img > threshold) # doctest: +SKIP
-    >>> plugin += Slider('threshold', 0, 255)       # doctest: +SKIP
-    >>>
-    >>> image = data.coins()
-    >>> viewer = ImageViewer(image)       # doctest: +SKIP
-    >>> viewer += plugin                  # doctest: +SKIP
-    >>> thresholded = viewer.show()[0][0] # doctest: +SKIP
-
-    The plugin will automatically delegate parameters to `image_filter` based
-    on its parameter type, i.e., `ptype` (widgets for required arguments must
-    be added in the order they appear in the function). The image attached
-    to the viewer is **automatically passed as the first argument** to the
-    filter function.
-
-    #TODO: Add flag so image is not passed to filter function by default.
-
-    `ptype = 'kwarg'` is the default for most widgets so it's unnecessary here.
-
     """
     # Signals used when viewers are linked to the Plugin output.
     pipeline_changed = Signal(int, FunctionType)
@@ -403,9 +437,10 @@ class PipelinePlugin(QtWidgets.QDialog):
         self.keyword_arguments = {}
 
         self.useblit = useblit
+        self.pipeline_index = None
 
     def attach(self, image_viewer):
-        """Attach the plugin to an ImageViewer.
+        """Attach the plugin to a Viewer.
 
         Note that the ImageViewer will automatically call this method when the
         plugin is added to the ImageViewer. For example::
@@ -456,12 +491,12 @@ class PipelinePlugin(QtWidgets.QDialog):
         return self
 
     def filter_image(self, *widget_arg):
-        """Call `image_filter` with widget args and kwargs
+        """Update the image pipeline.
 
-        Note: `display_filtered_image` is automatically called.
+        Note: a `pipeline_changed` signal is automatically emitted
+        `widget_arg` is passed by the active widget but is unused since all
+        filter arguments are pulled directly from attached the widgets.
         """
-        # `widget_arg` is passed by the active widget but is unused since all
-        # filter arguments are pulled directly from attached the widgets.
         kwargs = dict([(name, self._get_value(a))
                        for name, a in self.keyword_arguments.items()])
         func = lambda x: self.image_filter(x, *self.arguments, **kwargs)
@@ -470,14 +505,6 @@ class PipelinePlugin(QtWidgets.QDialog):
     def _get_value(self, param):
         # If param is a widget, return its `val` attribute.
         return param if not hasattr(param, 'val') else param.val
-
-    def update_plugin(self, name, value):
-        """Update keyword parameters of the plugin itself.
-
-        These parameters will typically be implemented as class properties so
-        that they update the image or some other component.
-        """
-        setattr(self, name, value)
 
     def show(self, main_window=True):
         """Show plugin."""
