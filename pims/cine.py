@@ -26,6 +26,10 @@ import hashlib
 __all__ = ('Cine', )
 
 
+def _build_struct(dtype):
+    return struct.Struct(str("<" + dtype))
+
+
 FRACTION_MASK = (2**32-1)
 MAX_INT = 2**32
 
@@ -363,7 +367,7 @@ class Cine(FramesSequence):
     def unpack(self, fs, offset=None):
         if offset is not None:
             self.f.seek(offset)
-        s = struct.Struct('<' + fs)
+        s = _build_struct(fs)
         vals = s.unpack(self.f.read(s.size))
         if len(vals) == 1:
             return vals[0]
@@ -410,7 +414,7 @@ class Cine(FramesSequence):
                 # print "can't deal with  <" + d_name + "> tagged data"
                 return block_size, more_tags
 
-            s_tmp = struct.Struct('<' + d_type)
+            s_tmp = _build_struct(d_type)
             if (block_size-8) % s_tmp.size != 0:
                 #            print 'something is wrong with your data types'
                 return block_size, more_tags
