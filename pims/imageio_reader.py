@@ -26,8 +26,7 @@ class ImageIOReader(FramesSequence):
                 'psd', 'ras', 'raw', 'sgi', 'targa', 'fi_tiff', 'wbmp', 'webp',
                 'xbm', 'xpm', 'ico', 'gif', 'dicom', 'npz', 'fits', 'itk',
                 'gdal', 'dummy', 'gif', 'ffmpeg', 'avbin', 'swf', 'fits',
-                'gdal', 'mov', 'mp4', 'avi', 'mpeg',
-                'wmv'} | super(ImageIOReader, cls).class_exts()
+                'gdal', 'mov', 'mp4', 'avi', 'mpeg', 'wmv', 'mkv'}
 
     def __init__(self, filename, **kwargs):
         if imageio is None:
@@ -55,6 +54,10 @@ class ImageIOReader(FramesSequence):
         for i in range(len(self)):
             frame = next(iterable)
             yield Frame(frame, frame_no=i, metadata=frame.meta)
+
+    @property
+    def frame_rate(self):
+        return self.get_metadata()['fps']
 
     @property
     def frame_shape(self):
