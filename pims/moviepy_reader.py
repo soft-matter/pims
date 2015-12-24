@@ -23,8 +23,7 @@ class MoviePyReader(FramesSequence):
     class_priority = 4
     @classmethod
     def class_exts(cls):
-        return {'mov', 'mp4', 'avi', 'mpeg',
-                'wmv'} | super(MoviePyReader, cls).class_exts()
+        return {'mov', 'mp4', 'avi', 'mpeg', 'wmv', 'mkv'}
     def __init__(self, filename):
         if VideoFileClip is None:
             raise ImportError('The MoviePyReader requires moviepy to work.')
@@ -46,6 +45,10 @@ class MoviePyReader(FramesSequence):
     @property
     def frame_shape(self):
         return self._shape
+
+    @property
+    def frame_rate(self):
+        return self._fps
 
     @property
     def pixel_type(self):
