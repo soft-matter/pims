@@ -1,6 +1,5 @@
 from __future__ import (division, unicode_literals)
 import os
-
 from types import FunctionType
 from functools import partial
 from itertools import chain
@@ -10,12 +9,11 @@ from pims.frame import Frame
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.display import to_rgb_uint8
 
-
 from skimage.viewer.widgets import Slider, CheckBox
 from skimage.viewer.qt import Qt, QtWidgets, QtGui, QtCore, Signal, _qt_version
 from skimage.viewer.utils import init_qtapp, start_qtapp
 
-from pims.viewer.display import Display, DisplayMPL, DisplayQt, DisplayVolume
+from pims.viewer.display import Display, DisplayMPL
 
 if _qt_version == 5:
     from matplotlib.backends.backend_qt5 import TimerQT
@@ -198,6 +196,13 @@ class Viewer(QtWidgets.QMainWindow):
                                          partial(self.update_display,
                                                  display_class=cls))
         self.menuBar().addMenu(self.view_menu)
+
+        self.pipeline_menu = QtWidgets.QMenu('&Pipelines', self)
+        for pipeline_obj in ViewerPipeline.instances:
+            self.pipeline_menu.addAction(pipeline_obj.name,
+                                         partial(self.add_pipeline,
+                                                 pipeline_obj))
+        self.menuBar().addMenu(self.pipeline_menu)
 
         self.main_widget = QtWidgets.QWidget(self)
         self.setCentralWidget(self.main_widget)
@@ -449,24 +454,24 @@ class Viewer(QtWidgets.QMainWindow):
             self.index['t'] = 0
         self.update_index()
 
-    def add_pipeline(self, plugin):
+    def add_pipeline(self, pipeline_obj):
         """Add ViewerPipeline to the Viewer"""
-        plugin.pipeline_changed.connect(self.update_pipeline)
-        plugin.attach(self)
+        pipeline_obj.pipeline_changed.connect(self.update_pipeline)
+        pipeline_obj.attach(self)
 
-        if plugin.dock:
-            location = self.dock_areas[plugin.dock]
+        if pipeline_obj.dock:
+            location = self.dock_areas[pipeline_obj.dock]
             dock_location = Qt.DockWidgetArea(location)
             dock = QDockWidgetCloseable()
-            dock.setWidget(plugin)
-            dock.setWindowTitle(plugin.name)
-            dock.close_event_signal.connect(plugin.close_pipeline)
+            dock.setWidget(pipeline_obj)
+            dock.setWindowTitle(pipeline_obj.name)
+            dock.close_event_signal.connect(pipeline_obj.close_pipeline)
             dock.setSizePolicy(QtGui.QSizePolicy.Fixed,
                                QtGui.QSizePolicy.MinimumExpanding)
             self.addDockWidget(dock_location, dock)
 
-    def __add__(self, plugin):
-        self.add_pipeline(plugin)
+    def __add__(self, pipeline_obj):
+        self.add_pipeline(pipeline_obj)
         return self
 
     def closeEvent(self, event):
@@ -517,7 +522,7 @@ class ViewerPipeline(QtWidgets.QDialog):
     Parameters
     ----------
     pipeline_func : function
-        Function that processes the image
+        Function that processes the image. It should not change the image shape.
     name : string
         Name of pipeline. This is displayed as the window title.
     height, width : int
@@ -548,7 +553,7 @@ class ViewerPipeline(QtWidgets.QDialog):
     """
     # Signals used when viewers are linked to the Plugin output.
     pipeline_changed = Signal(int, FunctionType)
-
+    instances = []
     def __init__(self, pipeline_func, name=None, height=0, width=400,
                  dock='bottom'):
         init_qtapp()
@@ -571,6 +576,10 @@ class ViewerPipeline(QtWidgets.QDialog):
 
         self.arguments = []
         self.keyword_arguments = {}
+
+        # the class keeps a list of its instances. this means that the objects
+        # will not get garbage collected.
+        ViewerPipeline.instances.append(self)
 
     def attach(self, image_viewer):
         """Attach the pipeline to an ImageViewer.
@@ -646,7 +655,17 @@ class ViewerPipeline(QtWidgets.QDialog):
         """Close the plugin and clean up."""
         if self in self.image_viewer.plugins:
             self.image_viewer.plugins.remove(self)
+
+        # delete the pipeline
         if self.pipeline_index is not None:
             del self.image_viewer.pipelines[self.pipeline_index]
+        # decrease pipeline_index for the other pipelines
+        for plugin in self.image_viewer.plugins:
+            try:
+                if plugin.pipeline_index > self.pipeline_index:
+                    plugin.pipeline_index -= 1
+            except AttributeError:
+                pass  # no pipeline_index
+
         self.image_viewer.update_image()
         self.close()
