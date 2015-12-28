@@ -20,8 +20,6 @@ from .norpix_reader import NorpixSeq  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
 from .spe_stack import SpeStack
 
-from pims.viewer import Viewer, ViewerPipeline
-
 
 def not_available(requirement):
     def raiser(*args, **kwargs):
