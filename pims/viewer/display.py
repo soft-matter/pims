@@ -5,7 +5,7 @@ from six import with_metaclass
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 import numpy as np
-from skimage.viewer.qt import QtGui, QtWidgets, FigureCanvasQTAgg, Signal
+from skimage.viewer.qt import QtGui, QtCore, QtWidgets, FigureCanvasQTAgg
 
 try:
     from qimage2ndarray import array2qimage
@@ -21,8 +21,13 @@ except ImportError:
     has_matplotlib = False
 
 try:
-    from pyqtgraph.opengl import GLViewWidget, GLVolumeItem, GLBoxItem
-    has_pyqtgraph = True
+    import pyqtgraph
+    if ((QtCore.PYQT_VERSION_STR == pyqtgraph.Qt.QtCore.PYQT_VERSION_STR) and
+        (QtCore.QT_VERSION_STR == pyqtgraph.Qt.QtCore.QT_VERSION_STR)):
+        from pyqtgraph.opengl import GLViewWidget, GLVolumeItem, GLBoxItem
+        has_pyqtgraph = True
+    else:
+        has_pyqtgraph = False
 except ImportError:
     has_pyqtgraph = False
 
@@ -30,6 +35,7 @@ except ImportError:
 class Display(with_metaclass(ABCMeta, object)):
     name = 'base_class'
     ndim = 2
+    available = False
     @abstractproperty
     def name(self):
         pass
@@ -141,6 +147,17 @@ class DisplayMPL(Display):
     def close(self):
         plt.close(self.fig)
         self.canvas.close()
+
+
+class DisplayMPL_mip(DisplayMPL):
+    name = 'Matplotlib (MIP)'
+    ndim = 3
+    available = has_matplotlib
+    def __init__(self, shape, mpp=1.):
+        super(DisplayMPL_mip, self).__init__(shape[1:], mpp)
+
+    def update_image(self, image):
+        super(DisplayMPL_mip, self).update_image(image.max(0))
 
 
 class DisplayVolume(Display):
