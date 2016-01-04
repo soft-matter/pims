@@ -386,6 +386,9 @@ def to_rgb_uint8(image, autoscale=True):
     except (AttributeError, KeyError):
         colors = None
 
+    if len(colors) != shape[0]:
+        colors = None
+
     grayscale = False
     # 2D, grayscale
     if ndim == 2:
