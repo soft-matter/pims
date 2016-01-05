@@ -44,6 +44,14 @@ class Display(with_metaclass(ABCMeta, object)):
     def ndim(self):
         pass
 
+    @abstractproperty
+    def widget(self):
+        pass
+
+    @abstractmethod
+    def close(self):
+        pass
+
     @property
     def image(self):
         return self._image
