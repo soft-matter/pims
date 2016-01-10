@@ -1,0 +1,119 @@
+Multidimensional Readers
+========================
+
+.. ipython:: python
+   :suppress:
+
+   from pims.tests.test_common import save_dummy_png, clean_dummy_png
+   from itertools import product
+   filenames = ['img-t{0}z{1}c{2}.png'.format(i, j, z) for i, j, z in product(range(4), range(10), range(2))]
+   save_dummy_png('.', filenames, (64, 128))
+   from pims import ImageSequenceND
+   images = ImageSequenceND('img-*.png', axes_identifiers='tzc')
+
+Multidimensional files are files that have for instance an extra z-axis (making
+the image 3D, an extra channel axis, or a multipoint axis. PIMS provides a
+flexible and uniform interface for working with these kind of files through the
+base class ``FramesSequenceND``. The readers ``ImageSequenceND`` and ``Bioformats``
+(see :doc:`image_sequence` or :doc:`bioformats`).
+are based on this baseclass and provide the axis-aware methods describe below.
+
+To avoid ambiguity, we call a point along one axis a *coordinate*. The word
+*index* refers to the working of ``frames[index]``. The index is equal to the
+coordinate along the iterating axis (normally, `t`), except when the iterating
+axis is nested (see below).
+
+The names and sizes of each axis is provided with the ``sizes`` property:
+
+.. ipython:: python
+
+   images.sizes
+
+
+Axes bundling
+-------------
+
+The ``bundle_axes`` property defines which axes will be present in a single frame.
+The ``frame_shape`` property is changed accordingly:
+
+.. ipython:: python
+
+   images.bundle_axes = 'czyx'
+   images.frame_shape
+
+   images.bundle_axes = 'yx'
+   images.frame_shape
+
+Currently, the last two axes have to be ``'yx'``. For multi-symbol axis names,
+provide a list like this: ``images.bundle_axes = ['one', 'two']``.
+
+
+Axes iteration
+--------------
+
+The ``iter_axes`` property defines which axis will be used as the index axis. The
+reader length is updated accordingly:
+
+.. ipython:: python
+
+   images.iter_axes = 't'
+   len(images)
+
+When multiple axes are provided to ``iter_axes``, a nested iteration will be
+performed in which the last element will iterate fastest:
+
+.. ipython:: python
+
+   images.iter_axes = 'tz'
+   len(images)  # 4 * 10
+   images[12]  # returns the image at t == 1 and z = 2
+
+Default coordinates
+-------------------
+
+What if an axis is not present in ``bundle_axes`` and ``iter_axes``? Then the
+*default coordinate* is returned, as defined in the dictionary ``default_coords``:
+
+.. ipython:: python
+
+   images.bundle_axes = 'zyx'
+   images.iter_axes = 't'
+   images.default_coords['c'] = 1
+
+   images[2]  # returns the 3D image at t == 2 and c = 1
+
+.. ipython:: python
+   :suppress:
+
+   clean_dummy_png('.', filenames)
+
+Make your own multidimensional reader
+-------------------------------------
+
+Making a multidimensional reader class yourself is simple. The following
+example is already a fully-functioning multidimensional reader. The crucial
+method here is ``get_frame_2D``, that takes a keyword argument for each axis that
+the reader contains.
+
+.. ipython:: python
+
+   from pims import FramesSequenceND
+   import numpy as np
+   class IndexReturningReader(FramesSequenceND):
+      @property
+      def pixel_type(self):
+          return np.uint8  # the pixel datatype
+      def __init__(self, size_c, size_t, size_z):
+          self._init_axis('x', 3)
+          self._init_axis('y', 1)
+          self._init_axis('c', size_c)
+          self._init_axis('t', size_t)
+          self._init_axis('z', size_z)
+      def get_frame_2D(self, c, t, z):
+          return np.array([[c, t, z]], dtype=np.uint8)
+
+   my_reader = IndexReturningReader(size_c=2, size_t=200, size_z=5)
+   my_reader.bundle_axes = 'zyx'
+   my_reader.iter_axes = 't'
+   my_reader.default_coords['c'] = 1
+   print(my_reader[42])

@@ -83,6 +83,7 @@ Contents
    opening_files
    slicing
    frame
+   multidimensional
    custom_readers
 
 Built-in Readers
