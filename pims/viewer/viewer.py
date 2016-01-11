@@ -153,6 +153,7 @@ class Viewer(QtWidgets.QMainWindow):
                   'bottom': Qt.BottomDockWidgetArea,
                   'left': Qt.LeftDockWidgetArea,
                   'right': Qt.RightDockWidgetArea}
+    _dropped = Signal(list)
 
     def __init__(self, reader=None, width=800, height=600):
         self.pipelines = []
@@ -211,6 +212,9 @@ class Viewer(QtWidgets.QMainWindow):
         self.show_status_message = self.statusBar().showMessage
 
         self.resize(width, height)
+
+        self.setAcceptDrops(True)
+        self._dropped.connect(self._open_dropped)
 
         if reader is not None:
             self.update_reader(reader)
@@ -510,6 +514,36 @@ class Viewer(QtWidgets.QMainWindow):
             except IndexError:
                 msg = ""
             self.show_status_message(msg)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.accept()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(QtCore.Qt.CopyAction)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls:
+            event.setDropAction(QtCore.Qt.CopyAction)
+            event.accept()
+            links = []
+            for url in event.mimeData().urls():
+                links.append(str(url.toLocalFile()))
+            self._dropped.emit(links)
+        else:
+            event.ignore()
+
+    def _open_dropped(self, links):
+        for fn in links:
+            if os.path.exists(fn):
+                self.open_file(fn)
+                break
 
 
 class ViewerPipeline(QtWidgets.QDialog):
