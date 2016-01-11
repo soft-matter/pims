@@ -80,6 +80,7 @@ Contents
    :maxdepth: 1
 
    install
+   release_notes
    opening_files
    slicing
    frame

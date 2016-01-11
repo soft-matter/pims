@@ -1,6 +1,8 @@
 Installation
 ============
 
+.. seealso:: What has been changed recently? Check out the :doc:`release_notes`.
+
 PIMS is easy to install on Windows, OSX, or Linux. Its dependencies are:
 
 * `numpy <http://www.numpy.org/>`_
