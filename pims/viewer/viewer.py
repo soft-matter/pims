@@ -311,6 +311,8 @@ class Viewer(QtWidgets.QMainWindow):
         self.update_display()
 
     def close_reader(self):
+        if self.is_playing:
+            self.stop()
         self.reader.close()
         self.renderer.close()
         if self.slider_dock is not None:
