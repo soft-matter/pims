@@ -1,6 +1,8 @@
 Bioformats
 ==========
 
+.. seealso:: The section :doc:`multidimensional` describes how to deal with multidimensional files.
+
 The ``Bioformats`` reader interfaces with Bio-Formats, an open-source Java
 library for reading and writing multidimensional image data, especially from
 file formats used in microscopy.
