@@ -31,3 +31,33 @@ Everything is demonstrated in [this IPython notebook](http://nbviewer.ipython.or
 
 [**Read the documentation**](http://soft-matter.github.io/pims/) for
 installation instructions, examples, and further reference.
+
+Core Contributors
+-----------------
+
+  * **Daniel Allan** founding contributor, slicing and iteration logic,
+    basic readers, display tools
+  * **Thomas Caswell** major refactor, abstract base class
+  * **Casper van der Wel** bioformats readers, display tools
+  * **Thomas Dimiduk** filetype-detecting dispatch logic
+
+Support
+-------
+
+This package was developed in part by Daniel Allan, as part of his
+PhD thesis work on microrheology in Robert L. Leheny's group at Johns Hopkins
+University in Baltimore, MD. The work was supported by the National Science Foundation
+under grant number CBET-1033985. Later work was supported by Brookhaven
+National Lab. Dan can be reached at dallan@bnl.gov.
+
+This package was developed in part by Thomas A Caswell as part of his
+PhD thesis work in Sidney R Nagel's and Margaret L Gardel's groups at
+the University of Chicago, Chicago IL.  This work was supported in
+part by NSF Grant DMR-1105145 and NSF-MRSEC DMR-0820054. Later work was
+supported by Brookhaven National Lab. Tom can be
+reached at tcaswell@gmail.com.
+
+This package was developed in part by Casper van der Wel, as part of his
+PhD thesis work in Daniela Kraft's group at the Huygens-Kamerlingh-Onnes laboratory,
+Institute of Physics, Leiden University, The Netherlands. This work was
+supported by the Netherlands Organisation for Scientific Research (NWO/OCW).
