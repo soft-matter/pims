@@ -383,10 +383,9 @@ def to_rgb_uint8(image, autoscale=True):
     shape = image.shape
     try:
         colors = image.metadata['colors']
+        if len(colors) != shape[0]:
+            colors = None
     except (AttributeError, KeyError):
-        colors = None
-
-    if len(colors) != shape[0]:
         colors = None
 
     grayscale = False
