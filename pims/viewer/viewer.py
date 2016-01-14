@@ -154,6 +154,7 @@ class Viewer(QtWidgets.QMainWindow):
                   'left': Qt.LeftDockWidgetArea,
                   'right': Qt.RightDockWidgetArea}
     _dropped = Signal(list)
+    original_image_changed = Signal()
 
     def __init__(self, reader=None, width=800, height=600):
         self.pipelines = []
@@ -201,7 +202,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.pipeline_menu = QtWidgets.QMenu('&Pipelines', self)
         for pipeline_obj in ViewerPipeline.instances:
             self.pipeline_menu.addAction(pipeline_obj.name,
-                                         partial(self.add_pipeline,
+                                         partial(self.add_plugin,
                                                  pipeline_obj))
         self.menuBar().addMenu(self.pipeline_menu)
 
@@ -404,6 +405,7 @@ class Viewer(QtWidgets.QMainWindow):
     def image(self, image):
         self._img = image
         self.renderer.image = to_rgb_uint8(image, autoscale=True)
+        self.original_image_changed.emit()
 
     def slider_callback(self, name, index):
         """Callback function for axes sliders."""
@@ -458,24 +460,23 @@ class Viewer(QtWidgets.QMainWindow):
             self.index['t'] = 0
         self.update_index()
 
-    def add_pipeline(self, pipeline_obj):
-        """Add ViewerPipeline to the Viewer"""
-        pipeline_obj.pipeline_changed.connect(self.update_pipeline)
-        pipeline_obj.attach(self)
+    def add_plugin(self, plugin):
+        """Add Plugin to the Viewer"""
+        plugin.attach(self)
 
-        if pipeline_obj.dock:
-            location = self.dock_areas[pipeline_obj.dock]
+        if plugin.dock:
+            location = self.dock_areas[plugin.dock]
             dock_location = Qt.DockWidgetArea(location)
             dock = QDockWidgetCloseable()
-            dock.setWidget(pipeline_obj)
-            dock.setWindowTitle(pipeline_obj.name)
-            dock.close_event_signal.connect(pipeline_obj.close_pipeline)
+            dock.setWidget(plugin)
+            dock.setWindowTitle(plugin.name)
+            dock.close_event_signal.connect(plugin.close)
             dock.setSizePolicy(QtGui.QSizePolicy.Fixed,
                                QtGui.QSizePolicy.MinimumExpanding)
             self.addDockWidget(dock_location, dock)
 
-    def __add__(self, pipeline_obj):
-        self.add_pipeline(pipeline_obj)
+    def __add__(self, plugin):
+        self.add_plugin(plugin)
         return self
 
     def closeEvent(self, event):
@@ -546,7 +547,69 @@ class Viewer(QtWidgets.QMainWindow):
                 break
 
 
-class ViewerPipeline(QtWidgets.QDialog):
+class Plugin(QtWidgets.QDialog):
+    def __init__(self, height=0, width=400, dock='bottom'):
+        init_qtapp()
+        super(Plugin, self).__init__()
+
+        self.dock = dock
+
+        self.image_viewer = None
+
+        self.setWindowTitle(self.name)
+        self.layout = QtWidgets.QGridLayout(self)
+        self.resize(width, height)
+        self.row = 0
+
+        self.arguments = []
+        self.keyword_arguments = {}
+
+    def attach(self, image_viewer):
+        """Attach the Plugin to an ImageViewer."""
+        self.setParent(image_viewer)
+        self.setWindowFlags(QtCore.Qt.Dialog)
+        self.image_viewer = image_viewer
+
+    def add_widget(self, widget):
+        """Add widget to pipeline.
+
+        Alternatively, you can use simple addition to add widgets:
+
+            plugin += Slider('param_name', low=0, high=100)
+
+        Widgets can adjust arguments of the pipeline function, as specified by
+        the Widget's `ptype`.
+        """
+        if widget.ptype == 'kwarg':
+            name = widget.name.replace(' ', '_')
+            self.keyword_arguments[name] = widget
+            widget.callback = self.process
+        elif widget.ptype == 'arg':
+            self.arguments.append(widget)
+            widget.callback = self.process
+        widget.plugin = self
+        self.layout.addWidget(widget, self.row, 0)
+        self.row += 1
+
+    def __add__(self, widget):
+        self.add_widget(widget)
+        return self
+
+    def process(self, *widget_arg):
+        pass
+
+    def _get_value(self, param):
+        # If param is a widget, return its `val` attribute.
+        return param if not hasattr(param, 'val') else param.val
+
+    def show(self, main_window=True):
+        """Show plugin."""
+        super(Plugin, self).show()
+        self.activateWindow()
+        self.raise_()
+
+
+class ViewerPipeline(Plugin):
     """Base class for viewing the result of image processing inside the Viewer.
 
     The ViewerPipeline class connects an image filter (or another function) to
@@ -590,12 +653,6 @@ class ViewerPipeline(QtWidgets.QDialog):
     instances = []
     def __init__(self, pipeline_func, name=None, height=0, width=400,
                  dock='bottom'):
-        init_qtapp()
-        super(ViewerPipeline, self).__init__()
-
-        self.dock = dock
-
-        self.image_viewer = None
         self.pipeline_func = pipeline_func
 
         if name is None:
@@ -603,13 +660,7 @@ class ViewerPipeline(QtWidgets.QDialog):
         else:
             self.name = name
 
-        self.setWindowTitle(self.name)
-        self.layout = QtWidgets.QGridLayout(self)
-        self.resize(width, height)
-        self.row = 0
-
-        self.arguments = []
-        self.keyword_arguments = {}
+        super(ViewerPipeline, self).__init__(height, width, dock)
 
         # the class keeps a list of its instances. this means that the objects
         # will not get garbage collected.
@@ -626,47 +677,17 @@ class ViewerPipeline(QtWidgets.QDialog):
         Also note that `attach` automatically calls the filter function so that
         the image matches the filtered value specified by attached widgets.
         """
-        self.setParent(image_viewer)
-        self.setWindowFlags(QtCore.Qt.Dialog)
+        super(ViewerPipeline, self).attach(image_viewer)
 
-        self.image_viewer = image_viewer
+        self.pipeline_changed.connect(self.image_viewer.update_pipeline)
+
         self.image_viewer.plugins.append(self)
-
-        self.pipeline_index = len(self.image_viewer.pipelines)
         self.image_viewer.pipelines += [None]
+        self.pipeline_index = len(self.image_viewer.pipelines) - 1
 
-        #self.rejected.connect(lambda: self.close())
+        self.process()
 
-        self.filter_image()
-
-    def add_widget(self, widget):
-        """Add widget to pipeline.
-
-        Alternatively, you can use simple addition to add widgets:
-
-            plugin += Slider('param_name', low=0, high=100)
-
-        Widgets can adjust arguments of the pipeline function, as specified by
-        the Widget's `ptype`.
-        """
-        if widget.ptype == 'kwarg':
-            name = widget.name.replace(' ', '_')
-            self.keyword_arguments[name] = widget
-            widget.callback = self.filter_image
-        elif widget.ptype == 'arg':
-            self.arguments.append(widget)
-            widget.callback = self.filter_image
-        elif widget.ptype == 'plugin':
-            widget.callback = self.update_plugin
-        widget.plugin = self
-        self.layout.addWidget(widget, self.row, 0)
-        self.row += 1
-
-    def __add__(self, widget):
-        self.add_widget(widget)
-        return self
-
-    def filter_image(self, *widget_arg):
+    def process(self, *widget_arg):
         """Send the changed pipeline function to the Viewer. """
         # `widget_arg` is passed by the active widget but is unused since all
         # filter arguments are pulled directly from attached the widgets.
@@ -675,17 +696,7 @@ class ViewerPipeline(QtWidgets.QDialog):
         func = lambda x: self.pipeline_func(x, *self.arguments, **kwargs)
         self.pipeline_changed.emit(self.pipeline_index, func)
 
-    def _get_value(self, param):
-        # If param is a widget, return its `val` attribute.
-        return param if not hasattr(param, 'val') else param.val
-
-    def show(self, main_window=True):
-        """Show plugin."""
-        super(ViewerPipeline, self).show()
-        self.activateWindow()
-        self.raise_()
-
-    def close_pipeline(self):
+    def close(self):
         """Close the plugin and clean up."""
         if self in self.image_viewer.plugins:
             self.image_viewer.plugins.remove(self)
@@ -702,4 +713,50 @@ class ViewerPipeline(QtWidgets.QDialog):
                 pass  # no pipeline_index
 
         self.image_viewer.update_image()
-        self.close()
+
+        super(ViewerPipeline, self).close()
+
+
+class ViewerPlotting(Plugin):
+    def __init__(self, plot_func, name=None, height=0, width=400,
+                 dock='bottom'):
+        if name is None:
+            self.name = plot_func.__name__
+        else:
+            self.name = name
+
+        super(ViewerPlotting, self).__init__(height, width, dock)
+
+        self.artist = None
+        self.plot_func = plot_func
+
+    def attach(self, image_viewer):
+        super(ViewerPlotting, self).attach(image_viewer)
+
+        if type(image_viewer.renderer) is not DisplayMPL:
+            image_viewer.update_display(DisplayMPL)
+
+        self.fig = image_viewer.renderer.fig
+        self.ax = image_viewer.renderer.ax
+        self.canvas = image_viewer.renderer.widget
+
+        self.image_viewer.original_image_changed.connect(self.process)
+
+        self.process()
+
+    def process(self, *widget_arg):
+        kwargs = dict([(name, self._get_value(a))
+                       for name, a in self.keyword_arguments.items()])
+        if self.artist is not None:
+            remove_artists(self.artist)
+        self.artist = self.plot_func(self.image_viewer.image, *self.arguments,
+                                     ax=self.ax, **kwargs)
+        self.canvas.draw_idle()
+
+
+def remove_artists(artists):
+    if isinstance(artists, list):
+        for artist in artists:
+            remove_artists(artist)
+    else:
+        artists.remove()
