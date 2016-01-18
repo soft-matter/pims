@@ -139,3 +139,13 @@ class test_process_func(_norpix6_sample_tests, unittest.TestCase):
         assert np.all(fr <= 0)
 
 
+class test_as_raw(_norpix6_sample_tests, unittest.TestCase):
+    def setUp(self):
+        self.options = {'as_raw': True}
+        super(test_as_raw, self).setUp()
+
+    def test_post_hoc_process_func(self):
+        testbyte = self.seq[0][0,0]
+        self.seq.set_process_func(lambda x: 255 - x)
+        assert self.seq[0][0,0] == 255 - testbyte
+
