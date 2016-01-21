@@ -10,7 +10,8 @@ to ``imsave`` (PR 206)
 - Fix zipfile handling in Py3 (PR 199)
 - Fix CINE reader for Py2 (PR 219)
 - Update documentation
-- Updated slicerator dependency to v0.9.7 (fixes pipeline nesting)
+- Update slicerator dependency to v0.9.7 (fixes pipeline nesting)
+- Update bioformats version to v5.1.7 (PR 224)
 
 v0.3.2
 ------
