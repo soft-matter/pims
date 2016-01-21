@@ -11,6 +11,9 @@ Key features:
 Example
 -------
 
+Everything is demonstrated in `this IPython
+notebook <http://nbviewer.ipython.org/github/soft-matter/pims/blob/master/examples/loading%20video%20frames.ipynb>`__.
+
 Load a sequence of images from a directory, where the images are named
 :file:`img-0.png`, :file:`img-1.png`, etc.
 
@@ -77,9 +80,11 @@ Contents
    :maxdepth: 1
 
    install
+   release_notes
    opening_files
    slicing
    frame
+   multidimensional
    custom_readers
 
 Built-in Readers
@@ -120,6 +125,6 @@ supported by Brookhaven National Lab. Tom can be
 reached at tcaswell@gmail.com.
 
 This package was developed in part by Casper van der Wel, as part of his
-PhD thesis work in Daniela Kraft’s group at the Huygens-Kamerlingh-Onnes laboratory,
+PhD thesis work in Daniela Kraft's group at the Huygens-Kamerlingh-Onnes laboratory,
 Institute of Physics, Leiden University, The Netherlands. This work was
-supported by the Netherlands Organisation for Scientific Research (NWO/OCW). 
+supported by the Netherlands Organisation for Scientific Research (NWO/OCW).

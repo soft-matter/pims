@@ -14,6 +14,14 @@ filenames.
 * the filepath of a zipped archive, such as ``'my_directory/all-images.zip'``
 * a list of filepaths, such as ``['image1.png', 'image2.png']``
 
+ImageSequenceND
+===============
+
+.. seealso:: The section :doc:`multidimensional` describes how to deal with multidimensional files.
+
+This class allows reading of N-dimensional Image Sequences with multiple indices
+in the file name, for instance: ``['image_z00_t00.png', 'image_z01_t00.png']``.
+
 Dependencies
 ------------
 

@@ -1,6 +1,10 @@
 TiffStack
 =========
 
+PIMS can read most TIFF files out of the box, so you should try reading
+you files ``(open('my_tiff_file.tif')`` and revisit this section if you
+encounter an error.
+
 A tiff stack is a single file (.tif or .tiff) containing several images,
 often a time series or "Z stack."
 
@@ -11,8 +15,11 @@ single-image tiff files (e.g., :file:`img-1.tif`, :file:`img-2.tif`) see
 Dependencies
 -----------
 
-There are several Python packages for reading TIFFs. One may work better than
-others for your application. To use a specific reader, use
+There are several Python packages for reading TIFFs. Our default reader, built
+around `Christoph Gohlke's tifffile.py <http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html>`__,
+handles all the formats we have personally encountered. But we have
+alternative TIFF readers built around Pillow (see above) and libtiff.
+To use a specific reader, use
 ``TiffStack_tifffile``, ``TiffStack_libtiff``, or ``TiffStack_pil``, which
 depend, respectively, on the packages below. The "default" reader,
 ``TiffStack`` is an alias. At import time, it is pointed to the first
