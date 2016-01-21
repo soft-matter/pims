@@ -68,7 +68,7 @@ def _find_jar(url=None):
 
     from six.moves.urllib.request import urlretrieve
     if url is None:
-        url = ('http://downloads.openmicroscopy.org/bio-formats/5.1.2/' +
+        url = ('http://downloads.openmicroscopy.org/bio-formats/5.1.7/' +
                'artifacts/loci_tools.jar')
     urlretrieve(url, os.path.join(loc, 'loci_tools.jar'))
 
