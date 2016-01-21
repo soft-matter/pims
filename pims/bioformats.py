@@ -383,8 +383,8 @@ class BioformatsReader(FramesSequenceND):
             if isinstance(Jarr[:], np.ndarray):
                 read_mode = 'jpype'
             else:
-                warn('JPype numpy conversion is not installed properly. '
-                     'Falling back to slower read modes.')
+                warn('Due to an issue with JPype 0.6.0, reading is slower. '
+                     'Please consider upgrading JPype to 0.6.1 or later.')
                 try:
                     im = self._jbytearr_stringbuffer(Jarr)
                     im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
