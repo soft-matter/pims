@@ -68,7 +68,7 @@ def _find_jar(url=None):
 
     from six.moves.urllib.request import urlretrieve
     if url is None:
-        url = ('http://downloads.openmicroscopy.org/bio-formats/5.1.2/' +
+        url = ('http://downloads.openmicroscopy.org/bio-formats/5.1.7/' +
                'artifacts/loci_tools.jar')
     urlretrieve(url, os.path.join(loc, 'loci_tools.jar'))
 
@@ -383,8 +383,8 @@ class BioformatsReader(FramesSequenceND):
             if isinstance(Jarr[:], np.ndarray):
                 read_mode = 'jpype'
             else:
-                warn('JPype numpy conversion is not installed properly. '
-                     'Falling back to slower read modes.')
+                warn('Due to an issue with JPype 0.6.0, reading is slower. '
+                     'Please consider upgrading JPype to 0.6.1 or later.')
                 try:
                     im = self._jbytearr_stringbuffer(Jarr)
                     im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
