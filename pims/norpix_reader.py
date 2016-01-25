@@ -62,8 +62,14 @@ class NorpixSeq(FramesSequence):
     This is the native format of StreamPix software, owned by NorPix Inc.
     The format is described in the StreamPix documentation.
 
-    Currently supports uncompressed files only, either
-    uint8/16/32 monochrome or as_raw color or monochrome.
+    Currently only supports uncompressed files (with the same number
+    of bytes for each frame).
+
+    Only unsigned 8, 16 or 32 bit monochrome files are directly supported.
+    Other color and monochrome pixel formats can be handled by setting
+    the as_raw flag which results in frames with unsigned 8-bit data type.
+    and the correct number of rows.  (If a raw frame size in bytes is not
+    evenly divisible by the number of rows, a 1-D array is returned).
 
     Nominally thread-safe.
 
@@ -92,7 +98,7 @@ class NorpixSeq(FramesSequence):
                        'get_time_float', 'filename', 'width', 'height',
                        'frame_rate']
 
-    def __init__(self, filename, process_func=None, dtype=None, as_grey=False, as_raw = False):
+    def __init__(self, filename, process_func=None, dtype=None, as_grey=False, as_raw=False):
         super(NorpixSeq, self).__init__()
         self._file = open(filename, 'rb')
         self._filename = filename
