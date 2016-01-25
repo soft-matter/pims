@@ -4,11 +4,10 @@ Release notes
 v0.3.3
 ------
 - Fix compatibility with Pillow v0.3.0 (PR 204)
-- API: ``plot_to_frame`` and ``plots_to_frame`` now take ``fig_size_inches`` and
-``bbox_inches`` as keyword arguments instead of passing on all keyword arguments
-to ``imsave`` (PR 206)
+- API: ``plot_to_frame`` and ``plots_to_frame`` now take ``fig_size_inches`` and ``bbox_inches`` as keyword arguments instead of passing on all keyword arguments to ``imsave`` (PR 206)
 - Fix zipfile handling in Py3 (PR 199)
 - Fix CINE reader for Py2 (PR 219)
+- Support non-monochrome and packed-bits images in NorpixSeq (PR 218)
 - Update documentation
 - Update slicerator dependency to v0.9.7 (fixes pipeline nesting)
 - Update bioformats version to v5.1.7 (PR 224)

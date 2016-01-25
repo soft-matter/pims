@@ -22,7 +22,7 @@ For installation with pip, type in the following into the terminal:
     pip install jpype1
 
 Or, for windows users,
-download the binary from `Christoph Gohlke's website http://www.lfd.uci.edu/~gohlke/pythonlibs/#jpype`_.
+download the binary from `Christoph Gohlke's website <http://www.lfd.uci.edu/~gohlke/pythonlibs/#jpype>`_.
 
 On first use of pims.Bioformats(filename), the required java library
 :file:`loci_tools.jar` will be automatically downloaded from

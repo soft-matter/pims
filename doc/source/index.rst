@@ -8,6 +8,31 @@ Key features:
 * One consistent interface to many file formats
 * Numpy-like slicing returns lazy-loading, iterable, sliceable objects
 
+Contents
+--------
+
+.. toctree::
+   :maxdepth: 1
+
+   install
+   release_notes
+   opening_files
+   slicing
+   frame
+   multidimensional
+   custom_readers
+
+Built-in Readers
+----------------
+
+.. toctree::
+   :maxdepth: 1
+
+   image_sequence
+   tiff_stack
+   bioformats
+   video
+
 Example
 -------
 
@@ -72,31 +97,6 @@ Fancy numpy-like slicing is supported.
    :suppress:
 
    clean_dummy_png('.', filenames)
-
-Contents
---------
-
-.. toctree::
-   :maxdepth: 1
-
-   install
-   release_notes
-   opening_files
-   slicing
-   frame
-   multidimensional
-   custom_readers
-
-Built-in Readers
-----------------
-
-.. toctree::
-   :maxdepth: 1
-
-   image_sequence
-   tiff_stack
-   bioformats
-   video
 
 Core Contributors
 -----------------
