@@ -15,7 +15,7 @@ filenames.
 * a list of filepaths, such as ``['image1.png', 'image2.png']``
 
 ImageSequenceND
-===============
+---------------
 
 .. seealso:: The section :doc:`multidimensional` describes how to deal with multidimensional files.
 

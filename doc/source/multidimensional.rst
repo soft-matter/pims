@@ -66,7 +66,7 @@ performed in which the last element will iterate fastest:
 
    images.iter_axes = 'tz'
    len(images)  # 4 * 10
-   images[12]  # returns the image at t == 1 and z = 2
+   images[12];  # returns the image at t == 1 and z = 2
 
 Default coordinates
 -------------------
@@ -80,7 +80,7 @@ What if an axis is not present in ``bundle_axes`` and ``iter_axes``? Then the
    images.iter_axes = 't'
    images.default_coords['c'] = 1
 
-   images[2]  # returns the 3D image at t == 2 and c = 1
+   images[2];  # returns the 3D image at t == 2 and c = 1
 
 .. ipython:: python
    :suppress:
@@ -95,25 +95,22 @@ example is already a fully-functioning multidimensional reader. The crucial
 method here is ``get_frame_2D``, that takes a keyword argument for each axis that
 the reader contains.
 
-.. ipython:: python
+.. code-block:: python
 
    from pims import FramesSequenceND
    import numpy as np
+
    class IndexReturningReader(FramesSequenceND):
       @property
       def pixel_type(self):
           return np.uint8  # the pixel datatype
+
       def __init__(self, size_c, size_t, size_z):
           self._init_axis('x', 3)
           self._init_axis('y', 1)
           self._init_axis('c', size_c)
           self._init_axis('t', size_t)
           self._init_axis('z', size_z)
+
       def get_frame_2D(self, c, t, z):
           return np.array([[c, t, z]], dtype=np.uint8)
-
-   my_reader = IndexReturningReader(size_c=2, size_t=200, size_z=5)
-   my_reader.bundle_axes = 'zyx'
-   my_reader.iter_axes = 't'
-   my_reader.default_coords['c'] = 1
-   print(my_reader[42])

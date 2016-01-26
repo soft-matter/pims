@@ -6,7 +6,7 @@ Installation
 PIMS is easy to install on Windows, OSX, or Linux. Its dependencies are:
 
 * `numpy <http://www.numpy.org/>`_
-* `slicerator https://github.com/soft-matter/slicerator/`_
+* `slicerator <https://github.com/soft-matter/slicerator/>`_
 
 For basic image reading one of the following is required:
 
