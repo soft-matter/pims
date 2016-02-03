@@ -445,7 +445,7 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
     with _fig_size_cntx(fig, fig_size_inches, tight_layout) as fig:
         width_in, height_in = fig.get_size_inches()
         dpi = width / width_in
-        buf_shape = (height_in * dpi, width_in * dpi, 4)
+        buf_shape = (int(height_in * dpi), int(width_in * dpi), 4)
         fig.savefig(buf, format='rgba', dpi=dpi)
 
     buf.seek(0)
