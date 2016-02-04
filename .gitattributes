@@ -1,2 +1,8 @@
 trackpy/_version.py export-subst
 pims/_version.py export-subst
+*.pkl binary
+*.spe binary
+*.tif binary
+*.mov binary
+*.seq binary
+*.nd2 binary

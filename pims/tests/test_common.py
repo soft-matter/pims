@@ -722,9 +722,6 @@ class TestSpeStack(_image_series, unittest.TestCase):
                 d = pickle.load(p)
             else:
                 d = pickle.load(p, encoding="latin1")
-                # unpickling fails on Py3.4, Win7, 64-bit:
-                # UnpicklingError: the STRING opcode argument must be quoted
-
                 #spare4 is actually a byte array
                 d["spare4"] = d["spare4"].encode("latin1")
 
