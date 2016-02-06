@@ -8,7 +8,7 @@ import nose
 from itertools import chain, permutations
 import numpy as np
 from numpy.testing import assert_equal
-from pims import FramesSequenceND, Frame, reads_axes
+from pims import FramesSequenceND, Frame
 
 
 class TestMultidimensional(unittest.TestCase):
@@ -105,8 +105,8 @@ class TestFramesSequenceND(unittest.TestCase):
             def __init__(self, **sizes):
                 for key in sizes:
                     self._init_axis(key, sizes[key])
+                self._register_get_frame(self._get_frame, 'x')
 
-            @reads_axes('x')
             def _get_frame(self, **ind):
                 return np.random.randint(0, 255, (128,)).astype(np.uint8)
 
@@ -127,8 +127,8 @@ class TestFramesSequenceND(unittest.TestCase):
             def __init__(self, **sizes):
                 for key in sizes:
                     self._init_axis(key, sizes[key])
+                self._register_get_frame(self._get_frame, 'yx')
 
-            @reads_axes('yx')
             def _get_frame(self, **ind):
                 return np.random.randint(0, 255, (64, 128)).astype(np.uint8)
 
@@ -149,8 +149,8 @@ class TestFramesSequenceND(unittest.TestCase):
             def __init__(self, **sizes):
                 for key in sizes:
                     self._init_axis(key, sizes[key])
+                self._register_get_frame(self._get_frame, 'yxc')
 
-            @reads_axes('yxc')
             def _get_frame(self, **ind):
                 return np.random.randint(0, 255, (64, 128, 3)).astype(np.uint8)
 

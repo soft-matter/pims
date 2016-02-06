@@ -289,15 +289,6 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   count=len(self),
                                   dtype=self.pixel_type)
 
-
-class reads_axes(object):
-    def __init__(self, axes):
-        self.axes = tuple([ax for ax in axes])
-
-    def __call__(self, func):
-        func._axes = self.axes
-        return func
-
 def _iter_attr(obj):
     try:
         for ns in [obj] + obj.__class__.mro():
@@ -312,8 +303,8 @@ def _transpose(get_frame, expected_axes, desired_axes):
         return get_frame
     else:
         transposition = [expected_axes.index(a) for a in desired_axes]
-        def get_frame_T(obj, **ind):
-            return get_frame(obj, **ind).transpose(transposition)
+        def get_frame_T(**ind):
+            return get_frame(**ind).transpose(transposition)
         return get_frame_T
 
 
@@ -321,12 +312,12 @@ def _bundle(get_frame, expected_axes, to_iter, sizes, dtype):
     bundled_axes = to_iter + expected_axes
     shape = [sizes[a] for a in bundled_axes]
     iter_shape = shape[:len(to_iter)]
-    def get_frame_bundled(obj, **ind):
+    def get_frame_bundled(**ind):
         result = np.empty(shape, dtype=dtype)
         md_list = []
         for indices in itertools.product(*[range(s) for s in iter_shape]):
             ind.update({n: i for n, i in zip(to_iter, indices)})
-            frame = get_frame(obj, **ind)
+            frame = get_frame(**ind)
             result[indices] = frame
 
             if hasattr(frame, 'metadata'):
@@ -363,8 +354,8 @@ def _drop(get_frame, expected_axes, to_drop):
     to_drop = [to_drop[i] for i in reversed(indices)]
     result_axes = [a for a in expected_axes if a not in to_drop]
 
-    def get_frame_dropped(obj, **ind):
-        result = get_frame(obj, **ind)
+    def get_frame_dropped(**ind):
+        result = get_frame(**ind)
         for (ax, name) in zip(axes, to_drop):
             result = np.take(result, ind[name], axis=ax)
         return result
@@ -438,7 +429,8 @@ class FramesSequenceND(FramesSequence):
     each attribute.
 
     Subclassed readers only need to define `pixel_type` and `__init__`. At least
-    one reader method needs to be wrapped with `@reads_axes(<list of axes>)`.
+    one reader method needs to be registered as such using
+    `self._register_get_frame(method, <list of axes>)`.
     In the `__init__`, axes need to be initialized using `_init_axis(name, size)`.
     It is recommended to set default values to `bundle_axes` and `iter_axes`.
 
@@ -457,18 +449,18 @@ class FramesSequenceND(FramesSequence):
         Shape of frames that will be returned by get_frame
     iter_axes : iterable of strings
         This determines which axes will be iterated over by the FramesSequence.
-        The last element in will iterate fastest. Default 't'
+        The last element in will iterate fastest. Default [].
     bundle_axes : iterable of strings
         This determines which axes will be bundled into one Frame. The axes in
         the ndarray that is returned by get_frame have the same order as the
-        order in this list. Default ['y', 'x'].
+        order in this list. Default [].
     default_coords: dict of int
         When an axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used. Default 0 for each.
 
     Examples
     --------
-    >>> class MDummy(FramesSequenceND):
+    >>> class DummyReaderND(FramesSequenceND):
     ...    @property
     ...    def pixel_type(self):
     ...        return 'uint8'
@@ -477,10 +469,10 @@ class FramesSequenceND(FramesSequence):
     ...        self._init_axis('x', shape[1])
     ...        for name in axes:
     ...            self._init_axis(name, axes[name])
+    ...        self._register_get_frame(self.get_frame_2D, 'yx')
     ...        self.bundle_axes = 'yx'  # set default value
     ...        if 't' in axes:
     ...            self.iter_axes = 't'  # set default value
-    ...    @reads_axes('yx')
     ...    def get_frame_2D(self, **ind):
     ...        return np.zeros((self.sizes['y'], self.sizes['x']),
     ...                        dtype=self.pixel_type)
@@ -491,6 +483,12 @@ class FramesSequenceND(FramesSequence):
     >>> frames.default_coords['m'] = 3
     >>> frames[5]  # returns Frame at T=5, M=3 with shape (2, 10, 64, 64)
     """
+    def _register_get_frame(self, method, axes):
+        axes = tuple([a for a in axes])
+        if not hasattr(self, '_get_frame_dict'):
+            self._get_frame_dict = dict()
+        self._get_frame_dict[axes] = method
+
     def _clear_axes(self):
         self._sizes = {}
         self._default_coords = {}
@@ -550,26 +548,20 @@ class FramesSequenceND(FramesSequence):
                 del self._iter_axes[self._iter_axes.index(k)]
 
         self._bundle_axes = value
-
-        # list all get_frame methods attached to this reader
-        get_frame_dict = dict()
-        for method in _iter_attr(self):
-            if hasattr(method, '_axes'):
-                get_frame_dict[method._axes] = method
-        if len(get_frame_dict) == 0:
+        if not hasattr(self, '_get_frame_dict'):
+            self._get_frame_dict = dict()
+        if len(self._get_frame_dict) == 0:
             if hasattr(self, 'get_frame_2D'):
-                # patch up get_frame_2D for backwards compatibility
-                def _get_frame(obj, **ind):
-                    return self.get_frame_2D(**ind)
-                get_frame_dict[('y', 'x')] = _get_frame
+                # include get_frame_2D for backwards compatibility
+                self._register_get_frame(self.get_frame_2D, 'yx')
             else:
-                raise RuntimeError('No reader methods found. Wrap a method ' +
-                                   'with `@reads_axes("yx")`')
+                raise RuntimeError('No reader methods found. Register a reader '
+                                   'method with _register_get_frame')
 
         # update the get_frame method
-        get_frame = _make_get_frame(self._bundle_axes, get_frame_dict,
+        get_frame = _make_get_frame(self._bundle_axes, self._get_frame_dict,
                                     self.sizes, self.pixel_type)
-        self._get_frame_wrapped = MethodType(get_frame, self)
+        self._get_frame_wrapped = get_frame
 
     @property
     def iter_axes(self):
