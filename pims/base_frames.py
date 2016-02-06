@@ -606,21 +606,25 @@ class FramesSequenceND(FramesSequence):
             self.bundle_axes = tuple(self.bundle_axes)  # kick bundle_axes
 
         # start with the default coordinates
-        coords = self._default_coords.copy()
+        coords = self.default_coords.copy()
 
         # list sizes of iteration axes
-        iter_sizes = [self._sizes[k] for k in self._iter_axes]
+        iter_sizes = [self._sizes[k] for k in self.iter_axes]
         # list how much i has to increase to get an increase of coordinate n
         iter_cumsizes = np.append(np.cumprod(iter_sizes[::-1])[-2::-1], 1)
         # calculate the coordinates and update the coords dictionary
         iter_coords = (i // iter_cumsizes) % iter_sizes
-        coords.update(**{k: v for k, v in zip(self._iter_axes, iter_coords)})
+        coords.update(**{k: v for k, v in zip(self.iter_axes, iter_coords)})
 
         result = self._get_frame_wrapped(**coords)
         if hasattr(result, 'metadata'):
             metadata = result.metadata
         else:
-            metadata = None
+            metadata = dict()
+
+        metadata_axes = set(self.axes) - set(self.bundle_axes)
+        metadata_coords = {ax: coords[ax] for ax in metadata_axes}
+        metadata.update(dict(axes=self.bundle_axes, coords=metadata_coords))
         return Frame(result, frame_no=i, metadata=metadata)
 
     def __repr__(self):

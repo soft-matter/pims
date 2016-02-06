@@ -90,6 +90,12 @@ class TestMultidimensional(unittest.TestCase):
         self.v.bundle_axes = 'czyx'
         md = self.v[15].metadata
 
+        assert_equal(md['axes'], tuple('czyx'))
+        assert_equal(md['coords']['t'], 15)
+        assert_equal(md['coords']['m'], 0)
+        for ax in 'czyx':
+            assert ax not in md['coords']
+
         # if metadata is provided, it should have the correct shape
         assert_equal(md['z'].shape, (3, 20))  # shape 'c', 'z'
         assert_equal(md['z'][:, 5], 5)
