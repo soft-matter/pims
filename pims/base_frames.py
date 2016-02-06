@@ -387,7 +387,8 @@ def _make_get_frame(result_axes, get_frame_dict, sizes, dtype):
     arr = [None] * len(methods)
     for i, method in enumerate(methods):
         axes_set = set(method)
-        to_iter = list(result_axes_set - axes_set)
+        to_iter_set = result_axes_set - axes_set
+        to_iter = [x for x in result_axes if x in to_iter_set]  # fix the order
         n_iter = int(np.prod([sizes[ax] for ax in to_iter]))
         to_drop = list(axes_set - result_axes_set)
         n_drop = int(np.prod([sizes[ax] for ax in to_drop]))
