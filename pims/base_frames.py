@@ -453,7 +453,7 @@ class FramesSequenceND(FramesSequence):
     bundle_axes : iterable of strings
         This determines which axes will be bundled into one Frame. The axes in
         the ndarray that is returned by get_frame have the same order as the
-        order in this list. Default [].
+        order in this list. Default ['y', 'x'].
     default_coords: dict of int
         When an axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used. Default 0 for each.
@@ -493,7 +493,7 @@ class FramesSequenceND(FramesSequence):
         self._sizes = {}
         self._default_coords = {}
         self._iter_axes = []
-        self._bundle_axes = []
+        self._bundle_axes = ['y', 'x']
         self._get_frame_wrapped = None
 
     def _init_axis(self, name, size, default=0):
