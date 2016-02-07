@@ -422,11 +422,14 @@ class BioformatsReader(FramesSequenceND):
             sizeC = self.rdr.getRGBChannelCount()
             if self.isInterleaved:
                 self._frame_shape_2D = (sizeY, sizeX, sizeC)
+                self._register_get_frame(self.get_frame_2D, 'yxc')
             else:
                 self._frame_shape_2D = (sizeC, sizeY, sizeX)
+                self._register_get_frame(self.get_frame_2D, 'cyx')
         else:
             sizeC = self.rdr.getSizeC()
             self._frame_shape_2D = (sizeY, sizeX)
+            self._register_get_frame(self.get_frame_2D, 'yx')
 
         self._init_axis('x', sizeX)
         self._init_axis('y', sizeY)
@@ -506,11 +509,6 @@ class BioformatsReader(FramesSequenceND):
             im = self._jbytearr_javacasting(self.rdr.openBytes(j))
 
         im.shape = self._frame_shape_2D
-        if self.isRGB:
-            if self.isInterleaved:
-                im = im[:, :, coords['c']]
-            else:
-                im = im[coords['c'], :, :]
         im = im.astype(self._pixel_type, copy=False)
 
         metadata = {'frame': j,
