@@ -1,11 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
 import six
 from six import with_metaclass
-from six.moves import range
-from types import MethodType
-import os
 import numpy as np
 import itertools
 from slicerator import Slicerator, propagate_attr, index_attr

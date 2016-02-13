@@ -105,74 +105,33 @@ class TestMultidimensional(unittest.TestCase):
         assert_equal(md['t'], 15)
 
 
+class RandomReaderFlexible(FramesSequenceND):
+    def __init__(self, reads_axes, **sizes):
+        for key in sizes:
+            self._init_axis(key, sizes[key])
+        self._gf_shape = tuple([sizes[a] for a in reads_axes])
+        self._register_get_frame(self._get_frame, reads_axes)
+
+    def _get_frame(self, **ind):
+        return np.empty(self._gf_shape, dtype=np.uint8)
+
+    @property
+    def pixel_type(self):
+        return np.uint8
+
+
 class TestFramesSequenceND(unittest.TestCase):
-    def test_reader_x(self):
-        class RandomReader_x(FramesSequenceND):
-            def __init__(self, **sizes):
-                for key in sizes:
-                    self._init_axis(key, sizes[key])
-                self._register_get_frame(self._get_frame, 'x')
-
-            def _get_frame(self, **ind):
-                return np.random.randint(0, 255, (128,)).astype(np.uint8)
-
-            @property
-            def pixel_type(self):
-                return np.uint8
-
+    def test_flexible_get_frame(self):
         sizes = dict(x=128, y=64, c=3, z=10)
-        all_modes = chain(*[permutations(sizes, x)
-                            for x in range(1, len(sizes) + 1)])
-        reader = RandomReader_x(**sizes)
-        for bundle in all_modes:
-            reader.bundle_axes = bundle
-            assert_equal(reader[0].shape, [sizes[k] for k in bundle])
+        all_modes = list(chain(*[permutations(sizes, x)
+                               for x in range(1, len(sizes) + 1)]))
+        for read_mode in all_modes:
+            reader = RandomReaderFlexible(read_mode, **sizes)
+            for bundle in all_modes:
+                reader.bundle_axes = bundle
+                assert_equal(reader[0].shape, [sizes[k] for k in bundle])
 
-    def test_reader_yx(self):
-        class RandomReader_yx(FramesSequenceND):
-            def __init__(self, **sizes):
-                for key in sizes:
-                    self._init_axis(key, sizes[key])
-                self._register_get_frame(self._get_frame, 'yx')
-
-            def _get_frame(self, **ind):
-                return np.random.randint(0, 255, (64, 128)).astype(np.uint8)
-
-            @property
-            def pixel_type(self):
-                return np.uint8
-
-        sizes = dict(x=128, y=64, c=3, z=10)
-        all_modes = chain(*[permutations(sizes, x)
-                            for x in range(1, len(sizes) + 1)])
-        reader = RandomReader_yx(**sizes)
-        for bundle in all_modes:
-            reader.bundle_axes = bundle
-            assert_equal(reader[0].shape, [sizes[k] for k in bundle])
-
-    def test_reader_yxc(self):
-        class RandomReader_yxc(FramesSequenceND):
-            def __init__(self, **sizes):
-                for key in sizes:
-                    self._init_axis(key, sizes[key])
-                self._register_get_frame(self._get_frame, 'yxc')
-
-            def _get_frame(self, **ind):
-                return np.random.randint(0, 255, (64, 128, 3)).astype(np.uint8)
-
-            @property
-            def pixel_type(self):
-                return np.uint8
-
-        sizes = dict(x=128, y=64, c=3, z=10)
-        all_modes = chain(*[permutations(sizes, x)
-                            for x in range(1, len(sizes) + 1)])
-        reader = RandomReader_yxc(**sizes)
-        for bundle in all_modes:
-            reader.bundle_axes = bundle
-            assert_equal(reader[0].shape, [sizes[k] for k in bundle])
-
-    def test_reader_compatibility(self):
+    def test_flexible_get_frame_compatibility(self):
         class RandomReader_2D(FramesSequenceND):
             def __init__(self, **sizes):
                 for key in sizes:
