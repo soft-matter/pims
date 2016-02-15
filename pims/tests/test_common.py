@@ -28,6 +28,18 @@ def _skip_if_no_PyAV():
         raise nose.SkipTest('PyAV not found. Skipping.')
 
 
+def _skip_if_no_MoviePy():
+    import pims.moviepy_reader
+    if not pims.moviepy_reader.available():
+        raise nose.SkipTest('MoviePy not found. Skipping.')
+
+
+def _skip_if_no_ImageIO():
+    import pims.imageio_reader
+    if not pims.imageio_reader.available():
+        raise nose.SkipTest('ImageIO not found. Skipping.')
+
+
 def _skip_if_no_libtiff():
     try:
         import libtiff
@@ -119,6 +131,8 @@ class _image_single(object):
         # simple smoke test, values not checked
         repr(self.v)
 
+
+class _deprecated_functions(object):
     def test_dtype_conversion(self):
         self.check_skip()
         v8 = self.klass(self.filename, dtype='uint8', **self.kwargs)
@@ -511,7 +525,8 @@ class _image_rgb(_image_single):
         self.assertEqual(ndim, 2)
 
 
-class TestVideo(_image_series, _image_rgb, unittest.TestCase):
+class TestVideo_PyAV(_image_series, _image_rgb, _deprecated_functions,
+                     unittest.TestCase):
     def check_skip(self):
         _skip_if_no_PyAV()
 
@@ -520,14 +535,46 @@ class TestVideo(_image_series, _image_rgb, unittest.TestCase):
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
-        self.klass = pims.Video
+        self.klass = pims.PyAVVideoReader
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (640, 424, 3)
+        self.expected_shape = (640, 424, 3)  # (x, y), wrong convention?
         self.expected_len = 480
 
 
-class _tiff_image_series(_image_series):
+class TestVideo_ImageIO(_image_series, unittest.TestCase):
+    def check_skip(self):
+        _skip_if_no_ImageIO()
+
+    def setUp(self):
+        _skip_if_no_ImageIO()
+        self.filename = os.path.join(path, 'bulk-water.mov')
+        self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
+        self.klass = pims.ImageIOReader
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (424, 640, 3)
+        self.expected_len = 480
+
+
+class TestVideo_MoviePy(_image_series, unittest.TestCase):
+    def check_skip(self):
+        _skip_if_no_MoviePy()
+
+    def setUp(self):
+        _skip_if_no_MoviePy()
+        self.filename = os.path.join(path, 'bulk-water.mov')
+        self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
+        self.klass = pims.MoviePyReader
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (424, 640, 3)
+        self.expected_len = 480
+
+
+class _tiff_image_series(_image_series, _deprecated_functions):
     def test_metadata(self):
         m = self.v[0].metadata
         if sys.version_info.major < 3:
@@ -539,7 +586,8 @@ class _tiff_image_series(_image_series):
         assert_equal(m, d)
 
 
-class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
+class TestTiffStack_libtiff(_tiff_image_series, _deprecated_functions,
+                            unittest.TestCase):
     def check_skip(self):
         _skip_if_no_libtiff()
 
@@ -555,7 +603,8 @@ class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
         self.expected_len = 5
 
 
-class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
+class TestImageSequenceWithPIL(_image_series, _deprecated_functions,
+                               unittest.TestCase):
     def setUp(self):
         _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -593,7 +642,8 @@ class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
         os.rmdir(self.tempdir)
 
 
-class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
+class TestImageSequenceWithMPL(_image_series, _deprecated_functions,
+                               unittest.TestCase):
     def setUp(self):
         _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -614,7 +664,8 @@ class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
-class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
+class TestImageSequenceAcceptsList(_image_series, _deprecated_functions,
+                                   unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -637,7 +688,8 @@ class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
-class TestImageSequenceNaturalSorting(_image_series, unittest.TestCase):
+class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
+                                      unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -669,7 +721,8 @@ class TestImageSequenceNaturalSorting(_image_series, unittest.TestCase):
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
 
-class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
+class TestTiffStack_pil(_tiff_image_series, _deprecated_functions,
+                        unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -685,7 +738,8 @@ class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
         self.expected_len = 5
 
 
-class TestTiffStack_tifffile(_tiff_image_series, unittest.TestCase):
+class TestTiffStack_tifffile(_tiff_image_series, _deprecated_functions,
+                             unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -701,7 +755,8 @@ class TestTiffStack_tifffile(_tiff_image_series, unittest.TestCase):
         self.expected_len = 5
 
 
-class TestSpeStack(_image_series, unittest.TestCase):
+class TestSpeStack(_image_series, _deprecated_functions,
+                   unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -752,7 +807,7 @@ class TestOpenFiles(unittest.TestCase):
         pims.open(os.path.join(path, 'stuck.tif'))
 
 
-class ImageSequenceND(_image_series, unittest.TestCase):
+class ImageSequenceND(_image_series, _deprecated_functions, unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence3d')
@@ -814,7 +869,8 @@ class ImageSequenceND(_image_series, unittest.TestCase):
         assert_equal(self.v.sizes['c'], self.expected_C)
 
 
-class ImageSequenceND_RGB(_image_series, unittest.TestCase):
+class ImageSequenceND_RGB(_image_series, _deprecated_functions,
+                          unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence3d')

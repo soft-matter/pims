@@ -12,18 +12,13 @@ from pims.frame import Frame
 
 try:
     import av
+    from PIL import Image
 except ImportError:
     av = None
 
 
 def available():
-    try:
-        import av
-        from PIL import Image
-    except ImportError:
-        return False
-    else:
-        return True
+    return av is not None
 
 
 class PyAVVideoReader(FramesSequence):
@@ -61,6 +56,7 @@ class PyAVVideoReader(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
+    class_priority = 2
     @classmethod
     def class_exts(cls):
         return {'mov', 'avi',

@@ -8,6 +8,7 @@ import tempfile
 from io import BytesIO
 from base64 import b64encode
 from contextlib import contextmanager
+import warnings
 
 try:
     from matplotlib.colors import ColorConverter
@@ -18,10 +19,22 @@ except ImportError:
     mpl = None
     plt = None
 
+try:
+    import av
+except ImportError:
+    av = None
 
-def export(sequence, filename, rate=30, bitrate=None,
-           width=None, height=None, codec='mpeg4', format='yuv420p',
-           autoscale=True):
+try:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from moviepy.editor import VideoClip
+except ImportError:
+    VideoClip = None
+
+
+def export_pyav(sequence, filename, rate=30, bitrate=None,
+                width=None, height=None, codec='mpeg4', format='yuv420p',
+                autoscale=True):
     """Export a sequence of images as a standard video file.
 
     N.B. If the quality and detail are insufficient, increase the
@@ -54,15 +67,12 @@ def export(sequence, filename, rate=30, bitrate=None,
         be set to True, as it is by default.
 
     """
-    try:
-        import av
-    except ImportError:
+    if av is None:
         raise("This feature requires PyAV with FFmpeg or libav installed.")
     output = av.open(filename, 'w')
     stream = output.add_stream(bytes(codec), rate)
     stream.pix_fmt = bytes(format)
 
-    ndim = None
     for frame_no, img in enumerate(sequence):
         if not frame_no:
             # Inspect first frame to set up stream.
@@ -76,31 +86,9 @@ def export(sequence, filename, rate=30, bitrate=None,
                 stream.width = width
                 stream.height = (height or
                                  width * img.shape[0] // img.shape[1])
-            ndim = img.ndim
 
-        if ndim == 3:
-            if img.shape.count(3) != 1:
-                raise ValueError("Images have the wrong shape.")
-            # This is a color image. Ensure that the color axis is axis 2.
-            color_axis = img.shape.index(3)
-            img = np.rollaxis(img, color_axis, 3)
-        elif ndim == 2:
-            # Expand into color to satisfy PyAV's expectation that images
-            # be in color. (Without this, an assert is tripped.)
-            img = np.repeat(np.expand_dims(img, 2), 3, axis=2)
-        else:
-            raise ValueError("Images have the wrong shape.")
-
-        # PyAV requires uint8.
-        if img.dtype is not np.uint8 and (not autoscale):
-            raise ValueError("Autoscaling must be turned on if the image "
-                             "data type is not uint8. Convert the datatype "
-                             "manually if you want to turn off autoscale.")
-        if autoscale:
-            normed = (img - img.min()) / (img.max() - img.min())
-            img = (255 * normed).astype('uint8')
-
-        frame = av.VideoFrame.from_ndarray(np.asarray(img), format=b'bgr24')
+        frame = av.VideoFrame.from_ndarray(_to_rgb_uint8(img, autoscale),
+                                           format=b'bgr24')
         packet = stream.encode(frame)
         output.mux(packet)
 
@@ -141,12 +129,91 @@ def play(sequence, rate=30, bitrate=None,
     except ImportError:
         raise ImportError("This feature requires IPython.")
     with tempfile.NamedTemporaryFile(suffix='.webm') as temp:
-        export(sequence, bytes(temp.name), codec='libvpx', rate=rate,
-               width=width, height=height, bitrate=bitrate, format='yuv420p',
-               autoscale=True)
+        export_pyav(sequence, bytes(temp.name), codec='libvpx', rate=rate,
+                    width=width, height=height, bitrate=bitrate,
+                    format='yuv420p', autoscale=True)
         temp.flush()
         display(repr_video(temp.name, 'x-webm'))
 
+
+def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
+                   height=None, codec='mpeg4', format='yuv420p', 
+                   autoscale=True, quality=None, verbose=True,
+                   ffmpeg_params=None):
+    """Export a sequence of images as a standard video file.
+
+    N.B. If the quality and detail are insufficient, increase the
+    bitrate.
+
+    Parameters
+    ----------
+    sequence : any iterator or array of array-like images
+        The images should have two dimensions plus an
+        optional third dimensions representing color.
+    filename : string
+        name of output file
+    rate : integer, optional
+        frame rate of output file, 30 by default
+    bitrate : integer or string, optional
+        Video bitrate is crudely guessed if None is given.
+    width : integer, optional
+        By default, set the width of the images.
+    height : integer, optional
+        By default, set the  height of the images. If width is specified
+        and height is not, the height is autoscaled to maintain the aspect
+        ratio.
+    codec : string, optional
+        a valid video encoding, 'mpeg4' by default
+    format: string, optional
+        Video stream format, 'yuv420p' by default.
+    quality: integer or string, optional
+        Use this for variable bitrates. 1 = high quality, 5 = default.
+    autoscale : boolean, optional
+        Linearly rescale the brightness to use the full gamut of black to
+        white values. True by default.
+    verbose : boolean, optional
+        Determines whether MoviePy will print progress. True by default.
+    ffmpeg_params : dictionary, optional
+        Dictionary of parameters that will be passed to ffmpeg. By default
+        {'pixel_format': str(format), 'qscale:v': str(quality)}
+
+    See Also
+    --------
+    http://zulko.github.io/moviepy/ref/VideoClip/VideoClip.html#moviepy.video.VideoClip.VideoClip.write_videofile
+    """
+    if VideoClip is None:
+        raise ImportError('The MoviePy exporter requires moviepy to work.')
+
+    if ffmpeg_params is None:
+        ffmpeg_params = dict()
+    if quality is not None:
+        ffmpeg_params['qscale:v'] = str(quality)
+    if format is not None:
+        ffmpeg_params['pixel_format'] = str(format)
+    if bitrate is None:
+        bitrate = _estimate_bitrate(sequence[0].shape, rate)
+
+    _ffmpeg_params = []
+    [_ffmpeg_params.extend(['-' + key, ffmpeg_params[key]])
+     for key in ffmpeg_params]
+
+    if rate < 10:
+        warnings.warn('Framerates lower than 10 may give playback issues.')
+
+    clip = VideoClip(lambda t: _to_rgb_uint8(sequence[int(round(t*rate))],
+                                             autoscale))
+    clip.duration = (len(sequence) - 1) / rate
+    if not (height is None and width is None):
+        clip = clip.resize(height=height, width=width)
+    clip.write_videofile(filename, rate, codec, str(bitrate), audio=False,
+                         verbose=verbose, ffmpeg_params=_ffmpeg_params)
+
+if av is not None:
+    export = export_pyav
+elif VideoClip is not None:
+    export = export_moviepy
+else:
+    export = None
 
 def repr_video(fname, mimetype):
     """Load the video in the file `fname`, with given mimetype,
@@ -277,6 +344,38 @@ def normalize(arr):
         ptp = 1
     scaled_arr = (arr - arr.min()) / ptp
     return scaled_arr
+
+
+def _to_rgb_uint8(image, autoscale):
+    if autoscale:
+        image = (normalize(image) * 255).astype(np.uint8)
+    elif image.dtype is not np.uint8:
+        if np.issubdtype(image.dtype, np.integer):
+            max_value = np.iinfo(image.dtype).max
+            # sometimes 12-bit images are stored as unsigned 16-bit
+            if max_value == 2**16 - 1 and image.max() < 2**12:
+                max_value = 2**12 - 1
+            image = (image / max_value * 255).astype(np.uint8)
+        else:
+            image = (image * 255).astype(np.uint8)
+
+    ndim = image.ndim
+    shape = image.shape
+    if ndim == 3 and shape.count(3) == 1:
+        # This is a color image. Ensure that the color axis is axis 2.
+        color_axis = shape.index(3)
+        image = np.rollaxis(image, color_axis, 3)
+    elif image.ndim == 3 and shape.count(4) == 1:
+        # This is an RGBA image. Drop the A values.
+        color_axis = shape.index(4)
+        image = np.rollaxis(image, color_axis, 4)[:, :, :3]
+    elif ndim == 2:
+        # Expand into color to satisfy moviepy's expectation
+        image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
+    else:
+        raise ValueError("Images have the wrong shape.")
+
+    return np.asarray(image)
 
 
 def _estimate_bitrate(shape, frame_rate):
