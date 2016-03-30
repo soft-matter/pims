@@ -541,6 +541,37 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         assert_equal(metadata['CH2ChannelDyeName'], '5-FAM/pH 9.0')
         assert_equal(metadata['dCalibration'], '0.16780898323268245')
 
+    def test_metadata_tags(self):
+        self.v = self.klass(self.filename, meta=True)
+        fields = self.v.metadata.fields
+        expected_fields = {
+            'ChannelAnnotationRefCount', 'ChannelColor', 'ChannelCount',
+            'ChannelEmissionWavelength', 'ChannelID', 'ChannelName',
+            'ChannelSamplesPerPixel', 'DatasetCount',
+            'DetectorAnnotationRefCount', 'DetectorCount', 'DetectorID',
+            'DetectorModel', 'DetectorSettingsID', 'DetectorType',
+            'DichroicCount', 'ExperimentCount', 'ExperimenterCount',
+            'ExperimenterGroupCount', 'FilterCount', 'FilterSetCount',
+            'ImageAnnotationRefCount', 'ImageCount', 'ImageID',
+            'ImageInstrumentRef', 'ImageName', 'ImageROIRefCount',
+            'InstrumentAnnotationRefCount', 'InstrumentCount', 'InstrumentID',
+            'LightPathAnnotationRefCount', 'LightPathEmissionFilterRefCount',
+            'LightPathExcitationFilterRefCount', 'LightSourceCount',
+            'MicrobeamManipulationRefCount', 'ObjectiveAnnotationRefCount',
+            'ObjectiveCorrection', 'ObjectiveCount', 'ObjectiveID',
+            'ObjectiveImmersion', 'ObjectiveSettingsID',
+            'ObjectiveSettingsRefractiveIndex', 'PixelsBigEndian',
+            'PixelsBinDataBigEndian', 'PixelsBinDataCount',
+            'PixelsDimensionOrder', 'PixelsID', 'PixelsInterleaved',
+            'PixelsPhysicalSizeX', 'PixelsPhysicalSizeY',
+            'PixelsPhysicalSizeZ', 'PixelsSignificantBits', 'PixelsSizeC',
+            'PixelsSizeT', 'PixelsSizeX', 'PixelsSizeY', 'PixelsSizeZ',
+            'PixelsType', 'PlaneAnnotationRefCount', 'PlaneCount',
+            'PlaneDeltaT', 'PlaneExposureTime', 'PlanePositionX',
+            'PlanePositionY', 'PlanePositionZ', 'PlaneTheC', 'PlaneTheT',
+            'PlaneTheZ', 'PlateCount', 'ProjectCount', 'ROICount',
+            'ScreenCount', 'TiffDataCount'}
+        assert_equal(set(fields), expected_fields)
 
 if __name__ == '__main__':
     nose.runmodule(argv=[__file__, '-vvs'],

@@ -173,10 +173,11 @@ class MetadataRetrieve(object):
                     # function is not supported by this specific reader
                     pass
 
+        self.fields = list(filter(lambda x: x[:2] != '__', dir(self)))
+
     def __repr__(self):
-        listing = list(filter(lambda x: x[:2] != '__', dir(self)))
         return '<MetadataRetrieve> Available loci.formats.meta.' + \
-               'MetadataRetrieve functions: ' + ', '.join(listing)
+               'MetadataRetrieve functions: ' + ', '.join(self.fields)
 
 
 class BioformatsReader(FramesSequenceND):
