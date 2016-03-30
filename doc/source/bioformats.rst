@@ -27,3 +27,26 @@ download the binary from `Christoph Gohlke's website <http://www.lfd.uci.edu/~go
 On first use of pims.Bioformats(filename), the required java library
 :file:`loci_tools.jar` will be automatically downloaded from
 `openmicroscopy.org <http://downloads.openmicroscopy.org/bio-formats/>`__.
+
+Metadata
+--------
+
+The ``Bioformats`` reader can be used to access the metadata stored in the image, including physical dimensions pixel, instrument parameters, and other useful information:
+
+.. code-block:: python
+
+    meta = images.metadata
+
+    image_count = meta.ImageCount()
+    print('Total number of images: {}'.format(image_count))
+
+    for i in range(image_count):
+        print('Dimensions for image {}'.format(i))
+        shape = (meta.PixelsSizeX(i), meta.PixelsSizeY(i), meta.PixelsSizeZ(i))
+        dxyz = (meta.PixelsPhysicalSizeX(i),
+                meta.PixelsPhysicalSizeY(i),
+                meta.PixelsPhysicalSizeZ(i))
+        print('\tShape: {} x {} x {}'.format(*shape))
+        print('\tDxyz:  {:2.2f} x {:2.2f} x {:2.2f}'.format(*dxyz))
+
+See the documentation for the `Metadata retrieve API <http://www.openmicroscopy.org/site/support/bio-formats5.1/developers/cpp/tutorial.html>`_ for more details.
