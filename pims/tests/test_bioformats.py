@@ -541,6 +541,10 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         assert_equal(metadata['CH2ChannelDyeName'], '5-FAM/pH 9.0')
         assert_equal(metadata['dCalibration'], '0.16780898323268245')
 
+    def test_metadata_tags(self):
+        self.v = self.klass(self.filename, meta=True)
+        fields = self.v.metadata.fields
+        assert 'PixelsPhysicalSizeX' in fields
 
 if __name__ == '__main__':
     nose.runmodule(argv=[__file__, '-vvs'],

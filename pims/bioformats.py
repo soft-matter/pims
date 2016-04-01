@@ -150,6 +150,8 @@ class MetadataRetrieve(object):
                 except ValueError:
                     return field
 
+        self.fields = []
+
         for name in dir(md):
             if (name[:3] != 'get') or (name in ['getRoot', 'getClass']):
                 continue
@@ -168,15 +170,15 @@ class MetadataRetrieve(object):
                                    name + ' wrapped\nby JPype and an '
                                    'additional automatic typeconversion.\n\n')
                     setattr(self, name[3:], fnw)
+                    self.fields.append(name[3:])
                     continue
                 except:
                     # function is not supported by this specific reader
                     pass
 
     def __repr__(self):
-        listing = list(filter(lambda x: x[:2] != '__', dir(self)))
         return '<MetadataRetrieve> Available loci.formats.meta.' + \
-               'MetadataRetrieve functions: ' + ', '.join(listing)
+               'MetadataRetrieve functions: ' + ', '.join(self.fields)
 
 
 class BioformatsReader(FramesSequenceND):
