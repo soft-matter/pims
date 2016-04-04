@@ -4,13 +4,13 @@ sudo: false
 matrix:
   include:
     - python: "2.7"
-      env: DEPS="nomkl numpy=1.9*" DEPSSM="tifffile"
+      env: DEPS="nomkl numpy=1.9*" DEPSSM="tifffile" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="nomkl numpy=1.9* scipy pillow matplotlib scikit-image jinja2" DEPSSM="pyav tifffile"
+      env: DEPS="nomkl numpy=1.9* scipy pillow matplotlib scikit-image jinja2" DEPSSM="pyav tifffile" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="numpy=1.9*" DEPSSM="tifffile"
+      env: DEPS="numpy=1.9*" DEPSSM="tifffile" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="numpy=1.9* scipy pillow matplotlib scikit-image jinja2" DEPSSM="pyav tifffile"
+      env: DEPS="numpy=1.9* scipy pillow matplotlib scikit-image jinja2" DEPSSM="pyav tifffile" BUILD_DOCS=true
 
 install:
   - conda update --yes conda
@@ -18,19 +18,39 @@ install:
   - conda install -n testenv -c soft-matter --yes $DEPSSM
   - source activate testenv
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
-  - pip install slicerator jpype1;
+  - pip install slicerator jpype1
+  - if [ $BUILD_DOCS == true ]; then pip install ipython sphinx sphinx_rtd_theme numpydoc; fi
   - python setup.py build_ext install
 
 
 before_install:
-  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; 
-    then 
-        wget http://repo.continuum.io/miniconda/Miniconda-3.7.3-Linux-x86_64.sh -O miniconda.sh; 
-    else 
-        wget http://repo.continuum.io/miniconda/Miniconda3-3.7.3-Linux-x86_64.sh -O miniconda.sh; 
+  - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ];
+    then
+        wget http://repo.continuum.io/miniconda/Miniconda-3.7.3-Linux-x86_64.sh -O miniconda.sh;
+    else
+        wget http://repo.continuum.io/miniconda/Miniconda3-3.7.3-Linux-x86_64.sh -O miniconda.sh;
     fi
   - chmod +x miniconda.sh
   - ./miniconda.sh -b -p /home/travis/mc
   - export PATH=/home/travis/mc/bin:$PATH
 
-script: nosetests --nologcapture
+script:
+    - nosetests --nologcapture
+    - if [ $BUILD_DOCS == true ]; then make html --directory=./doc; fi
+
+after_success:
+    - cd $TRAVIS_BUILD_DIR
+    - |
+      if [[ $TRAVIS_PULL_REQUEST == false && $TRAVIS_REPO_SLUG == 'soft-matter/pims' && $BUILD_DOCS == true && $TRAVIS_BRANCH == 'master' ]]; then
+        echo "Uploading documentation"
+        git clone https://github.com/soft-matter/soft-matter.github.io.git ./doc-repo
+        cd doc-repo/pims/dev
+        git rm -rf *
+        cp -R $TRAVIS_BUILD_DIR/$TRAVIS_REPO_SLUG/doc/build/html/. .
+        git config --global user.email "Travis@nomail"
+        git config --global user.name "Travis"
+        git config --global push.default simple
+        git add .
+        git commit -m "Docs build of $TRAVIS_COMMIT"
+        git push -q https://$GH_TOKEN@github.com/soft-matter/soft-matter.github.io.git
+      fi
