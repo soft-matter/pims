@@ -316,6 +316,7 @@ class BioformatsReader(FramesSequenceND):
     def __init__(self, filename, meta=True, java_memory='512m',
                  read_mode='auto', series=0):
         global loci
+        super(BioformatsReader, self).__init__()
 
         if read_mode not in ['auto', 'jpype', 'stringbuffer', 'javacasting']:
             raise ValueError('Invalid read_mode value.')

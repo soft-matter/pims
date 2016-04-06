@@ -288,6 +288,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
     """
     def __init__(self, path_spec, process_func=None, dtype=None,
                  as_grey=False, plugin=None, axes_identifiers='tzc'):
+        FramesSequenceND.__init__(self)
         if as_grey:
             raise ValueError('As grey not supported for ND images')
         if 'x' in axes_identifiers:
@@ -295,8 +296,8 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         if 'y' in axes_identifiers:
             raise ValueError("Axis 'y' is reserved")
         self.axes_identifiers = axes_identifiers
-        super(ImageSequenceND, self).__init__(path_spec, process_func,
-                                              dtype, as_grey, plugin)
+        ImageSequence.__init__(self, path_spec, process_func,
+                               dtype, as_grey, plugin)
         shape = self._first_frame_shape
         if len(shape) == 2:
             self._init_axis('y', shape[0])

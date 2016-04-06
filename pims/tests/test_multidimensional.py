@@ -19,6 +19,7 @@ class TestMultidimensional(unittest.TestCase):
                 return np.uint8
 
             def __init__(self, c, m, t, z):
+                super(IndexReturningReader, self).__init__()
                 self._init_axis('x', 6)
                 self._init_axis('y', 1)
                 self._init_axis('z', z)
@@ -107,6 +108,7 @@ class TestMultidimensional(unittest.TestCase):
 
 class RandomReaderFlexible(FramesSequenceND):
     def __init__(self, reads_axes, **sizes):
+        super(RandomReaderFlexible, self).__init__()
         for key in sizes:
             self._init_axis(key, sizes[key])
         self._gf_shape = tuple([sizes[a] for a in reads_axes])
@@ -134,6 +136,7 @@ class TestFramesSequenceND(unittest.TestCase):
     def test_flexible_get_frame_compatibility(self):
         class RandomReader_2D(FramesSequenceND):
             def __init__(self, **sizes):
+                super(RandomReader_2D, self).__init__()
                 for key in sizes:
                     self._init_axis(key, sizes[key])
 

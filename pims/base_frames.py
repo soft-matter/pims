@@ -461,6 +461,7 @@ class FramesSequenceND(FramesSequence):
     ...    def pixel_type(self):
     ...        return 'uint8'
     ...    def __init__(self, shape, **axes):
+    ...        super(DummyReaderND, self).__init__()  # properly initialize
     ...        self._init_axis('y', shape[0])
     ...        self._init_axis('x', shape[1])
     ...        for name in axes:
@@ -479,24 +480,34 @@ class FramesSequenceND(FramesSequence):
     >>> frames.default_coords['m'] = 3
     >>> frames[5]  # returns Frame at T=5, M=3 with shape (2, 10, 64, 64)
     """
-    def _register_get_frame(self, method, axes):
-        axes = tuple([a for a in axes])
-        if not hasattr(self, '_get_frame_dict'):
-            self._get_frame_dict = dict()
-        self._get_frame_dict[axes] = method
-
-    def _clear_axes(self):
+    def __init__(self):
         self._sizes = {}
         self._default_coords = {}
         self._iter_axes = []
         self._bundle_axes = ['y', 'x']
         self._get_frame_wrapped = None
+        self._get_frame_dict = dict()
+
+    def _register_get_frame(self, method, axes):
+        axes = tuple([a for a in axes])
+        if not hasattr(self, '_get_frame_dict'):
+            warn("Please call FramesSequenceND.__init__() at the start of the"
+                 "the reader initialization.")
+            self._get_frame_dict = dict()
+        self._get_frame_dict[axes] = method
 
     def _init_axis(self, name, size, default=0):
         # check if the axes have been initialized, if not, do it here
         if not hasattr(self, '_sizes'):
-            self._clear_axes()
-        elif name in self._sizes:
+            warn("Please call FramesSequenceND.__init__() at the start of the"
+                 "the reader initialization.")
+            self._sizes = {}
+            self._default_coords = {}
+            self._iter_axes = []
+            self._bundle_axes = ['y', 'x']
+            self._get_frame_wrapped = None
+            self._get_frame_dict = dict()
+        if name in self._sizes:
             raise ValueError("axis '{}' already exists".format(name))
         self._sizes[name] = int(size)
         self.default_coords[name] = int(default)
@@ -545,6 +556,8 @@ class FramesSequenceND(FramesSequence):
 
         self._bundle_axes = value
         if not hasattr(self, '_get_frame_dict'):
+            warn("Please call FramesSequenceND.__init__() at the start of the"
+                 "the reader initialization.")
             self._get_frame_dict = dict()
         if len(self._get_frame_dict) == 0:
             if hasattr(self, 'get_frame_2D'):
