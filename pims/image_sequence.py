@@ -288,6 +288,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
     """
     def __init__(self, path_spec, process_func=None, dtype=None,
                  as_grey=False, plugin=None, axes_identifiers='tzc'):
+        FramesSequenceND.__init__(self)
         if as_grey:
             raise ValueError('As grey not supported for ND images')
         if 'x' in axes_identifiers:
@@ -295,23 +296,26 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         if 'y' in axes_identifiers:
             raise ValueError("Axis 'y' is reserved")
         self.axes_identifiers = axes_identifiers
-        super(ImageSequenceND, self).__init__(path_spec, process_func,
-                                              dtype, as_grey, plugin)
+        ImageSequence.__init__(self, path_spec, process_func,
+                               dtype, as_grey, plugin)
         shape = self._first_frame_shape
         if len(shape) == 2:
             self._init_axis('y', shape[0])
             self._init_axis('x', shape[1])
+            self._register_get_frame(self.get_frame_2D, 'yx')
             self.is_rgb = False
         elif len(shape) == 3 and shape[2] in [3, 4]:
             self._init_axis('y', shape[0])
             self._init_axis('x', shape[1])
             self._init_axis('c', shape[2])
+            self._register_get_frame(self.get_frame_2D, 'yxc')
             self.is_rgb = True
             self.is_interleaved = True
-        elif len(shape) == 3 and shape[0] in [3, 4]:
+        elif len(shape) == 3:
             self._init_axis('c', shape[0])
             self._init_axis('y', shape[1])
             self._init_axis('x', shape[2])
+            self._register_get_frame(self.get_frame_2D, 'cyx')
             self.is_rgb = True
             self.is_interleaved = False
         else:
@@ -352,13 +356,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         res = self.imread(self._filepaths[i], **self.kwargs)
         if res.dtype != self._dtype:
             res = res.astype(self._dtype)
-        if self.is_rgb:
-            if self.is_interleaved:
-                return res[:, :, c]
-            else:
-                return res[c]
-        else:
-            return res
+        return res
 
     def __repr__(self):
         try:
