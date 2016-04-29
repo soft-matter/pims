@@ -137,7 +137,7 @@ def play(sequence, rate=30, bitrate=None,
 
 
 def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
-                   height=None, codec='mpeg4', format='yuv420p', 
+                   height=None, codec='libx264', format='yuv420p',
                    autoscale=True, quality=None, verbose=True,
                    ffmpeg_params=None):
     """Export a sequence of images as a standard video file.
@@ -167,15 +167,16 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     format: string, optional
         Video stream format, 'yuv420p' by default.
     quality: integer or string, optional
-        Use this for variable bitrates. 1 = high quality, 5 = default.
+        For 'mpeg4' codec: sets qscale:v. 1 = high quality, 5 = default.
+        For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
     autoscale : boolean, optional
         Linearly rescale the brightness to use the full gamut of black to
         white values. True by default.
     verbose : boolean, optional
         Determines whether MoviePy will print progress. True by default.
     ffmpeg_params : dictionary, optional
-        Dictionary of parameters that will be passed to ffmpeg. By default
-        {'pixel_format': str(format), 'qscale:v': str(quality)}
+        Dictionary of parameters that will be passed to ffmpeg. For instance:
+        {'pixel_format': str(format)}
 
     See Also
     --------
@@ -187,7 +188,10 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     if ffmpeg_params is None:
         ffmpeg_params = dict()
     if quality is not None:
-        ffmpeg_params['qscale:v'] = str(quality)
+        if codec == 'mpeg4':
+            ffmpeg_params['qscale:v'] = str(quality)
+        elif codec == 'libx264':
+            ffmpeg_params['crf'] = str(quality)
     if format is not None:
         ffmpeg_params['pixel_format'] = str(format)
     if bitrate is None:
