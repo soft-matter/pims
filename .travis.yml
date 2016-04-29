@@ -50,7 +50,7 @@ after_success:
         git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
         cd doc-repo/pims/dev
         git rm -rf *
-        cp -R $TRAVIS_BUILD_DIR/$TRAVIS_REPO_SLUG/doc/build/html/. .
+        cp -R $TRAVIS_BUILD_DIR/doc/build/html/. .
         git config --global user.email "Travis@nomail"
         git config --global user.name "Travis"
         git config --global push.default simple
