@@ -10,7 +10,7 @@ matrix:
     - python: "3.4"
       env: DEPS="numpy=1.9*" DEPSSM="tifffile" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="numpy=1.9* scipy pillow matplotlib scikit-image jinja2" DEPSSM="pyav tifffile" BUILD_DOCS=true
+      env: DEPS="numpy=1.9* scipy pillow matplotlib scikit-image jinja2 ipython sphinx sphinx_rtd_theme numpydoc" DEPSSM="pyav tifffile" BUILD_DOCS=true
 
 install:
   - conda update --yes conda
@@ -19,7 +19,6 @@ install:
   - source activate testenv
   - if [ ${TRAVIS_PYTHON_VERSION:0:1} == "2" ]; then pip install libtiff; fi
   - pip install slicerator jpype1
-  - if [ $BUILD_DOCS == true ]; then pip install ipython sphinx sphinx_rtd_theme numpydoc; fi
   - python setup.py build_ext install
 
 
@@ -36,6 +35,7 @@ before_install:
 
 script:
     - nosetests --nologcapture
+    # Doc Build needs: pillow matplotlib ipython sphinx sphinx_rtd_theme numpydoc
     - if [ $BUILD_DOCS == true ]; then make html --directory=./doc; fi
 
 after_success:
@@ -43,7 +43,11 @@ after_success:
     - |
       if [[ $TRAVIS_PULL_REQUEST == false && $TRAVIS_REPO_SLUG == 'soft-matter/pims' && $BUILD_DOCS == true && $TRAVIS_BRANCH == 'master' ]]; then
         echo "Uploading documentation"
-        git clone https://github.com/soft-matter/soft-matter.github.io.git ./doc-repo
+        openssl aes-256-cbc -K $encrypted_63b17445501f_key -iv $encrypted_63b17445501f_iv -in soft-matter-docs-deploy.enc -out soft-matter-docs-deploy -d
+        eval `ssh-agent -s`
+        chmod 600 soft-matter-docs-deploy
+        ssh-add soft-matter-docs-deploy
+        git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
         cd doc-repo/pims/dev
         git rm -rf *
         cp -R $TRAVIS_BUILD_DIR/$TRAVIS_REPO_SLUG/doc/build/html/. .
@@ -52,5 +56,5 @@ after_success:
         git config --global push.default simple
         git add .
         git commit -m "Docs build of $TRAVIS_COMMIT"
-        git push -q https://$GH_TOKEN@github.com/soft-matter/soft-matter.github.io.git
+        git push --set-upstream origin master
       fi
