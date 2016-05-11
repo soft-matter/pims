@@ -47,14 +47,20 @@ after_success:
         eval `ssh-agent -s`
         chmod 600 soft-matter-docs-deploy
         ssh-add soft-matter-docs-deploy
-        git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
-        cd doc-repo/pims/dev
-        git rm -rf *
-        cp -R /home/travis/build/soft-matter/pims/doc/build/html/. .
         git config --global user.email "Travis@nomail"
         git config --global user.name "Travis"
         git config --global push.default simple
-        git add .
-        git commit -m "Docs build of $TRAVIS_COMMIT"
-        git push --set-upstream origin master
+        git clone git@github.com:soft-matter/soft-matter.github.io.git ./doc-repo
+        cd doc-repo/pims
+        git checkout --orphan temp_branch
+        git rm -rf ./dev
+        mv $TRAVIS_BUILD_DIR/doc/build/html ./dev
+        if [ -n "$TRAVIS_TAG" ]; then
+          cp -R dev $TRAVIS_TAG;
+        fi
+        git add -A
+        git commit -m "Docs build of pims commit $TRAVIS_COMMIT"
+        git branch -D master
+        git branch -m master
+        git push --set-upstream origin master --force
       fi
