@@ -304,7 +304,7 @@ class BioformatsReader(FramesSequenceND):
         return {'lsm', 'ipl', 'dm3', 'seq', 'nd2', 'ics', 'ids',
                 'ipw', 'tif', 'tiff', 'jpg', 'bmp', 'lif', 'lei'}
 
-    class_priority = 5
+    class_priority = 2
     propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
                        'get_metadata_raw', 'reader_class_name']
 

@@ -17,7 +17,7 @@ def available():
 
 
 class ImageIOReader(FramesSequence):
-    class_priority = 3
+    class_priority = 6
     @classmethod
     def class_exts(cls):
         return {'tiff', 'bmp', 'cut', 'dds', 'exr', 'g3', 'hdr', 'iff', 'j2k',
@@ -26,7 +26,7 @@ class ImageIOReader(FramesSequence):
                 'psd', 'ras', 'raw', 'sgi', 'targa', 'fi_tiff', 'wbmp', 'webp',
                 'xbm', 'xpm', 'ico', 'gif', 'dicom', 'npz', 'fits', 'itk',
                 'gdal', 'dummy', 'gif', 'ffmpeg', 'avbin', 'swf', 'fits',
-                'gdal', 'mov', 'mp4', 'avi', 'mpeg', 'wmv', 'mkv'}
+                'gdal', 'mov', 'mp4', 'avi', 'mpeg', 'wmv', 'mkv', 'ts', 'tif'}
 
     def __init__(self, filename, **kwargs):
         if imageio is None:
