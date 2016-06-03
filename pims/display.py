@@ -159,6 +159,22 @@ def play(sequence, rate=30, bitrate=None,
         display(repr_video(temp.name, 'x-webm'))
 
 
+class CachedFrameGenerator(object):
+    def __init__(self, sequence, rate, autoscale=True):
+        self.sequence = sequence
+        self._cached_frame_no = None
+        self._cache = None
+        self.autoscale = autoscale
+        self.rate = rate
+
+    def __call__(self, t):
+        frame_no = int(t * self.rate)
+        if self._cached_frame_no != frame_no:
+            self._cached_frame_no = frame_no
+            self._cache = _to_rgb_uint8(self.sequence[frame_no], self.autoscale)
+        return self._cache
+
+
 def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
                    height=None, codec='libx264', format='yuv420p',
                    autoscale=True, quality=None, verbose=True,
@@ -238,8 +254,7 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     if rate <= 0:
         raise ValueError
 
-    clip = VideoClip(lambda t: _to_rgb_uint8(sequence[int(t * rate)],
-                                             autoscale))
+    clip = VideoClip(CachedFrameGenerator(sequence, rate, autoscale))
     clip.duration = (len(sequence) - 1) / rate
     if not (height is None and width is None):
         clip = clip.resize(height=height, width=width)
