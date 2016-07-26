@@ -301,13 +301,10 @@ class BioformatsReader(FramesSequenceND):
     """
     @classmethod
     def class_exts(cls):
-        try:
-            return {'lsm', 'ipl', 'dm3', 'seq', 'nd2', 'ics', 'ids',
-                    'mov', 'ipw', 'tif', 'tiff', 'jpg', 'bmp', 'lif', 'lei'}
-        except AttributeError:
-            return {}
+        return {'lsm', 'ipl', 'dm3', 'seq', 'nd2', 'ics', 'ids',
+                'ipw', 'tif', 'tiff', 'jpg', 'bmp', 'lif', 'lei'}
 
-    class_priority = 5
+    class_priority = 2
     propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
                        'get_metadata_raw', 'reader_class_name']
 
