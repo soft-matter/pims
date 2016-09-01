@@ -1,6 +1,11 @@
 Release notes
 =============
 
+v0.3.4
+------
+- API: Swap elements of ``frame_shape`` in ``SpeStack`` to match frames'
+  ``shape``.
+
 v0.3.3
 ------
 - Fix compatibility with Pillow v0.3.0 (PR 204)
