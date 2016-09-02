@@ -233,7 +233,7 @@ class SpeStack(FramesSequence):
 
     @property
     def frame_shape(self):
-        return self._width, self._height
+        return self._height, self._width
 
     def __len__(self):
         return self._len
