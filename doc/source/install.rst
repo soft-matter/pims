@@ -14,6 +14,11 @@ For basic image reading one of the following is required:
 * `matplotlib <http://matplotlib.org/>`_
 * `scipy <http://www.scipy.org/>`_
 
+For ipython display of images the following are required:
+
+* `Pillow <http://pillow.readthedocs.org/en/latest/>`__
+* `jinja2 <http://jinja.pocoo.org/docs/dev/>`__ (for 3D stacks)
+
 Depending on what file formats you want to read, you will also need:
 
 -  `ffmpeg <https://www.ffmpeg.org/>`__ and
