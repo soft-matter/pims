@@ -6,11 +6,16 @@ matrix:
     - python: "2.7"
       env: DEPS="nomkl numpy=1.9* slicerator libtiff tifffile" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="nomkl numpy=1.9* scipy pillow matplotlib scikit-image jinja2 pyav libtiff tifffile jpype1" DEPSPIP="moviepy imageio" BUILD_DOCS=false
+      env: DEPS="nomkl numpy=1.9* scipy pillow matplotlib scikit-image jinja2 av libtiff tifffile jpype1" DEPSPIP="moviepy imageio" BUILD_DOCS=false
     - python: "3.4"
       env: DEPS="numpy=1.9* slicerator tifffile" BUILD_DOCS=false
     - python: "3.4"
-      env: DEPS="numpy=1.9* slicerator scipy pillow matplotlib scikit-image pyav tifffile libtiff jpype1 jinja2 ipython sphinx sphinx_rtd_theme numpydoc" DEPSPIP="moviepy imageio" BUILD_DOCS=true
+      env: DEPS="numpy=1.9* slicerator scipy pillow matplotlib scikit-image av tifffile libtiff jpype1 jinja2 ipython sphinx sphinx_rtd_theme numpydoc" DEPSPIP="moviepy imageio" BUILD_DOCS=true
+    - python: "3.5"
+      env: DEPS="numpy slicerator tifffile" BUILD_DOCS=false
+    - python: "3.5"
+      env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image av tifffile libtiff jpype1" DEPSPIP="moviepy imageio" BUILD_DOCS=false
+
 
 install:
   - conda update --yes conda
