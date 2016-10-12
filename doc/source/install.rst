@@ -29,6 +29,10 @@ Depending on what file formats you want to read, you will also need:
    support)
 -  `tifffile <http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html>`__
    (alterative TIFF support)
+-  `imageio <https://imageio.github.io/>`__ (a multi-purpose reader package that
+   reads and writes many formats)
+-  `moviepy <http://zulko.github.io/moviepy/>`__ (a Python module that supports
+   video editing)
 -  `pims\_nd2 <https://github.com/soft-matter/pims_nd2>`__ (improved
    Nikon .nd2 support)
 
@@ -48,7 +52,7 @@ and "Start > Applications > Command Prompt" on Windows. Type these lines:
 
 .. code-block:: bash
 
-   conda install -c soft-matter pims
+   conda install -c conda-forge pims
 
 The above installs the latest stable release. Finally, to try it out, type:
 
@@ -60,12 +64,12 @@ The above installs the latest stable release. Finally, to try it out, type:
 Development version
 -------------------
 To install the version under active development, with the latest tested code,
-use the development channel.
+install directly from github.
 
 .. code-block:: bash
 
-   conda config --add channels soft-matter
-   conda install -c soft-matter/channel/dev pims
+   conda install pip
+   pip install https://github.com/soft-matter/pims/archive/master.zip
 
 
 pip

@@ -31,6 +31,10 @@ PIMS is based on readers by:
 * [libtiff](https://code.google.com/p/pylibtiff/) (alternative TIFF support)
 * [tifffile](http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html) (alterative TIFF support)
 * [pims_nd2](https://github.com/soft-matter/pims_nd2) (improved Nikon .nd2 support)
+* [imageio](https://imageio.github.io) (a multi-purpose reader package that
+   reads and writes many formats)
+* [moviepy](http://zulko.github.io/moviepy) (a Python module that supports
+   video editing)
 
 Examples & Documentation
 ------------------------
