@@ -35,4 +35,4 @@ test:
 about:
   home: http://soft-matter.github.io/pims
   license: 3-clause BSD License
-  summary: 'Python Image Sequence: lazy-loading image I/O with facny slicing'
+  summary: 'Python Image Sequence: lazy-loading image I/O with fancy slicing'
