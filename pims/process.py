@@ -1,0 +1,66 @@
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import numpy as np
+from slicerator import pipeline, Pipeline
+from numpy.lib.arraypad import _validate_lengths
+
+
+def _crop(frame, bbox):
+    return frame[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+
+
+@pipeline
+class crop(Pipeline):
+    """Crop image or image-reader`reader` by `crop_width` along each dimension.
+
+    Parameters
+    ----------
+    ar : array-like of rank N
+       Input array.
+    crop_width : {sequence, int}
+       Number of values to remove from the edges of each axis.
+       ``((before_1, after_1),`` ... ``(before_N, after_N))`` specifies
+       unique crop widths at the start and end of each axis.
+       ``((before, after),)`` specifies a fixed start and end crop
+       for every axis.
+       ``(n,)`` or ``n`` for integer ``n`` is a shortcut for
+       before = after = ``n`` for all axes.
+    order : {'C', 'F', 'A', 'K'}, optional
+       control the memory layout of the copy. See ``np.copy``.
+    Returns
+    -------
+    cropped : array
+       The cropped array.
+
+    See Also
+    --------
+    Source: ``skimage.util.crop`` (v0.12.3)
+    """
+    def __init__(self, reader, crop_width, order='K'):
+        # We have to know the frame shape that is returned by the reader.
+        try:  # In case the reader is a FramesSequence, there is an attribute
+            shape = reader.frame_shape
+            first_frame = np.empty(shape, dtype=np.bool)
+        except AttributeError:
+            first_frame = reader[0]
+            shape = first_frame.shape
+        # Validate the crop widths on the first frame
+        crops = _validate_lengths(first_frame, crop_width)
+        self._crop_slices = [slice(a, shape[i] - b)
+                             for i, (a, b) in enumerate(crops)]
+        self._crop_shape = tuple([shape[i] - b - a
+                                  for i, (a, b) in enumerate(crops)])
+        self._crop_order = order
+        # We could pass _crop to proc_func. However this adds an extra copy
+        # operation. Therefore we define our own here.
+        Pipeline.__init__(self, reader, proc_func=None)
+
+    def _get(self, key):
+        ar = self._ancestor[key]
+        return np.array(ar[self._crop_slices], order=self._crop_order,
+                        copy=True)
+
+    @property
+    def frame_shape(self):
+        return self._crop_shape
