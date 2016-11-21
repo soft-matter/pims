@@ -10,9 +10,11 @@ from warnings import warn
 import re
 import zipfile
 from io import BytesIO
+from functools import partial
 
 import numpy as np
 
+import pims
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
@@ -228,6 +230,126 @@ def filename_to_indices(filename, identifiers='tzc'):
         except ValueError:
             result[i] = 0
     return result
+
+
+class ReaderSequence(FramesSequenceND):
+    """Construct a reader from a directory of ND image files.
+
+    Parameters
+    ----------
+    path_spec : string or iterable of strings
+        a directory or, safer, a pattern like path/to/images/*.png
+        which will ignore extraneous files or a list of files to open
+        in the order they should be loaded. When a path to a zipfile is
+        specified, all files in the zipfile will be loaded. The filenames
+        should contain the indices of T, Z and C, preceded by a axis
+        identifier such as: 'file_t001c05z32'.
+    axis_name : string, optional
+        The name of the added axis. Default 't'.
+    """
+    def __init__(self, path_spec, reader_cls=None, axis_name='t', **kwargs):
+        FramesSequenceND.__init__(self)
+
+        self.kwargs = kwargs
+        if reader_cls is None:
+            self.reader_cls = pims.open
+        else:
+            self.reader_cls = reader_cls
+        self._get_files(path_spec)
+
+        with self.reader_cls(self._filepaths[0], **self.kwargs) as reader:
+            if not isinstance(reader, FramesSequenceND):
+                raise ValueError("Reader is not subclass of FramesSequenceND")
+            for ax in reader.axes:
+                self._init_axis(ax, reader.sizes[ax])
+            self._pixel_type = reader.pixel_type
+        self._imseq_axis = axis_name
+        self._init_axis(axis_name, self._count)
+        self.iter_axes = [axis_name]
+
+    @property
+    def bundle_axes(self):
+        return self._bundle_axes
+
+    @bundle_axes.setter
+    def bundle_axes(self, value):
+        """Overrides the baseclass 'smart' bundle_axes, as _get_frame_wrapped
+        uses the child reader bundle axes logic."""
+        value = list(value)
+        invalid = [k for k in value if k not in self._sizes]
+        if invalid:
+            raise ValueError("axes %r do not exist" % invalid)
+
+        if self._imseq_axis in self.bundle_axes:
+            raise ValueError('The sequence axis cannot be bundled.')
+        for k in value:
+            if k in self._iter_axes:
+                del self._iter_axes[self._iter_axes.index(k)]
+        self._bundle_axes = value
+        self._get_frame_wrapped = self._get_seq_frame
+
+    def _get_seq_frame(self, **coords):
+        i = coords.pop(self._imseq_axis)
+        with self.reader_cls(self._filepaths[i], **self.kwargs) as reader:
+            reader.bundle_axes = self.bundle_axes
+            result = reader._get_frame_wrapped(**coords)
+        return result
+
+    @property
+    def pixel_type(self):
+        return self._pixel_type
+
+    def __repr__(self):
+        try:
+            source = self.pathname
+        except AttributeError:
+            source = '(list of images)'
+        s = "<ReaderSequence>\nSource: {0}\n".format(source)
+        s += "Axes: {0}\n".format(self.ndim)
+        for dim in self._sizes:
+            s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
+        s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
+        return s
+
+    def _get_files(self, path_spec):
+        # deal with if input is _not_ a string
+        if not isinstance(path_spec, six.string_types):
+            # assume it is iterable and off we go!
+            self._filepaths = sorted(list(path_spec), key=natural_keys)
+            self._count = len(path_spec)
+            return
+
+        if zipfile.is_zipfile(path_spec):
+            self._is_zipfile = True
+            self.pathname = os.path.abspath(path_spec)
+            self._zipfile = zipfile.ZipFile(path_spec, 'r')
+            filepaths = [fn for fn in self._zipfile.namelist()
+                         if fnmatch.fnmatch(fn, '*.*')]
+            self._filepaths = sorted(filepaths, key=natural_keys)
+            self._count = len(self._filepaths)
+            if 'plugin' in self.kwargs and self.kwargs['plugin'] is not None:
+                warn("A plugin cannot be combined with reading from an "
+                     "archive. Extract it if you want to use the plugin.")
+            return
+
+        self.pathname = os.path.abspath(path_spec)  # used by __repr__
+        if os.path.isdir(path_spec):
+            warn("Loading ALL files in this directory. To ignore extraneous "
+                 "files, use a pattern like 'path/to/images/*.png'",
+                 UserWarning)
+            directory = path_spec
+            filenames = os.listdir(directory)
+            make_full_path = lambda filename: (
+                os.path.abspath(os.path.join(directory, filename)))
+            filepaths = list(map(make_full_path, filenames))
+        else:
+            filepaths = glob.glob(path_spec)
+        self._filepaths = sorted(filepaths, key=natural_keys)
+        self._count = len(self._filepaths)
+
+        # If there were no matches, this was probably a user typo.
+        if self._count == 0:
+            raise IOError("No files were found matching that path.")
 
 
 class ImageSequenceND(FramesSequenceND, ImageSequence):
