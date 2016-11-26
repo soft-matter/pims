@@ -39,7 +39,7 @@ class RandomReader(FramesSequence):
         return Frame(self._data[i], frame_no=i)
 
 
-class TestPipelinesCommon(object):
+class PipelinesCommon(object):
     def test_on_frame(self):
         assert_equal(self.pipeline(self.rdr[0]), self.first_frame)
 
@@ -51,7 +51,7 @@ class TestPipelinesCommon(object):
         assert_equal(self.pipeline(self.rdr)[i], self.pipeline(self.rdr[i]))
 
 
-class TestCrop(TestPipelinesCommon, unittest.TestCase):
+class TestCrop(PipelinesCommon, unittest.TestCase):
     def setUp(self):
         self.rdr = RandomReader(length=10, shape=(32, 33))
         self.pipeline = lambda x: crop(x, ((5, 32-26), (7, 33-27)))
