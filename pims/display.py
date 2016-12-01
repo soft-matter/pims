@@ -615,11 +615,10 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
     with _fig_size_cntx(fig, fig_size_inches, tight_layout) as fig:
         width_in, height_in = fig.get_size_inches()
         dpi = width / width_in
-        buf_shape = (int(height_in * dpi), int(width_in * dpi), 4)
-        fig.savefig(buf, format='rgba', dpi=dpi)
+        fig.savefig(buf, format='png', dpi=dpi)
 
     buf.seek(0)
-    image = np.fromstring(buf.read(), dtype='uint8').reshape(*buf_shape)
+    image = plt.imread(buf)
     if close_fig:
         plt.close(fig)
     return Frame(image)

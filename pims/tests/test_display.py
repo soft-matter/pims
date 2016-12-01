@@ -8,8 +8,10 @@ from pims import plot_to_frame, plots_to_frame
 from nose.tools import assert_true, assert_equal
 import unittest
 try:
+    import matplotlib as mpl
     import matplotlib.pyplot as plt
 except ImportError:
+    mpl = None
     plt = None
 
 def _skip_if_no_mpl():
@@ -34,6 +36,8 @@ class TestPlotToFrame(unittest.TestCase):
             self.axes.append(ax)
 
         self.expected_shape = (10, 384, 512, 4)
+
+        mpl.rcParams.update({'savefig.bbox': None})
 
     def tearDown(self):
         for fig in self.figures:
@@ -84,3 +88,9 @@ class TestPlotToFrame(unittest.TestCase):
     def test_plots_from_generator(self):
         frame = plots_to_frame(iter(self.figures))
         assert_equal(frame.shape, (10, 384, 512, 4))
+
+    def test_plot_tightrc(self):
+        mpl.rcParams.update({'savefig.bbox': 'tight'})
+        # this makes the image smaller than expected from figsize and dpi
+        frame = plot_to_frame(self.figures[0])
+
