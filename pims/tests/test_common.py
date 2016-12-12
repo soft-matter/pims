@@ -422,6 +422,51 @@ class _image_rgb(_image_single):
         self.assertEqual(ndim, 2)
 
 
+class TestImageReaderTIFF(_image_single, unittest.TestCase):
+    def check_skip(self):
+        _skip_if_no_PIL()
+
+    def setUp(self):
+        self.filename = os.path.join(path, 'stuck.tif')
+        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
+        self.klass = pims.ImageReader
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (5, 512, 512)
+        self.expected_len = 1
+
+
+class TestImageReaderPNG(_image_single, unittest.TestCase):
+    def check_skip(self):
+        _skip_if_no_PIL()
+
+    def setUp(self):
+        self.klass = pims.ImageReader
+        self.kwargs = dict()
+        self.expected_shape = (10, 11)
+        self.expected_len = 1
+
+        save_dummy_png(path, ['dummy.png'], self.expected_shape)
+        self.v = self.klass(os.path.join(path, 'dummy.png'), **self.kwargs)
+        clean_dummy_png(path, ['dummy.png'])
+
+
+class TestImageReaderND(_image_single, unittest.TestCase):
+    def check_skip(self):
+        _skip_if_no_PIL()
+
+    def setUp(self):
+        self.klass = pims.ImageReaderND
+        self.kwargs = dict()
+        self.expected_shape = (10, 11, 3)
+        self.expected_len = 1
+
+        save_dummy_png(path, ['dummy.png'], self.expected_shape)
+        self.v = self.klass(os.path.join(path, 'dummy.png'), **self.kwargs)
+        clean_dummy_png(path, ['dummy.png'])
+
+
 class TestVideo_PyAV(_image_series, _image_rgb, _deprecated_functions,
                      unittest.TestCase):
     def check_skip(self):
@@ -572,6 +617,13 @@ class TestSpeStack(_image_series, _deprecated_functions,
 class TestOpenFiles(unittest.TestCase):
     def setUp(self):
         _skip_if_no_PIL()
+
+    def test_open_png(self):
+        self.filenames = ['dummy_png.png']
+        shape = (10, 11)
+        save_dummy_png(path, self.filenames, shape)
+        pims.open(os.path.join(path, 'dummy_png.png'))
+        clean_dummy_png(path, self.filenames)
 
     def test_open_pngs(self):
         self.filepath = os.path.join(path, 'image_sequence')
