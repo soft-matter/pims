@@ -269,7 +269,7 @@ class ReaderSequence(FramesSequenceND):
 
     @property
     def bundle_axes(self):
-        return self._bundle_axes
+        return self._bundle_axes[:]
 
     @bundle_axes.setter
     def bundle_axes(self, value):
@@ -291,6 +291,16 @@ class ReaderSequence(FramesSequenceND):
     def _get_seq_frame(self, **coords):
         i = coords.pop(self._imseq_axis)
         with self.reader_cls(self._filepaths[i], **self.kwargs) as reader:
+            # check whether the reader has the expected shape
+            for ax in self.sizes:
+                if ax == self._imseq_axis:
+                    continue
+                if ax not in reader.sizes:
+                    raise RuntimeError('{} does not have '
+                                       'axis {}'.format(self._filepaths[i], ax))
+                if reader.sizes[ax] != self.sizes[ax]:
+                    raise RuntimeError('In {}, the size of axis {} was unexpect'
+                                       'ed'.format(self._filepaths[i], ax))
             reader.bundle_axes = self.bundle_axes
             result = reader._get_frame_wrapped(**coords)
         return result
