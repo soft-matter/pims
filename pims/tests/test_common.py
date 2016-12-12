@@ -423,10 +423,8 @@ class _image_rgb(_image_single):
 
 
 class TestImageReaderTIFF(_image_single, unittest.TestCase):
-    def check_skip(self):
-        _skip_if_no_PIL()
-
     def setUp(self):
+        _skip_if_no_imread()
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
@@ -438,10 +436,8 @@ class TestImageReaderTIFF(_image_single, unittest.TestCase):
 
 
 class TestImageReaderPNG(_image_single, unittest.TestCase):
-    def check_skip(self):
-        _skip_if_no_PIL()
-
     def setUp(self):
+        _skip_if_no_imread()
         self.klass = pims.ImageReader
         self.kwargs = dict()
         self.expected_shape = (10, 11)
@@ -453,10 +449,8 @@ class TestImageReaderPNG(_image_single, unittest.TestCase):
 
 
 class TestImageReaderND(_image_single, unittest.TestCase):
-    def check_skip(self):
-        _skip_if_no_PIL()
-
     def setUp(self):
+        _skip_if_no_imread()
         self.klass = pims.ImageReaderND
         self.kwargs = dict()
         self.expected_shape = (10, 11, 3)
