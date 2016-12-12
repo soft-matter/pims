@@ -114,8 +114,8 @@ class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F1.png', 'T76S3F20.png',
-                     'T76S3F3.png', 'T76S3F4.png',
-                     'T76S3F50.png', 'T76S3F10.png']
+                          'T76S3F3.png', 'T76S3F4.png',
+                          'T76S3F50.png', 'T76S3F10.png']
         shape = (10, 11)
         frames = save_dummy_png(self.filepath, self.filenames, shape)
 
@@ -150,8 +150,6 @@ class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
 
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
-
-
 
 
 class ImageSequenceND(_image_series, _deprecated_functions, unittest.TestCase):
@@ -245,6 +243,37 @@ class ImageSequenceND_RGB(_image_series, _deprecated_functions,
     def test_sizeZ(self):
         self.check_skip()
         assert_equal(self.v.sizes['z'], self.expected_Z)
+
+    def test_sizeC(self):
+        self.check_skip()
+        assert_equal(self.v.sizes['c'], self.expected_C)
+
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
+
+
+class ReaderSequence(_image_series, unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_imread()
+        self.filepath = os.path.join(path, 'image_sequence3d')
+        self.filenames = ['file001.png',
+                          'file002.png',
+                          'file003.png',
+                          'file004.png']
+        shape = (10, 11, 3)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = os.path.join(self.filepath, '*.png')
+        self.frame0 = frames[0]
+        self.frame1 = frames[1]
+        self.klass = pims.ReaderSequence
+        self.kwargs = dict(reader_cls=pims.ImageReaderND, axis_name='t')
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.v.bundle_axes = 'yxc'
+        self.v.iter_axes = 't'
+        self.expected_len = 4
+        self.expected_C = 3
+        self.expected_shape = (10, 11, 3)
 
     def test_sizeC(self):
         self.check_skip()
