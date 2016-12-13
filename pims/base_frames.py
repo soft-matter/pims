@@ -416,13 +416,13 @@ def _make_get_frame(result_axes, get_frame_dict, sizes, dtype):
 
 class DefaultCoordsDict(dict):
     """Dictionary that checks whether all keys are in `axes`"""
-    def __init__(self, reader, *args, **kwargs):
+    def __init__(self, default_coords=None):
         """There is no check done here"""
-        super(DefaultCoordsDict, self).__init__(*args, **kwargs)
-        self._reader = reader
+        super(DefaultCoordsDict, self).__init__()
+        self.axes = []
 
     def __setitem__(self, attr, value):
-        if attr not in self._reader.sizes:
+        if attr not in self.axes:
             raise ValueError("axes %r does not exist" % attr)
         super(DefaultCoordsDict, self).__setitem__(attr, value)
 
@@ -512,7 +512,7 @@ class FramesSequenceND(FramesSequence):
 
     def _clear_axes(self):
         self._sizes = {}
-        self._default_coords = DefaultCoordsDict(self, {})
+        self._default_coords = DefaultCoordsDict()
         self._iter_axes = []
         self._bundle_axes = ['y', 'x']
         self._get_frame_wrapped = None
@@ -527,6 +527,7 @@ class FramesSequenceND(FramesSequence):
         if name in self._sizes:
             raise ValueError("axis '{}' already exists".format(name))
         self._sizes[name] = int(size)
+        self.default_coords.axes = self.axes
         self.default_coords[name] = int(default)
 
     def __len__(self):
