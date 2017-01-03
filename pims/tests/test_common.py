@@ -529,7 +529,7 @@ class TestVideo_MoviePy(_image_series, unittest.TestCase):
         self.v.close()
 
 
-class _tiff_image_series(_image_series, _deprecated_functions):
+class _tiff_image_series(_image_series):
     def test_metadata(self):
         m = self.v[0].metadata
         if sys.version_info.major < 3:
@@ -541,8 +541,7 @@ class _tiff_image_series(_image_series, _deprecated_functions):
         assert_equal(m, d)
 
 
-class TestTiffStack_libtiff(_tiff_image_series, _deprecated_functions,
-                            unittest.TestCase):
+class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_libtiff()
 
@@ -558,8 +557,124 @@ class TestTiffStack_libtiff(_tiff_image_series, _deprecated_functions,
         self.expected_len = 5
 
 
-class TestTiffStack_pil(_tiff_image_series, _deprecated_functions,
-                        unittest.TestCase):
+class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_skimage()
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
+                          'T76S3F00003.png', 'T76S3F00004.png',
+                          'T76S3F00005.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = os.path.join(self.filepath, '*.png')
+        self.frame0 = frames[0]
+        self.frame1 = frames[1]
+        self.kwargs = dict(plugin='pil')
+        self.klass = pims.ImageSequence
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = shape
+        self.expected_len = 5
+        self.tempdir = tempfile.mkdtemp()
+        self.tempfile = os.path.join(self.tempdir, 'test.zip')
+
+        with zipfile.ZipFile(self.tempfile, 'w') as archive:
+            for fn in self.filenames:
+                archive.write(os.path.join(self.filepath, fn))
+
+    def test_bad_path_raises(self):
+        raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
+        self.assertRaises(IOError, raises)
+
+    def test_zipfile(self):
+        pims.ImageSequence(self.tempfile)[0]
+
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
+        os.remove(self.tempfile)
+        os.rmdir(self.tempdir)
+
+
+class TestImageSequenceWithMPL(_image_series, _deprecated_functions,
+                               unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_skimage()
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
+                          'T76S3F00003.png', 'T76S3F00004.png',
+                          'T76S3F00005.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+        self.filename = os.path.join(self.filepath, '*.png')
+        self.frame0 = frames[0]
+        self.frame1 = frames[1]
+        self.kwargs = dict(plugin='matplotlib')
+        self.klass = pims.ImageSequence
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = shape
+        self.expected_len = 5
+
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
+
+class TestImageSequenceAcceptsList(_image_series, _deprecated_functions,
+                                   unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_imread()
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
+                          'T76S3F00003.png', 'T76S3F00004.png',
+                          'T76S3F00005.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = [os.path.join(self.filepath, fn)
+                         for fn in self.filenames]
+        self.frame0 = frames[0]
+        self.frame1 = frames[1]
+        self.kwargs = dict(plugin='matplotlib')
+        self.klass = pims.ImageSequence
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = shape
+        self.expected_len = len(self.filenames)
+
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
+
+class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
+                                      unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_imread()
+        self.filepath = os.path.join(path, 'image_sequence')
+        self.filenames = ['T76S3F1.png', 'T76S3F20.png',
+                     'T76S3F3.png', 'T76S3F4.png',
+                     'T76S3F50.png', 'T76S3F10.png']
+        shape = (10, 11)
+        frames = save_dummy_png(self.filepath, self.filenames, shape)
+
+        self.filename = [os.path.join(self.filepath, fn)
+                         for fn in self.filenames]
+        self.frame0 = frames[0]
+        self.frame1 = frames[2]
+        self.kwargs = dict(plugin='matplotlib')
+        self.klass = pims.ImageSequence
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = shape
+        self.expected_len = len(self.filenames)
+
+        sorted_files = ['T76S3F1.png',
+                        'T76S3F3.png',
+                        'T76S3F4.png',
+                        'T76S3F10.png',
+                        'T76S3F20.png',
+                        'T76S3F50.png']
+
+        assert sorted_files == [x.split(os.path.sep)[-1] for x in self.v._filepaths]
+
+    def tearDown(self):
+        clean_dummy_png(self.filepath, self.filenames)
+
+class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -575,8 +690,7 @@ class TestTiffStack_pil(_tiff_image_series, _deprecated_functions,
         self.expected_len = 5
 
 
-class TestTiffStack_tifffile(_tiff_image_series, _deprecated_functions,
-                             unittest.TestCase):
+class TestTiffStack_tifffile(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
