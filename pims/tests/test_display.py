@@ -97,9 +97,3 @@ class TestPlotToFrame(unittest.TestCase):
     def test_plots_from_generator(self):
         frame = plots_to_frame(iter(self.figures))
         assert_equal(frame.shape, (10, 384, 512, 4))
-
-    def test_plot_tightrc(self):
-        mpl.rcParams.update({'savefig.bbox': 'tight'})
-        # this makes the image smaller than expected from figsize and dpi
-        frame = plot_to_frame(self.figures[0])
-
