@@ -549,7 +549,7 @@ def to_rgb(image, colors=None, normed=True):
 
 
 @contextmanager
-def _fig_size_cntx(fig, fig_size_inches, tight_layout=None):
+def _fig_size_cntx(fig, fig_size_inches, tight_layout):
     """Resize a figure in a context
 
     Parameters
@@ -559,17 +559,21 @@ def _fig_size_cntx(fig, fig_size_inches, tight_layout=None):
     fig_size_inches : tuple
         The (height, width) to use in the context. If None, the size
         is not changed
-    tight_layout : boolean or None
+    tight_layout : boolean
         When True, tight layout is used.
     """
     orig_size = fig.get_size_inches()
     orig_layout = fig.get_tight_layout()
     if fig_size_inches is not None:
         fig.set_size_inches(*fig_size_inches)
-    if tight_layout is not None:
-        fig.set_tight_layout(tight_layout)
+    fig.set_tight_layout(tight_layout)
+    if tight_layout:
+        rc_params = {'savefig.bbox': 'tight'}
+    else:
+        rc_params = {'savefig.bbox': 'standard'}
     try:
-        yield fig
+        with plt.rc_context(rc_params):
+            yield fig
     finally:
         fig.set_size_inches(*orig_size)
         fig.set_tight_layout(orig_layout)
@@ -589,7 +593,7 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
         When True, the figure will be closed after plotting
     fig_size_inches : tuple
         The figure (height, width) in inches. If None, the size is not changed.
-    bbox_inches : {'tight', None}
+    bbox_inches : {None, 'standard', 'tight'}
         When 'tight', tight layout is used.
 
     Returns
@@ -605,20 +609,31 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
         if fig_size_inches[0] == 0 or fig_size_inches[1] == 0:
             raise ValueError('Figure size cannot be zero.')
     if bbox_inches is None:
-        tight_layout = None
+        tight_layout = fig.get_tight_layout()
+    elif str(bbox_inches) == 'standard':
+        tight_layout = False
     elif str(bbox_inches) == 'tight':
         tight_layout = True
     else:
-        raise ValueError('Only bbox_inches=`tight` is allowed.')
+        raise ValueError("bbox_inches must be in {None, 'standard', 'tight'}")
 
     buf = BytesIO()
     with _fig_size_cntx(fig, fig_size_inches, tight_layout) as fig:
         width_in, height_in = fig.get_size_inches()
         dpi = width / width_in
-        fig.savefig(buf, format='png', dpi=dpi)
+        if tight_layout:
+            # slower, but allows tight layout
+            fig.savefig(buf, format='png', dpi=dpi)
+            buf.seek(0)
+            image = plt.imread(buf)
+        else:
+            # faster, but only possible without tight layout
+            fig.savefig(buf, format='rgba', dpi=dpi)
+            buf.seek(0)
+            buf_shape = (int(height_in * dpi), int(width_in * dpi), 4)
+            image = np.fromstring(buf.read(),
+                                  dtype='uint8').reshape(*buf_shape)
 
-    buf.seek(0)
-    image = plt.imread(buf)
     if close_fig:
         plt.close(fig)
     return Frame(image)

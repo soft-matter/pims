@@ -5,7 +5,7 @@ import six
 import nose
 import numpy as np
 from pims import plot_to_frame, plots_to_frame
-from nose.tools import assert_true, assert_equal
+from nose.tools import assert_true, assert_equal, assert_less
 import unittest
 try:
     import matplotlib as mpl
@@ -29,7 +29,7 @@ class TestPlotToFrame(unittest.TestCase):
         self.figures = []
         self.axes = []
         for line in y:
-            fig = plt.figure(figsize=(8, 6))
+            fig = plt.figure(figsize=(8, 6), tight_layout=False)
             ax = fig.gca()
             ax.plot(x, line)
             self.figures.append(fig)
@@ -65,12 +65,21 @@ class TestPlotToFrame(unittest.TestCase):
         assert_equal(frame.shape[1], width)
 
     def test_plot_tight(self):
-        frame = plot_to_frame(self.figures[0], bbox_inches='tight')
-        assert_equal(frame.shape, (384, 512, 4))
+        fig = self.figures[0]
+        fig.set_tight_layout(False)  # default to standard
+        assert_equal(plot_to_frame(fig).shape[:2], (384, 512))
+        assert_less(plot_to_frame(fig, bbox_inches='tight').shape[:2], (384, 512))
+        assert_equal(plot_to_frame(fig).shape[:2], (384, 512))
+
+        fig.set_tight_layout(True)   # default to tight
+        assert_less(plot_to_frame(fig).shape[:2], (384, 512))
+        assert_equal(plot_to_frame(fig, bbox_inches='standard').shape[:2],
+                    (384, 512))
+        assert_less(plot_to_frame(fig).shape[:2], (384, 512))
 
     def test_plots_tight(self):
         frame = plots_to_frame(self.figures, bbox_inches='tight')
-        assert_equal(frame.shape, (10, 384, 512, 4))
+        assert_less(frame.shape[1:3], (384, 512))
 
     def test_plot_resize(self):
         frame = plot_to_frame(self.figures[0], fig_size_inches=(4, 4))
