@@ -398,27 +398,6 @@ class _image_series(_image_single):
         list(self.v[[0, -1]])
 
 
-class _image_rgb(_image_single):
-    # Only include these tests for 2D RGB files.
-    def test_greyscale_process_func(self):
-        self.check_skip()
-        def greyscale(image):
-            assert image.ndim == 3
-            image = image[:, :, 0]
-            assert image.ndim == 2
-            return image
-
-        v_raw = self.klass(self.filename, **self.kwargs)
-        v = self.klass(self.filename, greyscale, **self.kwargs)
-        assert_image_equal(v[0], greyscale(v_raw[0]))
-
-    def test_as_grey(self):
-        self.check_skip()
-        v = self.klass(self.filename, as_grey=True, **self.kwargs)
-        ndim = v[0].ndim
-        self.assertEqual(ndim, 2)
-
-
 class TestImageReaderTIFF(_image_single, unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
@@ -474,7 +453,7 @@ class TestVideo_PyAV_timed(_image_series, unittest.TestCase):
         self.expected_len = 480
 
 
-class TestVideo_PyAV_indexed(_image_series, _image_rgb, _deprecated_functions,
+class TestVideo_PyAV_indexed(_image_series, _deprecated_functions,
                              unittest.TestCase):
     def check_skip(self):
         _skip_if_no_PyAV()
@@ -706,8 +685,7 @@ class TestTiffStack_tifffile(_tiff_image_series, unittest.TestCase):
         self.expected_len = 5
 
 
-class TestSpeStack(_image_series, _deprecated_functions,
-                   unittest.TestCase):
+class TestSpeStack(_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 

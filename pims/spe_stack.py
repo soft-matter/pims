@@ -133,23 +133,13 @@ class SpeStack(FramesSequence):
     def class_exts(cls):
         return {"spe"} | super(SpeStack, cls).class_exts()
 
-    def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False, char_encoding=None, check_filesize=True):
+    def __init__(self, filename, char_encoding=None, check_filesize=True):
         """Create an iterable object that returns image data as numpy arrays
 
         Arguments
         ---------
         filename : string
             Name of the SPE file
-        process_func : callable or None, optional
-            Takes one image array as its sole argument. It is applied to each
-            image. Defaults to None.
-        dtype : numpy.dtype, optional
-            Which data type to convert the images too. No conversion if None.
-            Defaults to None.
-        as_grey : bool, optional
-            Convert image to greyscale. Do not use in conjunction with
-            process_func. Defaults to False.
         char_encoding : str or None, optional
             Specifies what character encoding is used to decode metatdata
             strings. If None, use the `default_char_encoding` class attribute.
@@ -189,11 +179,7 @@ class SpeStack(FramesSequence):
 
         ### Some metadata is "special", deal with it
         #Determine data type
-        self._file_dtype = Spec.dtypes[self.metadata.pop("datatype")]
-        if dtype is None:
-            self._dtype = self._file_dtype
-        else:
-            self._dtype = dtype
+        self._dtype = Spec.dtypes[self.metadata.pop("datatype")]
 
         #movie dimensions
         self._width = self.metadata.pop("xdim")
@@ -247,10 +233,6 @@ class SpeStack(FramesSequence):
         else:
             self.metadata.pop("readoutMode", None)
 
-        ### pims-specific stuff
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
-
     @property
     def frame_shape(self):
         return self._height, self._width
@@ -262,14 +244,11 @@ class SpeStack(FramesSequence):
         if j >= self._len:
             raise ValueError("Frame number {} out of range.".format(j))
         self._file.seek(Spec.data_start
-                        + j*self._width*self._height*self._file_dtype.itemsize)
-        data = np.fromfile(self._file, dtype=self._file_dtype,
+                        + j*self._width*self._height*self.pixel_type.itemsize)
+        data = np.fromfile(self._file, dtype=self.pixel_type,
                            count=self._width*self._height)
-        if self._dtype != self._file_dtype:
-            data = data.astype(self._dtype)
-        return Frame(
-            self.process_func(data.reshape(self._height, self._width)),
-            frame_no=j, metadata=self.metadata)
+        return Frame(data.reshape(self._height, self._width),
+                     frame_no=j, metadata=self.metadata)
 
     def close(self):
         """Clean up and close file"""
