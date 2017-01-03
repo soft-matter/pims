@@ -66,56 +66,6 @@ class FramesStream(with_metaclass(ABCMeta, object)):
         """
         pass
 
-    def _validate_process_func(self, process_func):
-        if process_func is None:
-            process_func = lambda x: x
-        if not callable(process_func):
-            raise ValueError("process_func must be a function, or None")
-        self.process_func = process_func
-
-    def _as_grey(self, as_grey, process_func):
-        # See skimage.color.colorconv in the scikit-image project.
-        # As noted there, the weights used in this conversion are calibrated
-        # for contemporary CRT phosphors. Any alpha channel is ignored."""
-
-        if as_grey:
-            if process_func is not None:
-                raise ValueError("The as_grey option cannot be used when "
-                                 "process_func is specified. Incorpate "
-                                 "greyscale conversion in the function "
-                                 "passed to process_func.")
-            shape = self.frame_shape
-            ndim = len(shape)
-            # Look for dimensions that look like color channels.
-            rgb_like = shape.count(3) == 1
-            rgba_like = shape.count(4) == 1
-            if ndim == 2:
-                # The image is already greyscale.
-                process_func = None
-            elif ndim == 3 and (rgb_like or rgba_like):
-                reduced_shape = list(shape)
-                if rgb_like:
-                    color_axis_size = 3
-                    calibration = [0.2125, 0.7154, 0.0721]
-                else:
-                    color_axis_size = 4
-                    calibration = [0.2125, 0.7154, 0.0721, 0]
-                reduced_shape.remove(color_axis_size)
-                self._im_sz = tuple(reduced_shape)
-                def convert_to_grey(img):
-                    color_axis = img.shape.index(color_axis_size)
-                    img = np.rollaxis(img, color_axis, 3)
-                    grey = (img * calibration).sum(2)
-                    return grey.astype(img.dtype)  # coerce to original dtype
-                self.process_func = convert_to_grey
-            else:
-                raise NotImplementedError("I don't know how to convert an "
-                                          "image of shaped {0} to greyscale. "
-                                          "Write you own function and pass "
-                                          "it using the process_func "
-                                          "keyword argument.".format(shape))
-
-    # magic functions to make all sub-classes usable as context managers
     def __enter__(self):
         return self
 
