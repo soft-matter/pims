@@ -76,8 +76,7 @@ class ImageSequence(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    def __init__(self, path_spec, process_func=None, dtype=None,
-                 as_grey=False, plugin=None):
+    def __init__(self, path_spec, plugin=None):
         try:
             import skimage
         except ImportError:
@@ -96,14 +95,7 @@ class ImageSequence(FramesSequence):
 
         tmp = self.imread(self._filepaths[0], **self.kwargs)
         self._first_frame_shape = tmp.shape
-
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
-
-        if dtype is None:
-            self._dtype = tmp.dtype
-        else:
-            self._dtype = dtype
+        self._dtype = tmp.dtype
 
     def close(self):
         if self._is_zipfile:
@@ -168,10 +160,7 @@ class ImageSequence(FramesSequence):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
         res = self.imread(self._filepaths[j], **self.kwargs)
-        if res.dtype != self._dtype:
-            res = res.astype(self._dtype)
-        res = Frame(self.process_func(res), frame_no=j)
-        return res
+        return Frame(res, frame_no=j)
 
     def __len__(self):
         return self._count
@@ -418,18 +407,14 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         Applicable to RGB images. Signifies the position of the rgb axis in
         the input image. True when color data is stored in the last dimension.
     """
-    def __init__(self, path_spec, process_func=None, dtype=None,
-                 as_grey=False, plugin=None, axes_identifiers='tzc'):
+    def __init__(self, path_spec, plugin=None, axes_identifiers='tzc'):
         FramesSequenceND.__init__(self)
-        if as_grey:
-            raise ValueError('As grey not supported for ND images')
         if 'x' in axes_identifiers:
             raise ValueError("Axis 'x' is reserved")
         if 'y' in axes_identifiers:
             raise ValueError("Axis 'y' is reserved")
         self.axes_identifiers = axes_identifiers
-        ImageSequence.__init__(self, path_spec, process_func,
-                               dtype, as_grey, plugin)
+        ImageSequence.__init__(self, path_spec, plugin)
         shape = self._first_frame_shape
         if len(shape) == 2:
             self._init_axis('y', shape[0])
@@ -476,7 +461,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
 
     def get_frame(self, i):
         frame = super(ImageSequenceND, self).get_frame(i)
-        return Frame(self.process_func(frame), frame_no=i)
+        return Frame(frame, frame_no=i)
 
     def get_frame_2D(self, **ind):
         if self.is_rgb:
@@ -485,10 +470,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         else:
             row = [ind[name] for name in self.axes_identifiers]
         i = np.argwhere(np.all(self._toc == row, 1))[0, 0]
-        res = self.imread(self._filepaths[i], **self.kwargs)
-        if res.dtype != self._dtype:
-            res = res.astype(self._dtype)
-        return res
+        return self.imread(self._filepaths[i], **self.kwargs)
 
     def __repr__(self):
         try:

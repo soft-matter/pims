@@ -11,7 +11,7 @@ import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 import pims
 
-from pims.tests.test_common import (_image_series, _deprecated_functions,
+from pims.tests.test_common import (_image_series,
                                     clean_dummy_png, save_dummy_png,
                                     _skip_if_no_skimage, _skip_if_no_imread)
 
@@ -21,8 +21,7 @@ path = os.path.join(path, 'data')
 
 
 
-class TestImageSequenceWithPIL(_image_series, _deprecated_functions,
-                               unittest.TestCase):
+class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
     def setUp(self):
         _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -60,8 +59,7 @@ class TestImageSequenceWithPIL(_image_series, _deprecated_functions,
         os.rmdir(self.tempdir)
 
 
-class TestImageSequenceWithMPL(_image_series, _deprecated_functions,
-                               unittest.TestCase):
+class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
     def setUp(self):
         _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -83,8 +81,7 @@ class TestImageSequenceWithMPL(_image_series, _deprecated_functions,
         clean_dummy_png(self.filepath, self.filenames)
 
 
-class TestImageSequenceAcceptsList(_image_series, _deprecated_functions,
-                                   unittest.TestCase):
+class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -108,8 +105,7 @@ class TestImageSequenceAcceptsList(_image_series, _deprecated_functions,
         clean_dummy_png(self.filepath, self.filenames)
 
 
-class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
-                                      unittest.TestCase):
+class TestImageSequenceNaturalSorting(_image_series, unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
@@ -152,7 +148,7 @@ class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
         clean_dummy_png(self.filepath, self.filenames)
 
 
-class ImageSequenceND(_image_series, _deprecated_functions, unittest.TestCase):
+class ImageSequenceND(_image_series, unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence3d')
@@ -214,8 +210,7 @@ class ImageSequenceND(_image_series, _deprecated_functions, unittest.TestCase):
         assert_equal(self.v.sizes['c'], self.expected_C)
 
 
-class ImageSequenceND_RGB(_image_series, _deprecated_functions,
-                          unittest.TestCase):
+class ImageSequenceND_RGB(_image_series, unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence3d')

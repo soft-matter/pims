@@ -225,14 +225,6 @@ class Cine(FramesSequence):
     ----------
     filename : string
         Path to cine file.
-    process_func : function, optional
-        callable with signature `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjunction with process_func.
     """
     # TODO: Unit tests using a small sample cine file.
     @classmethod
@@ -242,8 +234,7 @@ class Cine(FramesSequence):
     propagate_attrs = ['frame_shape', 'pixel_type', 'filename', 'frame_rate',
                        'get_fps', 'compression', 'cfa', 'off_set']
 
-    def __init__(self, filename, process_func=None,
-                 dtype=None, as_grey=False):
+    def __init__(self, filename):
         super(Cine, self).__init__()
         self.f = open(filename, 'rb')
         self._filename = filename
@@ -266,10 +257,6 @@ class Cine(FramesSequence):
 
         self._hash = None
 
-        # validate gray/process func
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
-
         self._im_sz = (self._width, self._height)
 
         # sort out the data type by reading the meta-data
@@ -278,11 +265,6 @@ class Cine(FramesSequence):
         else:
             self._data_type = 'u2'
 
-        # sort out what type to return data as
-        if dtype is None:
-            self._dtype = np.dtype(self._data_type)
-        else:
-            self._dtype = dtype
         self.tagged_blocks = self.read_tagged_blocks()
         self.frame_time_stamps = self.tagged_blocks['image_time_only']
         self.all_exposures = self.tagged_blocks['exposure_only']
@@ -325,7 +307,7 @@ class Cine(FramesSequence):
 
     @property
     def pixel_type(self):
-        return self._dtype
+        return np.dtype(self._data_type)
 
     @property
     def off_set(self):
@@ -361,8 +343,7 @@ class Cine(FramesSequence):
         ts, sec_frac = self.frame_time_stamps[j]
         md['frame_time'] = {'datetime': ts,
                             'second_fraction': sec_frac}
-        return Frame(self.process_func(self._get_frame(j)),
-                     frame_no=j, metadata=md)
+        return Frame(self._get_frame(j), frame_no=j, metadata=md)
 
     def unpack(self, fs, offset=None):
         if offset is not None:
@@ -498,9 +479,7 @@ class Cine(FramesSequence):
 
                 # re-shape to an array
                 # flip the rows
-                # and the cast to proper type
-                frame = frame.reshape(self._height,
-                                      self._width)[::-1].astype(self._dtype)
+                frame = frame.reshape(self._height, self._width)[::-1]
 
                 if actual_bits in (10, 12):
                     frame = frame[::-1, :]
@@ -509,9 +488,8 @@ class Cine(FramesSequence):
             else:
                 if compression == 0:
                     # and re-order so color is RGB (naively saves as BGR)
-                    frame = frame.reshape(self._height,
-                                          self._width,
-                                          3)[::-1, :, ::-1].astype(self._dtype)
+                    frame = frame.reshape(self._height, self._width,
+                                          3)[::-1, :, ::-1]
                 elif compression == 2:
                     raise ValueError("Can not process un-interpolated movies")
                 else:

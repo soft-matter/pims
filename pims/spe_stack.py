@@ -191,7 +191,7 @@ class SpeStack(FramesSequence):
             # Use the file size to determine the number of frames
             fsz = os.path.getsize(filename)
             l = fsz - Spec.data_start
-            l //= self._width * self._height * self._file_dtype.itemsize
+            l //= self._width * self._height * self._dtype.itemsize
             if l != self._len:
                 warnings.warn("Number of frames according to file header "
                               "does not match the size of file " +
