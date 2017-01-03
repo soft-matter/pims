@@ -257,7 +257,6 @@ class TestRecursiveSlicing(unittest.TestCase):
         assert_true(isinstance(slice2, types.GeneratorType))
 
 def _rescale(img):
-    # print(type(img))
     return (img - img.min()) / img.ptp()
 
 def _color_channel(img, channel):
