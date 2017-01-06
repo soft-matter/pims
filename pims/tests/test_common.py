@@ -604,8 +604,7 @@ class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
         shape = (10, 11)
         frames = save_dummy_png(self.filepath, self.filenames, shape)
 
-        self.filename = [os.path.join(self.filepath, fn)
-                         for fn in self.filenames]
+        self.filename = os.path.join(self.filepath, 'T76*.png')
         self.frame0 = frames[0]
         self.frame1 = frames[2]
         self.kwargs = dict(plugin='matplotlib')
@@ -614,14 +613,22 @@ class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
         self.expected_shape = shape
         self.expected_len = len(self.filenames)
 
+    def test_sorting(self):
         sorted_files = ['T76S3F1.png',
                         'T76S3F3.png',
                         'T76S3F4.png',
                         'T76S3F10.png',
                         'T76S3F20.png',
                         'T76S3F50.png']
+        assert sorted_files == [x.split(os.path.sep)[-1]
+                                for x in self.v._filepaths]
 
-        assert sorted_files == [x.split(os.path.sep)[-1] for x in self.v._filepaths]
+        # provide a list: there should be no sorting
+        self.filename = [os.path.join(self.filepath, fn) for fn in
+                         self.filenames]
+        v_unsorted = self.klass(self.filename, **self.kwargs)
+        assert self.filenames == [x.split(os.path.sep)[-1]
+                                  for x in v_unsorted._filepaths]
 
     def tearDown(self):
         clean_dummy_png(self.filepath, self.filenames)
