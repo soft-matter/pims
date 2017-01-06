@@ -90,7 +90,7 @@ class PyAVVideoReader(FramesSequence):
                         if isinstance(s, av.video.VideoStream)][0]
         # PyAV always returns frames in color, and we make that
         # assumption in get_frame() later below, so 3 is hardcoded here:
-        self._im_sz = video_stream.width, video_stream.height, 3
+        self._im_sz = video_stream.height, video_stream.width, 3
 
         del container  # The generator is empty. Reload the file.
         self._load_fresh_file()
