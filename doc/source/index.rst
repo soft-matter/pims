@@ -18,6 +18,7 @@ Contents
    release_notes
    opening_files
    slicing
+   pipelines
    frame
    multidimensional
    custom_readers

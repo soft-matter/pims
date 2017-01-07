@@ -1,6 +1,12 @@
 Release notes
 =============
 
+v0.5
+----
+- API: all readers do not support the keyword arguments ``process_func``,
+  ``dtype`` and ``as_grey`` anymore. Please consult the documentation on
+  Pipelines on how to convert videos. (see :doc:`pipelines`) (PR 250)
+
 v0.4
 ----
 - API: N-dimensional readers now smartly use ``get_frame`` methods; depending on
@@ -27,6 +33,10 @@ v0.4
 - Added a video exporter based on MoviePy (PR 233)
 - Added ``BioformatsReader.metadata.fields`` that lists all metadata fields. (PR 230)
 
+v0.3.4
+------
+- API: Swap elements of ``frame_shape`` in ``SpeStack`` to match frames'
+  ``shape``.
 
 v0.3.3
 ------
