@@ -126,8 +126,8 @@ class ImageSequence(FramesSequence):
         # deal with if input is _not_ a string
         if not isinstance(path_spec, six.string_types):
             # assume it is iterable and off we go!
-            self._filepaths = sorted(list(path_spec), key=natural_keys)
-            self._count = len(path_spec)
+            self._filepaths = list(path_spec)
+            self._count = len(self._filepaths)
             return
 
         if zipfile.is_zipfile(path_spec):
