@@ -121,6 +121,7 @@ class _image_single(object):
     def test_shape(self):
         self.check_skip()
         assert_equal(self.v.frame_shape, self.expected_shape)
+        assert_equal(self.v[0].shape, self.expected_shape)
 
     def test_count(self):
         self.check_skip()
@@ -437,7 +438,7 @@ class TestVideo_PyAV(_image_series, _image_rgb, _deprecated_functions,
         self.klass = pims.PyAVVideoReader
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (640, 424, 3)  # (x, y), wrong convention?
+        self.expected_shape = (424, 640, 3)
         self.expected_len = 480
 
 
