@@ -461,8 +461,7 @@ class TestImageReaderND(_image_single, unittest.TestCase):
         clean_dummy_png(path, ['dummy.png'])
 
 
-class TestVideo_PyAV(_image_series, _image_rgb, _deprecated_functions,
-                     unittest.TestCase):
+class TestVideo_PyAV_timed(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_PyAV()
 
@@ -471,7 +470,24 @@ class TestVideo_PyAV(_image_series, _image_rgb, _deprecated_functions,
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
-        self.klass = pims.PyAVVideoReader
+        self.klass = pims.PyAVReaderTimed
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (424, 640, 3)
+        self.expected_len = 480
+
+
+class TestVideo_PyAV_indexed(_image_series, _image_rgb, _deprecated_functions,
+                             unittest.TestCase):
+    def check_skip(self):
+        _skip_if_no_PyAV()
+
+    def setUp(self):
+        _skip_if_no_PyAV()
+        self.filename = os.path.join(path, 'bulk-water.mov')
+        self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
+        self.klass = pims.PyAVReaderIndexed
         self.kwargs = dict()
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640, 3)

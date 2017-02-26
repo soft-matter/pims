@@ -9,10 +9,11 @@ import numpy as np
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
 
+from warnings import warn
+
 
 try:
     import av
-    from PIL import Image
 except ImportError:
     av = None
 
@@ -21,7 +22,185 @@ def available():
     return av is not None
 
 
-class PyAVVideoReader(FramesSequence):
+def _gen_frames(demuxer, first_pts=0, index_base=1.):
+    for packet in demuxer:
+        for frame in packet.decode():
+            # learn timestamp from the frame timestamp
+            timestamp = frame.pts
+
+            # if not available, take the packet timestamp
+            if timestamp is None:
+                timestamp = packet.pts
+
+            # if not available, raise an exception
+            if timestamp is None:
+                raise IOError("Unable to read video: the frames do not contain"
+                              " timestamps. Please use PyAVReaderIndexed.")
+
+            i = int((timestamp - first_pts) * index_base)
+            yield i, _to_nd_array(frame)
+
+
+def _to_nd_array(frame):
+    plane_rgb = frame.reformat(format="rgb24").planes[0]
+    frame_arr = np.frombuffer(plane_rgb, np.uint8)
+    frame_arr.shape = (frame.height, frame.width, -1)
+    return frame_arr
+
+
+class PyAVReaderTimed(FramesSequence):
+    """Read images from a video file via a direct FFmpeg/AVbin interface.
+
+    The frames are indexed according to their 'timestamp', starting at 0 at the
+    timestamp of the first non-empty frame. Missing frames are filled in with
+    empty frames. The number of frames in the video is estimated from the
+    movie duration and the average frame rate.
+
+    Parameters
+    ----------
+    filename : string
+    cache_size : integer, optional
+        the number of frames that are kept in memory. Default 16.
+
+    Examples
+    --------
+    >>> video = PyAVVideoReader('video.avi')  # or .mov, etc.
+    >>> video[0] # Show the first frame.
+    >>> video[-1] # Show the last frame.
+    >>> video[1][0:10, 0:10] # Show one corner of the second frame.
+
+    >>> for frame in video[:]:
+    ...    # Do something with every frame.
+
+    >>> for frame in video[10:20]:
+    ...    # Do something with frames 10-20.
+
+    >>> for frame in video[[5, 7, 13]]:
+    ...    # Do something with frames 5, 7, and 13.
+
+    >>> frame_count = len(video) # Number of frames in video
+    >>> frame_shape = video.frame_shape # Pixel dimensions of video
+    """
+    class_priority = 8
+    @classmethod
+    def class_exts(cls):
+        return {'mov', 'avi', 'mp4', 'mpg', 'mkv', 'vob', 'webm', 'm4v',
+                'flv', 'h264'} | super(PyAVReaderTimed, cls).class_exts()
+
+    def __init__(self, filename, cache_size=16):
+        self.filename = str(filename)
+        self._container = av.open(self.filename)
+
+        for s in self._container.streams:
+            if isinstance(s, av.video.VideoStream):
+                self._stream = s
+                break
+        else:
+            raise IOError("No video stream found")
+
+        self._cache = [(-1, None)] * cache_size
+        self._fast_forward_thresh = cache_size * 2
+
+        demuxer = self._container.demux(streams=self._stream)
+
+        # obtain first frame to get first time point
+        self._first_pts, frame = next(_gen_frames(demuxer))
+        self._cache[0] = (0, frame)
+        self._frame_shape = frame.shape
+        self._last_frame = 0
+
+        index_base = float(self._stream.time_base * self.frame_rate)
+        self._frame_generator = _gen_frames(demuxer, self._first_pts,
+                                            index_base)
+
+    def __len__(self):
+        return int(self._stream.duration * self._stream.time_base *
+                   self._stream.average_rate)
+
+    @property
+    def duration(self):
+        """The video duration in seconds."""
+        return float(self._stream.duration * self._stream.time_base)
+
+    @property
+    def frame_shape(self):
+        return self._frame_shape
+
+    @property
+    def frame_rate(self):
+        return float(self._stream.average_rate)
+
+    def get_frame(self, i):
+        cache_i = i % len(self._cache)
+        did_seek = False
+        if self._cache[cache_i][0] > i or \
+           self._last_frame < i - self._fast_forward_thresh:
+            self.seek(i)
+            did_seek = True
+
+        if self._cache[cache_i][0] == i:
+            return Frame(self._cache[cache_i][1], frame_no=i)
+
+        for index, frame in self._frame_generator:
+            self._cache[index % len(self._cache)] = (index, frame)
+            self._last_frame = index
+
+            if index == i:
+                break
+
+            if index > i:
+                if did_seek:
+                    break
+                else:
+                    self.seek(i)
+                    did_seek = True
+        else:
+            # restart the frame generator
+            demuxer = self._container.demux(streams=self._stream)
+            index_base = float(self._stream.time_base * self.frame_rate)
+            self._frame_generator = _gen_frames(demuxer, self._first_pts,
+                                                index_base)
+
+        if self._cache[cache_i][0] != i:
+            # the requested frame actually does not exist. Can occur
+            # due to inaccuracy of __len__. Yield an empty frame.
+            warn("Frame {} could not be found. Returning an"
+                 "empty frame.".format(i))
+            frame = np.zeros(self.frame_shape, dtype=self.pixel_type)
+            self._cache[cache_i] = (i, frame)
+
+        return Frame(self._cache[cache_i][1], frame_no=i)
+
+    def seek(self, i):
+        # flush the cache
+        self._cache = [[-1, None]] * len(self._cache)
+        # the ffmpeg decode cache is (apparently) flushed automatically
+
+        timestamp = int(i / self.frame_rate * av.time_base)
+        self._container.seek(timestamp)
+
+    @property
+    def pixel_type(self):
+        return np.uint8
+
+    def __repr__(self):
+        # May be overwritten by subclasses
+        return """<Frames>
+Format: {format}
+Source: {filename}
+Duration: {duration:.3f} seconds
+Frame rate: {frame_rate:.3f} fps
+Length: {count} frames
+Frame Shape: {frame_shape!r}
+""".format(frame_shape=self.frame_shape,
+           format=self._stream.long_name,
+           duration=self.duration,
+           frame_rate=self.frame_rate,
+           count=len(self),
+           filename=self.filename)
+
+
+class PyAVReaderIndexed(FramesSequence):
     """Read images from the frames of a standard video file into an
     iterable object that returns images as numpy arrays.
 
@@ -57,10 +236,11 @@ class PyAVVideoReader(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
     class_priority = 8
+
     @classmethod
     def class_exts(cls):
         return {'mov', 'avi',
-                'mp4'} | super(PyAVVideoReader, cls).class_exts()
+                'mp4'} | super(PyAVReaderIndexed, cls).class_exts()
 
     def __init__(self, filename, process_func=None, dtype=None,
                  as_grey=False):
@@ -80,8 +260,8 @@ class PyAVVideoReader(FramesSequence):
     def _initialize(self):
         "Scan through and tabulate contents to enable random access."
         container = av.open(self.filename)
- 
-        # Build a toc 
+
+        # Build a toc
         self._toc = np.cumsum([len(packet.decode())
                                for packet in container.demux()])
         self._len = self._toc[-1]
@@ -120,7 +300,7 @@ class PyAVVideoReader(FramesSequence):
         frame = self._current_packet[loc]  # av.VideoFrame
         if frame.index != j:
             raise AssertionError("Seeking failed to obtain the correct frame.")
-        result = np.asarray(frame.to_rgb().to_image())
+        result = _to_nd_array(frame)
         return Frame(self.process_func(result).astype(self._dtype), frame_no=j)
 
     def _seek_packet(self, packet_no):
@@ -128,7 +308,7 @@ class PyAVVideoReader(FramesSequence):
         we want. Store that packet in self._current_packet."""
         if packet_no == self._packet_cursor:
             # We have the right packet and it is already decoded.
-            return 
+            return
         if packet_no < self._packet_cursor:
             # "Rewind." This is not really possible, so we load a fresh
             # instance of the file object and then fast-forward.

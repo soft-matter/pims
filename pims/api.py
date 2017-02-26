@@ -34,13 +34,18 @@ if export is None:
 try:
     import pims.pyav_reader
     if pims.pyav_reader.available():
-        PyAVVideoReader = pims.pyav_reader.PyAVVideoReader
-        Video = PyAVVideoReader
+        PyAVReaderTimed = pims.pyav_reader.PyAVReaderTimed
+        PyAVReaderIndexed = pims.pyav_reader.PyAVReaderIndexed
+        Video = PyAVReaderTimed
     else:
         raise ImportError()
 except (ImportError, IOError):
-    PyAVVideoReader = not_available("PyAV and/or PIL/Pillow")
+    PyAVVideoReader = not_available("PyAV")
+    PyAVReaderTimed = not_available("PyAV")
+    PyAVReaderIndexed = not_available("PyAV")
     Video = None
+
+PyAVVideoReader = PyAVReaderTimed
 
 
 try:
