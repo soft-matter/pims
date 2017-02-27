@@ -378,7 +378,7 @@ class PyAVReaderIndexed(FramesSequence):
 
     @property
     def pixel_type(self):
-        raise NotImplemented()
+        raise np.uint8
 
     def __repr__(self):
         # May be overwritten by subclasses
