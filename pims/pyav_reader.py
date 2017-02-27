@@ -225,7 +225,11 @@ class PyAVReaderTimed(FramesSequence):
         try:
             frame = next(self._frame_generator)
         except StopIteration:
-            return None
+            self._reset_demuxer()
+            try:
+                frame = next(self._frame_generator)
+            except StopIteration:
+                return None
 
         if i == 0:  # security measure to avoid infinite recursion
             return frame
