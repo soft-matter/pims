@@ -31,9 +31,10 @@ def _to_nd_array(frame):
 
 
 class WrapPyAvFrame(object):
-    def __init__(self, frame, frame_no):
+    def __init__(self, frame, frame_no, metadata=None):
         self.frame_no = frame_no
         self.arr = None
+        self.metadata = metadata
 
         # makes a copy of the frame so that ffmpeg does not reuse the buffer
         # by converting already to rgb24. rgb24 movies actually are converted
@@ -42,14 +43,14 @@ class WrapPyAvFrame(object):
             frame = frame.reformat(format="bgr24")
         self.frame = frame.reformat(format="rgb24")
 
-    def to_frame(self, metadata=None):
+    def to_frame(self):
         if self.arr is None:
             self.arr = Frame(_to_nd_array(self.frame), frame_no=self.frame_no,
-                             metadata=metadata)
+                             metadata=self.metadata)
         return self.arr
 
 
-def _gen_frames(demuxer, first_pts=0, index_base=1.):
+def _gen_frames(demuxer, first_pts=0, time_base=1., frame_rate=1.):
     for packet in demuxer:
         for frame in packet.decode():
             # learn timestamp
@@ -60,9 +61,10 @@ def _gen_frames(demuxer, first_pts=0, index_base=1.):
                 raise IOError(
                     "Unable to read video: frames contain no timestamps. "
                     "Please use PyAVReaderIndexed.")
-
-            i = int((timestamp - first_pts) * index_base)
-            yield WrapPyAvFrame(frame, frame_no=i)
+            t = (timestamp - first_pts) * time_base
+            i = int(t * frame_rate)
+            yield WrapPyAvFrame(frame, frame_no=i,
+                                metadata=dict(timestamp=timestamp, t=float(t)))
 
 
 class PyAVReaderTimed(FramesSequence):
@@ -142,9 +144,9 @@ class PyAVReaderTimed(FramesSequence):
 
     def _reset_demuxer(self):
         demuxer = self._container.demux(streams=self._stream)
-        index_base = float(self._stream.time_base * self.frame_rate)
         self._frame_generator = _gen_frames(demuxer, self._first_pts,
-                                            index_base)
+                                            self._stream.time_base,
+                                            self._stream.average_rate)
 
     @property
     def duration(self):
