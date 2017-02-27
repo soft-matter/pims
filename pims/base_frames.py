@@ -414,6 +414,24 @@ def _make_get_frame(result_axes, get_frame_dict, sizes, dtype):
     return _transpose(get_frame, after_bundle, result_axes)
 
 
+class DefaultCoordsDict(dict):
+    """Dictionary that checks whether all keys are in `axes`"""
+    def __init__(self, default_coords=None):
+        """There is no check done here"""
+        super(DefaultCoordsDict, self).__init__()
+        self.axes = []
+
+    def __setitem__(self, attr, value):
+        if attr not in self.axes:
+            raise ValueError("axes %r does not exist" % attr)
+        super(DefaultCoordsDict, self).__setitem__(attr, value)
+
+    def update(self, *args, **kwargs):
+        # So that update does the check too
+        for k, v in six.iteritems(dict(*args, **kwargs)):
+            self[k] = v
+
+
 class FramesSequenceND(FramesSequence):
     """ A base class defining a FramesSequence with an arbitrary number of
     axes. In the context of this reader base class, dimensions like 'x', 'y',
@@ -494,7 +512,7 @@ class FramesSequenceND(FramesSequence):
 
     def _clear_axes(self):
         self._sizes = {}
-        self._default_coords = {}
+        self._default_coords = DefaultCoordsDict()
         self._iter_axes = []
         self._bundle_axes = ['y', 'x']
         self._get_frame_wrapped = None
@@ -509,6 +527,7 @@ class FramesSequenceND(FramesSequence):
         if name in self._sizes:
             raise ValueError("axis '{}' already exists".format(name))
         self._sizes[name] = int(size)
+        self.default_coords.axes = self.axes
         self.default_coords[name] = int(default)
 
     def __len__(self):
@@ -540,7 +559,7 @@ class FramesSequenceND(FramesSequence):
         The ndarray that is returned by get_frame has the same axis order
         as the order of `bundle_axes`.
         """
-        return self._bundle_axes
+        return self._bundle_axes[:]  # return a copy
 
     @bundle_axes.setter
     def bundle_axes(self, value):
@@ -575,7 +594,7 @@ class FramesSequenceND(FramesSequence):
     def iter_axes(self):
         """ This determines which axes will be iterated over by the
         FramesSequence. The last element will iterate fastest. """
-        return self._iter_axes
+        return self._iter_axes[:]  # return a copy
 
     @iter_axes.setter
     def iter_axes(self, value):
@@ -594,13 +613,10 @@ class FramesSequenceND(FramesSequence):
     def default_coords(self):
         """ When a axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used. """
-        return self._default_coords
+        return self._default_coords  # this is a custom dict (DefaultCoordsDict)
 
     @default_coords.setter
     def default_coords(self, value):
-        invalid = [k for k in value if k not in self._sizes]
-        if invalid:
-            raise ValueError("axes %r do not exist" % invalid)
         self._default_coords.update(**value)
 
     def get_frame(self, i):

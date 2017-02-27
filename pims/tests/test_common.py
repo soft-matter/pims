@@ -4,14 +4,11 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import os
-import tempfile
-import zipfile
 import sys
 import random
 import types
 import unittest
 import pickle
-from io import BytesIO
 import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
@@ -238,7 +235,7 @@ class TestRecursiveSlicing(unittest.TestCase):
         compare_slice_to_list(slice2b, list('jihgfed'))
         slice2c = slice1a[::-2]
         compare_slice_to_list(slice2c, list('jhfd'))
-        print('slice2d')
+        # print('slice2d')
         slice2d = slice1a[:0:-1]
         compare_slice_to_list(slice2d, list('jihgfe'))
         slice2e = slice1a[-1:1:-1]
@@ -279,13 +276,13 @@ class TestRecursiveSlicing(unittest.TestCase):
         compare_slice_to_list(slice2, list('cegi'))
         slice3 = slice2[:]
         compare_slice_to_list(slice3, list('cegi'))
-        print('define slice4')
+        # print('define slice4')
         slice4 = slice3[:-1]
-        print('compare slice4')
+        # print('compare slice4')
         compare_slice_to_list(slice4, list('ceg'))
-        print('define slice4a')
+        # print('define slice4a')
         slice4a = slice3[::-1]
-        print('compare slice4a')
+        # print('compare slice4a')
         compare_slice_to_list(slice4a, list('igec'))
 
     def test_slice_with_generator(self):
@@ -296,7 +293,7 @@ class TestRecursiveSlicing(unittest.TestCase):
         assert_true(isinstance(slice2, types.GeneratorType))
 
 def _rescale(img):
-    print(type(img))
+    # print(type(img))
     return (img - img.min()) / img.ptp()
 
 def _color_channel(img, channel):
@@ -425,6 +422,45 @@ class _image_rgb(_image_single):
         self.assertEqual(ndim, 2)
 
 
+class TestImageReaderTIFF(_image_single, unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_imread()
+        self.filename = os.path.join(path, 'stuck.tif')
+        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
+        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
+        self.klass = pims.ImageReader
+        self.kwargs = dict()
+        self.v = self.klass(self.filename, **self.kwargs)
+        self.expected_shape = (5, 512, 512)
+        self.expected_len = 1
+
+
+class TestImageReaderPNG(_image_single, unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_imread()
+        self.klass = pims.ImageReader
+        self.kwargs = dict()
+        self.expected_shape = (10, 11)
+        self.expected_len = 1
+
+        save_dummy_png(path, ['dummy.png'], self.expected_shape)
+        self.v = self.klass(os.path.join(path, 'dummy.png'), **self.kwargs)
+        clean_dummy_png(path, ['dummy.png'])
+
+
+class TestImageReaderND(_image_single, unittest.TestCase):
+    def setUp(self):
+        _skip_if_no_imread()
+        self.klass = pims.ImageReaderND
+        self.kwargs = dict()
+        self.expected_shape = (10, 11, 3)
+        self.expected_len = 1
+
+        save_dummy_png(path, ['dummy.png'], self.expected_shape)
+        self.v = self.klass(os.path.join(path, 'dummy.png'), **self.kwargs)
+        clean_dummy_png(path, ['dummy.png'])
+
+
 class TestVideo_PyAV(_image_series, _image_rgb, _deprecated_functions,
                      unittest.TestCase):
     def check_skip(self):
@@ -509,131 +545,6 @@ class TestTiffStack_libtiff(_tiff_image_series, _deprecated_functions,
         self.expected_len = 5
 
 
-class TestImageSequenceWithPIL(_image_series, _deprecated_functions,
-                               unittest.TestCase):
-    def setUp(self):
-        _skip_if_no_skimage()
-        self.filepath = os.path.join(path, 'image_sequence')
-        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
-                          'T76S3F00003.png', 'T76S3F00004.png',
-                          'T76S3F00005.png']
-        shape = (10, 11)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-
-        self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = frames[0]
-        self.frame1 = frames[1]
-        self.kwargs = dict(plugin='pil')
-        self.klass = pims.ImageSequence
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = shape
-        self.expected_len = 5
-        self.tempdir = tempfile.mkdtemp()
-        self.tempfile = os.path.join(self.tempdir, 'test.zip')
-
-        with zipfile.ZipFile(self.tempfile, 'w') as archive:
-            for fn in self.filenames:
-                archive.write(os.path.join(self.filepath, fn))
-
-    def test_bad_path_raises(self):
-        raises = lambda: pims.ImageSequence('this/path/does/not/exist/*.jpg')
-        self.assertRaises(IOError, raises)
-
-    def test_zipfile(self):
-        pims.ImageSequence(self.tempfile)[0]
-
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
-        os.remove(self.tempfile)
-        os.rmdir(self.tempdir)
-
-
-class TestImageSequenceWithMPL(_image_series, _deprecated_functions,
-                               unittest.TestCase):
-    def setUp(self):
-        _skip_if_no_skimage()
-        self.filepath = os.path.join(path, 'image_sequence')
-        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
-                          'T76S3F00003.png', 'T76S3F00004.png',
-                          'T76S3F00005.png']
-        shape = (10, 11)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-        self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = frames[0]
-        self.frame1 = frames[1]
-        self.kwargs = dict(plugin='matplotlib')
-        self.klass = pims.ImageSequence
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = shape
-        self.expected_len = 5
-
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
-
-class TestImageSequenceAcceptsList(_image_series, _deprecated_functions,
-                                   unittest.TestCase):
-    def setUp(self):
-        _skip_if_no_imread()
-        self.filepath = os.path.join(path, 'image_sequence')
-        self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
-                          'T76S3F00003.png', 'T76S3F00004.png',
-                          'T76S3F00005.png']
-        shape = (10, 11)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-
-        self.filename = [os.path.join(self.filepath, fn)
-                         for fn in self.filenames]
-        self.frame0 = frames[0]
-        self.frame1 = frames[1]
-        self.kwargs = dict(plugin='matplotlib')
-        self.klass = pims.ImageSequence
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = shape
-        self.expected_len = len(self.filenames)
-
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
-
-class TestImageSequenceNaturalSorting(_image_series, _deprecated_functions,
-                                      unittest.TestCase):
-    def setUp(self):
-        _skip_if_no_imread()
-        self.filepath = os.path.join(path, 'image_sequence')
-        self.filenames = ['T76S3F1.png', 'T76S3F20.png',
-                     'T76S3F3.png', 'T76S3F4.png',
-                     'T76S3F50.png', 'T76S3F10.png']
-        shape = (10, 11)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-
-        self.filename = os.path.join(self.filepath, 'T76*.png')
-        self.frame0 = frames[0]
-        self.frame1 = frames[2]
-        self.kwargs = dict(plugin='matplotlib')
-        self.klass = pims.ImageSequence
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = shape
-        self.expected_len = len(self.filenames)
-
-    def test_sorting(self):
-        sorted_files = ['T76S3F1.png',
-                        'T76S3F3.png',
-                        'T76S3F4.png',
-                        'T76S3F10.png',
-                        'T76S3F20.png',
-                        'T76S3F50.png']
-        assert sorted_files == [x.split(os.path.sep)[-1]
-                                for x in self.v._filepaths]
-
-        # provide a list: there should be no sorting
-        self.filename = [os.path.join(self.filepath, fn) for fn in
-                         self.filenames]
-        v_unsorted = self.klass(self.filename, **self.kwargs)
-        assert self.filenames == [x.split(os.path.sep)[-1]
-                                  for x in v_unsorted._filepaths]
-
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
-
 class TestTiffStack_pil(_tiff_image_series, _deprecated_functions,
                         unittest.TestCase):
     def check_skip(self):
@@ -701,6 +612,13 @@ class TestOpenFiles(unittest.TestCase):
     def setUp(self):
         _skip_if_no_PIL()
 
+    def test_open_png(self):
+        self.filenames = ['dummy_png.png']
+        shape = (10, 11)
+        save_dummy_png(path, self.filenames, shape)
+        pims.open(os.path.join(path, 'dummy_png.png'))
+        clean_dummy_png(path, self.filenames)
+
     def test_open_pngs(self):
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
@@ -718,106 +636,6 @@ class TestOpenFiles(unittest.TestCase):
     def test_open_tiff(self):
         _skip_if_no_tifffile()
         pims.open(os.path.join(path, 'stuck.tif'))
-
-
-class ImageSequenceND(_image_series, _deprecated_functions, unittest.TestCase):
-    def setUp(self):
-        _skip_if_no_imread()
-        self.filepath = os.path.join(path, 'image_sequence3d')
-        self.filenames = ['file_t001_z001_c1.png',
-                          'file_t001_z001_c2.png',
-                          'file_t001_z002_c1.png',
-                          'file_t001_z002_c2.png',
-                          'file_t002_z001_c1.png',
-                          'file_t002_z001_c2.png',
-                          'file_t002_z002_c1.png',
-                          'file_t002_z002_c2.png',
-                          'file_t003_z001_c1.png',
-                          'file_t003_z001_c2.png',
-                          'file_t003_z002_c1.png',
-                          'file_t003_z002_c2.png']
-        shape = (10, 11)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-
-        self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = np.array([frames[0], frames[2]])
-        self.frame1 = np.array([frames[4], frames[6]])
-        self.klass = pims.ImageSequenceND
-        self.kwargs = dict(axes_identifiers='tzc')
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.v.default_coords['c'] = 0
-        self.expected_len = 3
-        self.expected_Z = 2
-        self.expected_C = 2
-        self.expected_shape = (self.expected_Z,) + shape
-
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
-
-    def test_filename_tzc(self):
-        tzc = pims.image_sequence.filename_to_indices('file_t01_z005_c4.png')
-        self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_indices('t01file_t01_z005_c4.png')
-        self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_indices('file_z005_c4_t01.png')
-        self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_indices(u'file\u03BC_z05_c4_t01.png')
-        self.assertEqual(tzc, [1, 5, 4])
-        tzc = pims.image_sequence.filename_to_indices('file_t9415_z005.png')
-        self.assertEqual(tzc, [9415, 5, 0])
-        tzc = pims.image_sequence.filename_to_indices('file_t47_c34.png')
-        self.assertEqual(tzc, [47, 0, 34])
-        tzc = pims.image_sequence.filename_to_indices('file_z4_c2.png')
-        self.assertEqual(tzc, [0, 4, 2])
-        tzc = pims.image_sequence.filename_to_indices('file_p4_c2_q5_r1.png',
-                                                      ['p', 'q', 'r'])
-        self.assertEqual(tzc, [4, 5, 1])
-
-    def test_sizeZ(self):
-        self.check_skip()
-        assert_equal(self.v.sizes['z'], self.expected_Z)
-
-    def test_sizeC(self):
-        self.check_skip()
-        assert_equal(self.v.sizes['c'], self.expected_C)
-
-
-class ImageSequenceND_RGB(_image_series, _deprecated_functions,
-                          unittest.TestCase):
-    def setUp(self):
-        _skip_if_no_imread()
-        self.filepath = os.path.join(path, 'image_sequence3d')
-        self.filenames = ['file_t001_z001_c1.png',
-                          'file_t001_z002_c1.png',
-                          'file_t002_z001_c1.png',
-                          'file_t002_z002_c1.png',
-                          'file_t003_z001_c1.png',
-                          'file_t003_z002_c1.png']
-        shape = (10, 11, 3)
-        frames = save_dummy_png(self.filepath, self.filenames, shape)
-
-        self.filename = os.path.join(self.filepath, '*.png')
-        self.frame0 = np.array([frames[0][:, :, 0], frames[1][:, :, 0]])
-        self.frame1 = np.array([frames[2][:, :, 0], frames[3][:, :, 0]])
-        self.klass = pims.ImageSequenceND
-        self.kwargs = dict(axes_identifiers='tz')
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.v.default_coords['c'] = 0
-        self.expected_len = 3
-        self.expected_Z = 2
-        self.expected_C = 3
-        self.expected_shape = (2, 10, 11)
-
-    def test_sizeZ(self):
-        self.check_skip()
-        assert_equal(self.v.sizes['z'], self.expected_Z)
-
-    def test_sizeC(self):
-        self.check_skip()
-        assert_equal(self.v.sizes['c'], self.expected_C)
-
-    def tearDown(self):
-        clean_dummy_png(self.filepath, self.filenames)
 
 
 if __name__ == '__main__':

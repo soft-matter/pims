@@ -14,7 +14,8 @@ import os
 from warnings import warn
 
 # has to be here for API stuff
-from pims.image_sequence import ImageSequence, ImageSequenceND  # noqa
+from pims.image_sequence import ImageSequence, ImageSequenceND, ReaderSequence  # noqa
+from pims.image_reader import ImageReader, ImageReaderND  # noqa
 from .cine import Cine  # noqa
 from .norpix_reader import NorpixSeq  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
