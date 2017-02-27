@@ -50,7 +50,7 @@ class WrapPyAvFrame(object):
         return self.arr
 
 
-def _gen_frames(demuxer, first_pts=0, time_base=1., frame_rate=1.):
+def _gen_frames(demuxer, time_base, frame_rate=1., first_pts=0):
     for packet in demuxer:
         for frame in packet.decode():
             # learn timestamp
@@ -130,8 +130,10 @@ class PyAVReaderTimed(FramesSequence):
 
         # obtain first frame to get first time point
         # also tests for the presence of timestamps
-        frame = next(_gen_frames(demuxer))
-        self._first_pts = frame.frame_no
+        frame = next(_gen_frames(demuxer, self._stream.time_base))
+        self._first_pts = frame.metadata['timestamp']
+
+        frame = WrapPyAvFrame(frame.frame, 0, frame.metadata)
         self._cache[0] = frame
         self._frame_shape = (self._stream.height, self._stream.width, 3)
         self._last_frame = 0
@@ -144,9 +146,9 @@ class PyAVReaderTimed(FramesSequence):
 
     def _reset_demuxer(self):
         demuxer = self._container.demux(streams=self._stream)
-        self._frame_generator = _gen_frames(demuxer, self._first_pts,
-                                            self._stream.time_base,
-                                            self._stream.average_rate)
+        self._frame_generator = _gen_frames(demuxer, self._stream.time_base,
+                                            self._stream.average_rate,
+                                            self._first_pts)
 
     @property
     def duration(self):
