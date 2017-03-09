@@ -209,8 +209,6 @@ class PyAVReaderTimed(FramesSequence):
         if result is None:
             # the requested frame actually does not exist. Can occur due to
             # a bad file, or due to inaccuracy of reader length __len__.
-            warn("Frame {} could not be found. Returning the last non-empty "
-                 "frame.".format(i))
             # find it in the cache
             for other_i in range(i - 1, i - len(self._cache), -1):
                 result = self._cache[other_i % len(self._cache)]
