@@ -74,9 +74,9 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
     quality: number or string, optional
         For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
         For 'wmv2' codec: sets fraction of lossless bitrate, 0.01 = default
-    ffmpeg_params : dictionary, optional
-        List of parameters that will be passed to ffmpeg. Avoid using
-        ['-qscale:v', '-crf', '-pixel_format'].
+    options : dictionary, optional
+        Dictionary that will be passed to ffmpeg. Avoid using
+        {'qscale:v', 'crf', 'pixel_format'}.
     rate_range : tuple of two numbers
         As extreme frame rates have playback issues on many players, by default
         the frame rate is limited between 16 and 32. When the desired frame rate
@@ -230,8 +230,10 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
         By default, set the  height of the images. If width is specified
         and height is not, the height is autoscaled to maintain the aspect
         ratio.
-    codec : string, optional
-        a valid video encoding, 'libx264' by default
+    codec : string
+        a valid video encoding, 'mpeg4' by default. Must be supported by the
+        container format. Examples are {'mpeg4', 'wmv2', 'libx264', 'rawvideo'}
+        Check https://www.ffmpeg.org/ffmpeg-codecs.html#Video-Encoders.
     pixel_format: string, optional
         Pixel format, 'yuv420p' by default.
     quality: number or string, optional
@@ -243,7 +245,7 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     verbose : boolean, optional
         Determines whether MoviePy will print progress. True by default.
     options : dictionary, optional
-        List of parameters that will be passed to ffmpeg. Avoid using
+        Dictionary of parameters that will be passed to ffmpeg. Avoid using
         {'qscale:v', 'crf', 'pixel_format'}.
     rate_range : tuple of two numbers
         As extreme frame rates have playback issues on many players, by default
