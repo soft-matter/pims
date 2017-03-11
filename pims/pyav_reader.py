@@ -83,6 +83,8 @@ class PyAVReaderTimed(FramesSequence):
     fast_forward_thresh : integer, optional
         the reader will proceed through the frames if forwarding below this
         number. If forwarding above this number, it will use seek(). Default 32.
+    stream_index : integer, optional
+        the index of the video stream inside the file. rarely other than 0.
 
     Examples
     --------
@@ -108,20 +110,24 @@ class PyAVReaderTimed(FramesSequence):
     def class_exts(cls):
         return {'mov', 'avi', 'mp4'} | super(PyAVReaderTimed, cls).class_exts()
 
-    def __init__(self, filename, cache_size=16, fast_forward_thresh=32):
+    def __init__(self, filename, cache_size=16, fast_forward_thresh=32,
+                 stream_index=0):
         self.filename = str(filename)
         self._container = av.open(self.filename)
 
-        for s in self._container.streams:
-            if not isinstance(s, av.video.VideoStream):
-                continue
-            if s.average_rate is None or s.duration is None:
-                continue
-            if s.average_rate > 0. and s.duration > 0.:
-                self._stream = s
-                break
-        else:
+        if len(self._container.streams.video) == 0:
             raise IOError("No valid video stream found in {}".format(filename))
+
+        self._stream = self._container.streams.video[stream_index]
+
+        try:
+            self._duration = self._stream.duration * self._stream.time_base
+        except TypeError:
+            self._duration = self._container.duration / av.time_base
+
+        self._frame_rate = self._stream.average_rate
+        if self.duration <= 0 or len(self) <= 0:
+            raise IOError("Video stream {} in {} has zero length.".format(stream_index, filename))
 
         self._cache = [None] * cache_size
         self._fast_forward_thresh = fast_forward_thresh
@@ -141,19 +147,17 @@ class PyAVReaderTimed(FramesSequence):
         self._reset_demuxer()
 
     def __len__(self):
-        return int(self._stream.duration * self._stream.time_base *
-                   self._stream.average_rate)
+        return int(self._duration * self._frame_rate)
 
     def _reset_demuxer(self):
         demuxer = self._container.demux(streams=self._stream)
         self._frame_generator = _gen_frames(demuxer, self._stream.time_base,
-                                            self._stream.average_rate,
-                                            self._first_pts)
+                                            self._frame_rate, self._first_pts)
 
     @property
     def duration(self):
         """The video duration in seconds."""
-        return float(self._stream.duration * self._stream.time_base)
+        return float(self._duration)
 
     @property
     def frame_shape(self):
@@ -161,7 +165,7 @@ class PyAVReaderTimed(FramesSequence):
 
     @property
     def frame_rate(self):
-        return float(self._stream.average_rate)
+        return float(self._frame_rate)
 
     def get_frame(self, i):
         cached_frame = self._cache[i % len(self._cache)]
@@ -205,12 +209,18 @@ class PyAVReaderTimed(FramesSequence):
         if result is None:
             # the requested frame actually does not exist. Can occur due to
             # a bad file, or due to inaccuracy of reader length __len__.
-            warn("Frame {} could not be found. Returning an "
-                 "empty frame.".format(i))
-            return Frame(np.zeros(self.frame_shape, dtype=self.pixel_type),
-                         frame_no=i)
-        else:
-            return result.to_frame()
+            # find it in the cache
+            for other_i in range(i - 1, i - len(self._cache), -1):
+                result = self._cache[other_i % len(self._cache)]
+                if result is None:
+                    continue
+                if result.frame_no < i:
+                    break
+            else:  # cache is empty: return an empty frame
+                return Frame(np.zeros(self.frame_shape, dtype=self.pixel_type),
+                             frame_no=i)
+
+        return result.to_frame()
 
     def seek(self, i):
         """Seek to a frame before i and return the first frame."""
@@ -218,8 +228,8 @@ class PyAVReaderTimed(FramesSequence):
         self._cache = [None] * len(self._cache)
         # the ffmpeg decode cache is flushed automatically
 
-        timestamp = int(i / self.frame_rate * av.time_base)
-        self._container.seek(timestamp)
+        timestamp = int(i / (self._frame_rate * self._stream.time_base))
+        self._stream.seek(timestamp + self._first_pts)
 
         # check the first frame
         try:
