@@ -91,25 +91,30 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
     export_rate = _normalize_framerate(rate, *rate_range)
     sequence = CachedFrameGenerator(sequence, rate, autoscale)
 
+
+    # pyav is picky with unicode strings
+    codec = str(codec)
+    if format is not None:
+        format = str(format)
     if options is not None:
         for key in options:
-            options[key] = str(options[key])
+            options[str(key)] = str(options[key])
     else:
         options = dict()
 
-    if codec == 'wmv2' and bitrate is None and quality is None:
+    if codec == str('wmv2') and bitrate is None and quality is None:
         quality = 0.01
 
     if quality is not None:
-        if codec == 'libx264':
-            options['crf'] = str(quality)
-        elif codec == 'wmv2':
+        if codec == str('libx264'):
+            options[str('crf')] = str(quality)
+        elif codec == str('wmv2'):
             if bitrate is not None:
                 warnings.warn("(wmv) quality is ignored when bitrate is set.")
 
-    output = av.open(filename, 'w', format=format, options=options)
+    output = av.open(str(filename), str('w'), format=format, options=options)
     stream = output.add_stream(codec, rate=export_rate)
-    stream.pix_fmt = pixel_format
+    stream.pix_fmt = str(pixel_format)
 
     for frame_no in itertools.count():
         try:
@@ -128,13 +133,13 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
 
             if bitrate is not None:
                 stream.bit_rate = int(bitrate)
-            elif quality is not None and codec == 'wmv2':
+            elif quality is not None and codec == str('wmv2'):
                 bitrate = quality * _estimate_bitrate([stream.height,
                                                        stream.width],
                                                       export_rate)
                 stream.bit_rate = int(bitrate)
 
-        frame = av.VideoFrame.from_ndarray(img, format='rgb24')
+        frame = av.VideoFrame.from_ndarray(img, format=str('rgb24'))
         packet = stream.encode(frame)
         if packet is not None:
             output.mux(packet)
