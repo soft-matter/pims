@@ -112,7 +112,7 @@ class ExportCommon(object):
         self.sequence = [self.frame0, self.frame1] * 10
         self.expected_len = 20
         self.expected_shape = self.frame0.shape
-        self.tempfile = 'tempvideo.avi'
+        self.tempfile = 'tempvideo.avi'  # avi containers support most codecs
 
     def tearDown(self):
         if os.path.isfile(self.tempfile):
@@ -139,6 +139,14 @@ class ExportCommon(object):
         compressed_size = int(os.path.getsize(self.tempfile))
 
         assert_less(compressed_size, lossless_size)
+
+    def test_codecs(self):
+        for codec in ['mpeg2video', 'mpeg4', 'wmv2', 'libx264', 'rawvideo']:
+            self.export_func(self.sequence, self.tempfile, codec=codec)
+            reader = pims.open(self.tempfile)
+
+            assert_equal(reader.frame_shape, self.expected_shape)
+            assert_equal(len(reader), self.expected_len)
 
 
 class TestExportMoviePy(unittest.TestCase, ExportCommon):
