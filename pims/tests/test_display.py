@@ -7,6 +7,7 @@ import os
 import functools
 import numpy as np
 import pims
+from numpy.testing import assert_array_equal
 from pims import plot_to_frame, plots_to_frame
 from pims.display import export_moviepy, export_pyav
 from nose.tools import assert_true, assert_equal, assert_less
@@ -109,9 +110,12 @@ class ExportCommon(object):
     def setUp(self):
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
-        self.sequence = [self.frame0, self.frame1] * 10
+        self.expected_shape = (128, 128, 3)
         self.expected_len = 20
-        self.expected_shape = self.frame0.shape
+
+        self.sequence = np.random.randint(0, 255, size=(self.expected_len,) +
+                                                       self.expected_shape,
+                                          dtype=np.uint8)
         self.tempfile = 'tempvideo.avi'  # avi containers support most codecs
 
     def tearDown(self):
@@ -129,6 +133,17 @@ class ExportCommon(object):
 
         assert_less(compressed_size, lossless_size)
 
+    def test_quality_mpeg4(self):
+        self.export_func(self.sequence, self.tempfile, codec='mpeg4',
+                         quality=1)
+        lossless_size = int(os.path.getsize(self.tempfile))
+
+        self.export_func(self.sequence, self.tempfile, codec='mpeg4',
+                         quality=5)
+        compressed_size = int(os.path.getsize(self.tempfile))
+
+        assert_less(compressed_size, lossless_size)
+
     def test_quality_h264(self):
         self.export_func(self.sequence, self.tempfile, codec='libx264',
                          quality=0)
@@ -140,13 +155,15 @@ class ExportCommon(object):
 
         assert_less(compressed_size, lossless_size)
 
-    def test_codecs(self):
-        for codec in ['mpeg2video', 'mpeg4', 'wmv2', 'libx264', 'rawvideo']:
-            self.export_func(self.sequence, self.tempfile, codec=codec)
-            reader = pims.open(self.tempfile)
-
-            assert_equal(reader.frame_shape, self.expected_shape)
+    def test_rawvideo_export(self):
+        """Exported frames must equal the input exactly"""
+        self.export_func(self.sequence, self.tempfile, codec='rawvideo',
+                         pixel_format='bgr24')
+        with pims.open(self.tempfile) as reader:
             assert_equal(len(reader), self.expected_len)
+            assert_equal(reader.frame_shape, self.expected_shape)
+            for a, b in zip(self.sequence, reader):
+                assert_array_equal(a, b)
 
 
 class TestExportMoviePy(unittest.TestCase, ExportCommon):

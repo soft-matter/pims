@@ -35,7 +35,7 @@ except ImportError:
 
 def export_pyav(sequence, filename, rate=30, bitrate=None,
                 width=None, height=None, format=None, codec='mpeg4',
-                pixel_format='yuv420p', autoscale=True, quality=None,
+                pixel_format='yuv420p', autoscale=None, quality=None,
                 options=None, rate_range=(16, 32)):
     """Export a sequence of images as a standard video file using PyAv.
 
@@ -66,11 +66,11 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
     format : string
         The container format. Guesses from the filename by default.
     pixel_format: string
-        Video stream format, 'yuv420p' by default. Another possibility is 'rgb24'.
+        Video stream format, 'yuv420p' by default.
+        Another possibility is 'bgr24' in combination with the 'rawvideo' codec.
     autoscale : boolean
         Linearly rescale the brightness to use the full gamut of black to
-        white values. If the datatype of the images is not 'uint8', this must
-        be set to True, as it is by default.
+        white values. False by default for uint8 readers, True otherwise.
     quality: number or string, optional
         For 'mpeg4' codec: sets qmin and qmax
         For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
@@ -116,8 +116,7 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
             options[str('qmin')] = str(quality)
             options[str('qmax')] = str(quality)
         else:
-            raise NotImplemented('The quality parameter is not implemented for '
-                                 'codec "{}"'.format(codec))
+            raise NotImplemented
 
     output = av.open(str(filename), str('w'), format=format, options=options)
     stream = output.add_stream(codec, rate=export_rate)
@@ -203,24 +202,28 @@ def play(sequence, rate=30, bitrate=None,
 
 
 class CachedFrameGenerator(object):
-    def __init__(self, sequence, rate, autoscale=True):
+    def __init__(self, sequence, rate, autoscale=None, to_bgr=False):
         self.sequence = sequence
         self._cached_frame_no = None
         self._cache = None
         self.autoscale = autoscale
         self.rate = rate
+        self.to_bgr = to_bgr
 
     def __call__(self, t):
         frame_no = int(t * self.rate)
         if self._cached_frame_no != frame_no:
             self._cached_frame_no = frame_no
             self._cache = _to_rgb_uint8(self.sequence[frame_no], self.autoscale)
-        return self._cache
+        if self.to_bgr:
+            return self._cache[:, :, ::-1]
+        else:
+            return self._cache
 
 
 def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
                    height=None, codec='mpeg4', pixel_format='yuv420p',
-                   autoscale=True, quality=None, verbose=True,
+                   autoscale=None, quality=None, verbose=True,
                    options=None, rate_range=(16, 32)):
     """Export a sequence of images as a standard video file using MoviePy.
 
@@ -248,13 +251,14 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
         Check https://www.ffmpeg.org/ffmpeg-codecs.html#Video-Encoders.
     pixel_format: string, optional
         Pixel format, 'yuv420p' by default.
+        Another possibility is 'bgr24' in combination with the 'rawvideo' codec.
     quality: number or string, optional
         For 'mpeg4' codec: sets qscale:v. 1 = high quality, 5 = default.
         For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
         For 'wmv2' codec: sets fraction of lossless bitrate, 0.01 = default
     autoscale : boolean, optional
         Linearly rescale the brightness to use the full gamut of black to
-        white values. True by default.
+        white values. False by default for uint8 readers, True otherwise.
     verbose : boolean, optional
         Determines whether MoviePy will print progress. True by default.
     options : dictionary, optional
@@ -284,7 +288,8 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
         raise ValueError
     export_rate = _normalize_framerate(rate, *rate_range)
 
-    clip = VideoClip(CachedFrameGenerator(sequence, rate, autoscale))
+    clip = VideoClip(CachedFrameGenerator(sequence, rate, autoscale,
+                                          to_bgr=(pixel_format == 'bgr24')))
     clip.duration = len(sequence) / rate
     if not (height is None and width is None):
         clip = clip.resize(height=height, width=width)
@@ -303,8 +308,8 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
             else:
                 bitrate = quality * _estimate_bitrate(clip.size, export_rate)
         else:
-            raise NotImplemented('The quality parameter is not implemented for '
-                                 'codec "{}"'.format(codec))
+            raise NotImplemented
+
     if format is not None:
         ffmpeg_params.extend(['-pixel_format', str(pixel_format)])
     if bitrate is not None:
@@ -452,9 +457,12 @@ def normalize(arr):
 
 
 def _to_rgb_uint8(image, autoscale):
+    if autoscale is None:
+        autoscale = image.dtype != np.uint8
+
     if autoscale:
         image = (normalize(image) * 255).astype(np.uint8)
-    elif image.dtype is not np.uint8:
+    elif image.dtype != np.uint8:
         if np.issubdtype(image.dtype, np.integer):
             max_value = np.iinfo(image.dtype).max
             # sometimes 12-bit images are stored as unsigned 16-bit
