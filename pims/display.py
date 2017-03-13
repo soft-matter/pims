@@ -72,6 +72,7 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
         white values. If the datatype of the images is not 'uint8', this must
         be set to True, as it is by default.
     quality: number or string, optional
+        For 'mpeg4' codec: sets qmin and qmax
         For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
         For 'wmv2' codec: sets fraction of lossless bitrate, 0.01 = default
     options : dictionary, optional
@@ -111,6 +112,12 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
         elif codec == str('wmv2'):
             if bitrate is not None:
                 warnings.warn("(wmv) quality is ignored when bitrate is set.")
+        elif codec == str('mpeg4'):
+            options[str('qmin')] = str(quality)
+            options[str('qmax')] = str(quality)
+        else:
+            raise NotImplemented('The quality parameter is not implemented for '
+                                 'codec "{}"'.format(codec))
 
     output = av.open(str(filename), str('w'), format=format, options=options)
     stream = output.add_stream(codec, rate=export_rate)
@@ -242,6 +249,7 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     pixel_format: string, optional
         Pixel format, 'yuv420p' by default.
     quality: number or string, optional
+        For 'mpeg4' codec: sets qscale:v. 1 = high quality, 5 = default.
         For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
         For 'wmv2' codec: sets fraction of lossless bitrate, 0.01 = default
     autoscale : boolean, optional
@@ -287,11 +295,16 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     if quality is not None:
         if codec == 'libx264':
             ffmpeg_params.extend(['-crf', str(quality)])
+        elif codec == 'mpeg4':
+            ffmpeg_params.extend(['-qscale:v', str(quality)])
         elif codec == 'wmv2':
             if bitrate is not None:
                 warnings.warn("(wmv) quality is ignored when bitrate is set.")
             else:
                 bitrate = quality * _estimate_bitrate(clip.size, export_rate)
+        else:
+            raise NotImplemented('The quality parameter is not implemented for '
+                                 'codec "{}"'.format(codec))
     if format is not None:
         ffmpeg_params.extend(['-pixel_format', str(pixel_format)])
     if bitrate is not None:
