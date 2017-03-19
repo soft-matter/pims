@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import os
+import warnings
 import numpy as np
 
 from .frame import Frame
@@ -132,7 +134,7 @@ class SpeStack(FramesSequence):
         return {"spe"} | super(SpeStack, cls).class_exts()
 
     def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False, char_encoding=None):
+                 as_grey=False, char_encoding=None, check_filesize=True):
         """Create an iterable object that returns image data as numpy arrays
 
         Arguments
@@ -152,6 +154,12 @@ class SpeStack(FramesSequence):
             Specifies what character encoding is used to decode metatdata
             strings. If None, use the `default_char_encoding` class attribute.
             Defaults to None.
+        check_filesize : bool, optional
+            The number of frames in an SPE file should be recorded in the
+            file's header. Some software fails to do so correctly. If
+            `check_filesize` is `True`, calculate the number of frames from
+            the file size. A warning is emitted if this doesn't match the
+            number of frames from the file header. Defaults to True.
         """
         self._filename = filename
         self._file = open(filename, "rb")
@@ -191,6 +199,18 @@ class SpeStack(FramesSequence):
         self._width = self.metadata.pop("xdim")
         self._height = self.metadata.pop("ydim")
         self._len = self.metadata.pop("NumFrames")
+
+        if check_filesize:
+            # Some software writes incorrecet `NumFrames` metadata
+            # Use the file size to determine the number of frames
+            fsz = os.path.getsize(filename)
+            l = fsz - Spec.data_start
+            l //= self._width * self._height * self._file_dtype.itemsize
+            if l != self._len:
+                warnings.warn("Number of frames according to file header "
+                              "does not match the size of file " +
+                              filename + ".")
+                self._len = min(l, self._len)
 
         #The number of ROIs is given in the SPE file. Only return as many
         #ROIs as given
