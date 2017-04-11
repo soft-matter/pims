@@ -15,6 +15,14 @@ To interface with the java library, we use
 `JPype <https://github.com/originell/jpype>`_, which allows fast and easy access
 to all java functions. JRE or JDK are not required.
 
+For `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ users,
+platforms, jpype is available via the ``conda-forge`` channel:
+
+.. code-block:: bash
+
+    conda install jpype1 -c conda-forge
+
+
 For installation with pip, type in the following into the terminal:
 
 .. code-block:: bash
@@ -28,10 +36,32 @@ On first use of pims.Bioformats(filename), the required java library
 :file:`loci_tools.jar` will be automatically downloaded from
 `openmicroscopy.org <http://downloads.openmicroscopy.org/bio-formats/>`__.
 
+Special functions
+-----------------
+Some files contain multiple experiments. The ``series`` argument or property
+switches between them:
+
+.. code-block:: python
+
+   # open a multi-experiment file and read the first experiment
+   reader = pims.BioformatsReader('path/to/file', series=0)
+   # switch to the third experiment
+   reader.series = 2
+
+Very large files may need more Java memory. If you ever encounter a memory error,
+open a file with for instance 1 GB of java memory:
+
+.. code-block:: python
+
+   reader = BioformatsReader('path/to/file', java_memory='1024m')
+
 Metadata
 --------
 
-The ``Bioformats`` reader can be used to access the metadata stored in the image, including physical dimensions pixel, instrument parameters, and other useful information:
+The ``Bioformats`` reader can be used to access the metadata stored in the image,
+including physical dimensions pixel, instrument parameters, and other useful information.
+For performance increase, this function may be toggled off using the ``meta=False``
+keyword argument.
 
 .. code-block:: python
 
