@@ -2,26 +2,26 @@ Release notes
 =============
 
 v0.4
-------
+----
 - API: N-dimensional readers now smartly use ``get_frame`` methods; depending on
-the ``bundle_axes`` settings, the reader optimizes which ``get_frame`` methods is
-optimal to use. Readers that derive from ``FramesSequenceND`` will need to call
-``FramesSequenceND.__init__()`` on initialization, and also will need to register
-``get_frame`` methods using ``_register_get_frame(method, axes)``. (PR 227)
+  the ``bundle_axes`` settings, the reader optimizes which ``get_frame`` methods is
+  optimal to use. Readers that derive from ``FramesSequenceND`` will need to call
+  ``FramesSequenceND.__init__()`` on initialization, and also will need to register
+  ``get_frame`` methods using ``_register_get_frame(method, axes)``. (PR 227)
 - API: Swap elements of ``frame_shape`` in ``SpeStack`` to match frames' ``shape``. (PR 241)
 - API: Swap elements of ``frame_shape`` in ``PyAVVideoReader`` to match frames' ``shape``. (PR 251)
 - API: Reimplement the ``PyAVVideoReader`` (or: ``Video``) into a reader that
-uses the frame timestamps and reader frame rate to compute the frame index. The
-new reader is named ``PyAVReaderTimed`` and the names ``PyAVVideoReader`` and
-``Video`` refer to it. For the case when the video misses timestamps, the
-old implementation is available under ``PyAVReaderIndexed``.
+  uses the frame timestamps and reader frame rate to compute the frame index. The
+  new reader is named ``PyAVReaderTimed`` and the names ``PyAVVideoReader`` and
+  ``Video`` refer to it. For the case when the video misses timestamps, the
+  old implementation is available under ``PyAVReaderIndexed``.
 - API: The video exporter (``export``) takes more arguments. The argument ``'format'``
-has been renamed to ``'pixel_format'``, while ``'format'`` now refers to the
-container format. (PR 257)
+  has been renamed to ``'pixel_format'``, while ``'format'`` now refers to the
+  container format. (PR 257)
 - Fixed filename sorting when list is provided explicitely to ``ImageSequence`` (PR 252)
 - Fixed ``plot_to_frame`` with ``savefig.bbox == 'tight'`` (PR 248)
-- Added a reader that wraps ImageIO ``ImageIOReader``(PR 233)
-- Added a reader that wraps MoviePy ``MoviePyReader``(PR 233)
+- Added a reader that wraps ImageIO ``ImageIOReader`` (PR 233)
+- Added a reader that wraps MoviePy ``MoviePyReader`` (PR 233)
 - Added a reader for single images ``ImageReader`` and ``ImageReaderND`` (PR 249)
 - Added a reader that stacks readers into a multidimensional reader ``ReaderSequence`` (PR 249)
 - Added a video exporter based on MoviePy (PR 233)
