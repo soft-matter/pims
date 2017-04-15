@@ -22,6 +22,16 @@ ImageSequenceND
 This class allows reading of N-dimensional Image Sequences with multiple indices
 in the file name, for instance: ``['image_z00_t00.png', 'image_z01_t00.png']``.
 
+ReaderSequence
+--------------
+
+This class allows stacking N-dimensional readers creating another N-dimensional
+with an extra dimension. For example:
+
+.. code-block:: python
+
+   reader = pims.ReaderSequence('path/to/files/image*.tif', pims.BioformatsReader)
+
 Dependencies
 ------------
 

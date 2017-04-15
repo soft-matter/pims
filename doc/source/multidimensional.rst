@@ -92,8 +92,12 @@ Make your own multidimensional reader
 
 Making a multidimensional reader class yourself is simple. The following
 example is already a fully-functioning multidimensional reader. The crucial
-method here is ``get_frame_2D``, that takes a keyword argument for each axis that
-the reader contains.
+method here is ``_register_get_frame``, that registers a ``get_frame`` method
+and tells the reader which axes to expect from that method. You can also define
+multiple ``get_frame`` methods to increase the reader performance.
+
+The reader then figures out how to efficiently use this function, to present
+the image in the shape that corresponds with the ``bundle_axes`` settings.
 
 .. code-block:: python
 
@@ -106,11 +110,15 @@ the reader contains.
           return np.uint8  # the pixel datatype
 
       def __init__(self, size_c, size_t, size_z):
+          # first call the baseclass initialization
+          super(IndexReturningReader, self).__init__()
           self._init_axis('x', 3)
           self._init_axis('y', 1)
           self._init_axis('c', size_c)
           self._init_axis('t', size_t)
           self._init_axis('z', size_z)
+          # register the get_frame function
+          self._register_get_frame(self.get_frame_func, 'yx')
 
-      def get_frame_2D(self, c, t, z):
+      def get_frame_func(self, c, t, z):
           return np.array([[c, t, z]], dtype=np.uint8)

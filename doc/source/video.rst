@@ -1,32 +1,38 @@
 Video
 =====
 
-.. note::
+PyAV (fastest)
+--------------
 
-   To load video files directly, you need FFmpeg or libav. These can be tricky
-   to install, especially on Windows, so we advise less sophisticated users to
-   simply work around this requirement by converting their video files to
-   folders full of images using a utility like `ImageJ <http://rsb.info.nih.gov/ij/>`_.
-
-   But if either FFmpeg or libav is available, PIMS enables fast random access to video files.
-
-PyAV is installed with the PIMS conda package. You can install it via pip like so:
+`PyAV <http://mikeboers.github.io/PyAV/>`_ can be installed via Anaconda, as follows:
 
 .. code-block:: bash
 
-    pip install av
+    conda install av -c conda-forge
 
-The ``Video`` reader can open any file format supported by FFmepg and libav.
+Non-anaconda users will have to compile PyAV themselves, which is complicated,
+especially on Windows. For this we refer the
+users to the `PyAV documentation <https://mikeboers.github.io/PyAV/>`_.
 
-In order to provide random access by frame number, which is not something that
-video formats natively support, PIMS scans through the entire video to build
-a table of contents. This means that opening the file can take some time, but
-once it is open, random access is fast.
+There are two ways PIMS provides random access to video files, which is not
+something that video formats natively support:
 
-Dependencies
-------------
+* ``PyAVReaderTimed`` bases the indices of the video frames on the
+  ``frame_rate`` that is reported by the video file, along with the timestamps
+  that are imprinted on the separate video frames. The readers ``PyAVVideoReader``
+  and ``Video`` are different names for this reader.
+* ``PyAVReaderIndexed`` scans through the entire video to build a table
+  of contents. This means that opening the file can take some time, but
+  once it is open, random access is fast. In the case timestamps or `frame_rate``
+  are not available, this reader is the preferred option.
 
-* `PyAV <http://mikeboers.github.io/PyAV/>`_
+
+ImageIO and MoviePy
+-------------------
+Both `ImageIO <https://imageio.github.io>`_ and `MoviePy <http://zulko.github.io/moviepy>`_
+implement interfaces with ffmpeg through a Pipe. These are implemented through
+``ImageIOReader`` and ``MoviePyReader``, respectively.
+
 
 Troubleshooting
 ---------------
