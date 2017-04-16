@@ -81,7 +81,7 @@ class FramesStream(with_metaclass(ABCMeta, object)):
         if as_grey:
             if process_func is not None:
                 raise ValueError("The as_grey option cannot be used when "
-                                 "process_func is specified. Incorpate "
+                                 "process_func is specified. Incorporate "
                                  "greyscale conversion in the function "
                                  "passed to process_func.")
             shape = self.frame_shape
@@ -106,6 +106,12 @@ class FramesStream(with_metaclass(ABCMeta, object)):
                     color_axis = img.shape.index(color_axis_size)
                     img = np.rollaxis(img, color_axis, 3)
                     grey = (img * calibration).sum(2)
+                    if rgba_like:
+                        alpha = img[:,:,3]
+                        BG_LUM = 1 # composite with white background
+                        # assume there is a pixel with no transparancy:
+                        max_alpha = np.max(alpha)
+                        grey = (alpha/max_alpha)*grey + (max_alpha-alpha)*BG_LUM
                     return grey.astype(img.dtype)  # coerce to original dtype
                 self.process_func = convert_to_grey
             else:
