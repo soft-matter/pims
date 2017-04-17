@@ -608,6 +608,62 @@ def to_rgb(image, colors=None, normed=True):
     return result
 
 
+def to_rgb_uint8(image, autoscale=True):
+    ndim = image.ndim
+    shape = image.shape
+    try:
+        colors = image.metadata['colors']
+        if len(colors) != shape[0]:
+            colors = None
+    except (AttributeError, KeyError):
+        colors = None
+
+    grayscale = False
+    # 2D, grayscale
+    if ndim == 2:
+        grayscale = True
+    # 2D, has colors attribute
+    elif ndim == 3 and colors is not None:
+        image = to_rgb(image, colors, False)
+    # 2D, RGB
+    elif ndim == 3 and shape[2] in [3, 4]:
+        pass
+    # 2D, is multichannel
+    elif ndim == 3 and shape[0] < 5:  # guessing; could be small z-stack
+        image = to_rgb(image, None, False)
+    # 3D, grayscale
+    elif ndim == 3:
+        grayscale = True
+    # 3D, has colors attribute
+    elif ndim == 4 and colors is not None:
+        image = to_rgb(image, colors, False)
+    # 3D, RGB
+    elif ndim == 4 and shape[3] in [3, 4]:
+        pass
+    # 3D, is multichannel
+    elif ndim == 4 and shape[0] < 5:
+        image = to_rgb(image, None, False)
+    else:
+        raise ValueError("No display possible for frames of shape {0}".format(shape))
+
+    if autoscale:
+        image = (normalize(image) * 255).astype(np.uint8)
+    elif image.dtype is not np.uint8:
+        if np.issubdtype(image.dtype, np.integer):
+            max_value = np.iinfo(image.dtype).max
+            # sometimes 12-bit images are stored as unsigned 16-bit
+            if max_value == 2**16 - 1 and image.max() < 2**12:
+                max_value = 2**12 - 1
+            image = (image / max_value * 255).astype(np.uint8)
+        else:
+            image = (image * 255).astype(np.uint8)
+
+    if grayscale:
+        image = np.repeat(image[..., np.newaxis], 3, axis=image.ndim)
+
+    return image
+
+
 @contextmanager
 def _fig_size_cntx(fig, fig_size_inches, tight_layout):
     """Resize a figure in a context
