@@ -3,6 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 import uuid
+import itertools
 import numpy as np
 import tempfile
 from io import BytesIO
@@ -33,8 +34,9 @@ except ImportError:
 
 
 def export_pyav(sequence, filename, rate=30, bitrate=None,
-                width=None, height=None, codec='mpeg4', format='yuv420p',
-                autoscale=True):
+                width=None, height=None, format=None, codec='mpeg4',
+                pixel_format='yuv420p', autoscale=None, quality=None,
+                options=None, rate_range=(16, 32)):
     """Export a sequence of images as a standard video file using PyAv.
 
     N.B. If the quality and detail are insufficient, increase the
@@ -58,28 +60,75 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
         and height is not, the height is autoscaled to maintain the aspect
         ratio.
     codec : string
-        a valid video encoding, 'mpeg4' by default
-    format: string
+        a valid video encoding, 'mpeg4' by default. Must be supported by the
+        container format. Examples are {'mpeg4', 'wmv2', 'libx264', 'rawvideo'}
+        Check https://www.ffmpeg.org/ffmpeg-codecs.html#Video-Encoders.
+    format : string
+        The container format. Guesses from the filename by default.
+    pixel_format: string
         Video stream format, 'yuv420p' by default.
+        Another possibility is 'bgr24' in combination with the 'rawvideo' codec.
     autoscale : boolean
         Linearly rescale the brightness to use the full gamut of black to
-        white values. If the datatype of the images is not 'uint8', this must
-        be set to True, as it is by default.
+        white values. False by default for uint8 readers, True otherwise.
+    quality: number or string, optional
+        For 'mpeg4' codec: sets qmin and qmax
+        For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
+        For 'wmv2' codec: sets fraction of lossless bitrate, 0.01 = default
+    options : dictionary, optional
+        Dictionary that will be passed to ffmpeg. Avoid using
+        {'qscale:v', 'crf', 'pixel_format'}.
+    rate_range : tuple of two numbers
+        As extreme frame rates have playback issues on many players, by default
+        the frame rate is limited between 16 and 32. When the desired frame rate
+        is too low, frames will be multiplied an integer number of times. When
+        the desired frame rate is too high, frames will be skipped at constant
+        intervals.
 
     """
     if av is None:
         raise("This feature requires PyAV with FFmpeg or libav installed.")
-    output = av.open(filename, 'w')
-    stream = output.add_stream(bytes(codec), rate)
-    stream.pix_fmt = bytes(format)
 
-    ndim = None
-    for frame_no, img in enumerate(sequence):
-        if not frame_no:
+    export_rate = _normalize_framerate(rate, *rate_range)
+    sequence = CachedFrameGenerator(sequence, rate, autoscale)
+
+
+    # pyav is picky with unicode strings
+    codec = str(codec)
+    if format is not None:
+        format = str(format)
+    if options is not None:
+        for key in options:
+            options[str(key)] = str(options[key])
+    else:
+        options = dict()
+
+    if codec == str('wmv2') and bitrate is None and quality is None:
+        quality = 0.01
+
+    if quality is not None:
+        if codec == str('libx264'):
+            options[str('crf')] = str(quality)
+        elif codec == str('wmv2'):
+            if bitrate is not None:
+                warnings.warn("(wmv) quality is ignored when bitrate is set.")
+        elif codec == str('mpeg4'):
+            options[str('qmin')] = str(quality)
+            options[str('qmax')] = str(quality)
+        else:
+            raise NotImplemented
+
+    output = av.open(str(filename), str('w'), format=format, options=options)
+    stream = output.add_stream(codec, rate=export_rate)
+    stream.pix_fmt = str(pixel_format)
+
+    for frame_no in itertools.count():
+        try:
+            img = sequence(frame_no / export_rate)
+        except IndexError:
+            break
+        if frame_no == 0:
             # Inspect first frame to set up stream.
-            if bitrate is None:
-                bitrate = _estimate_bitrate(img.shape, rate)
-                stream.bit_rate = int(bitrate)
             if width is None:
                 stream.height = img.shape[0]
                 stream.width = img.shape[1]
@@ -87,32 +136,25 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
                 stream.width = width
                 stream.height = (height or
                                  width * img.shape[0] // img.shape[1])
-            ndim = img.ndim
 
-        if ndim == 3:
-            if img.shape.count(3) != 1:
-                raise ValueError("Images have the wrong shape.")
-            # This is a color image. Ensure that the color axis is axis 2.
-            color_axis = img.shape.index(3)
-            img = np.rollaxis(img, color_axis, 3)
-        elif ndim == 2:
-            # Expand into color to satisfy PyAV's expectation that images
-            # be in color. (Without this, an assert is tripped.)
-            img = np.repeat(np.expand_dims(img, 2), 3, axis=2)
-        else:
-            raise ValueError("Images have the wrong shape.")
+            if bitrate is not None:
+                stream.bit_rate = int(bitrate)
+            elif quality is not None and codec == str('wmv2'):
+                bitrate = quality * _estimate_bitrate([stream.height,
+                                                       stream.width],
+                                                      export_rate)
+                stream.bit_rate = int(bitrate)
 
-        # PyAV requires uint8.
-        if img.dtype is not np.uint8 and (not autoscale):
-            raise ValueError("Autoscaling must be turned on if the image "
-                             "data type is not uint8. Convert the datatype "
-                             "manually if you want to turn off autoscale.")
-        if autoscale:
-            normed = (img - img.min()) / (img.max() - img.min())
-            img = (255 * normed).astype('uint8')
-
-        frame = av.VideoFrame.from_ndarray(np.asarray(img), format=b'bgr24')
+        frame = av.VideoFrame.from_ndarray(img, format=str('rgb24'))
         packet = stream.encode(frame)
+        if packet is not None:
+            output.mux(packet)
+
+    # Finish encoding the stream
+    while True:
+        packet = stream.encode()
+        if packet is None:
+            break
         output.mux(packet)
 
     output.close()
@@ -160,25 +202,29 @@ def play(sequence, rate=30, bitrate=None,
 
 
 class CachedFrameGenerator(object):
-    def __init__(self, sequence, rate, autoscale=True):
+    def __init__(self, sequence, rate, autoscale=None, to_bgr=False):
         self.sequence = sequence
         self._cached_frame_no = None
         self._cache = None
         self.autoscale = autoscale
         self.rate = rate
+        self.to_bgr = to_bgr
 
     def __call__(self, t):
         frame_no = int(t * self.rate)
         if self._cached_frame_no != frame_no:
             self._cached_frame_no = frame_no
             self._cache = _to_rgb_uint8(self.sequence[frame_no], self.autoscale)
-        return self._cache
+        if self.to_bgr:
+            return self._cache[:, :, ::-1]
+        else:
+            return self._cache
 
 
 def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
-                   height=None, codec='libx264', format='yuv420p',
-                   autoscale=True, quality=None, verbose=True,
-                   ffmpeg_params=None, rate_range=(16, 32)):
+                   height=None, codec='mpeg4', pixel_format='yuv420p',
+                   autoscale=None, quality=None, verbose=True,
+                   options=None, rate_range=(16, 32)):
     """Export a sequence of images as a standard video file using MoviePy.
 
     Parameters
@@ -199,22 +245,25 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
         By default, set the  height of the images. If width is specified
         and height is not, the height is autoscaled to maintain the aspect
         ratio.
-    codec : string, optional
-        a valid video encoding, 'libx264' by default
-    format: string, optional
-        Video stream format, 'yuv420p' by default.
+    codec : string
+        a valid video encoding, 'mpeg4' by default. Must be supported by the
+        container format. Examples are {'mpeg4', 'wmv2', 'libx264', 'rawvideo'}
+        Check https://www.ffmpeg.org/ffmpeg-codecs.html#Video-Encoders.
+    pixel_format: string, optional
+        Pixel format, 'yuv420p' by default.
+        Another possibility is 'bgr24' in combination with the 'rawvideo' codec.
     quality: number or string, optional
         For 'mpeg4' codec: sets qscale:v. 1 = high quality, 5 = default.
         For 'libx264' codec: sets crf. 0 = lossless, 23 = default.
         For 'wmv2' codec: sets fraction of lossless bitrate, 0.01 = default
     autoscale : boolean, optional
         Linearly rescale the brightness to use the full gamut of black to
-        white values. True by default.
+        white values. False by default for uint8 readers, True otherwise.
     verbose : boolean, optional
         Determines whether MoviePy will print progress. True by default.
-    ffmpeg_params : dictionary, optional
-        List of parameters that will be passed to ffmpeg. Avoid using
-        ['-qscale:v', '-crf', '-pixel_format'].
+    options : dictionary, optional
+        Dictionary of parameters that will be passed to ffmpeg. Avoid using
+        {'qscale:v', 'crf', 'pixel_format'}.
     rate_range : tuple of two numbers
         As extreme frame rates have playback issues on many players, by default
         the frame rate is limited between 16 and 32. When the desired frame rate
@@ -229,35 +278,43 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     if VideoClip is None:
         raise ImportError('The MoviePy exporter requires moviepy to work.')
 
-    if ffmpeg_params is None:
-        ffmpeg_params = []
+    if options is None:
+        options = dict()
+    ffmpeg_params = []
+    for key in options:
+        ffmpeg_params.extend(['-{}'.format(key), str(options[key])])
+
+    if rate <= 0:
+        raise ValueError
     export_rate = _normalize_framerate(rate, *rate_range)
+
+    clip = VideoClip(CachedFrameGenerator(sequence, rate, autoscale,
+                                          to_bgr=(pixel_format == 'bgr24')))
+    clip.duration = len(sequence) / rate
+    if not (height is None and width is None):
+        clip = clip.resize(height=height, width=width)
 
     if codec == 'wmv2' and bitrate is None and quality is None:
         quality = 0.01
 
     if quality is not None:
-        if codec == 'mpeg4':
-            ffmpeg_params.extend(['-qscale:v', str(quality)])
-        elif codec == 'libx264':
+        if codec == 'libx264':
             ffmpeg_params.extend(['-crf', str(quality)])
+        elif codec == 'mpeg4':
+            ffmpeg_params.extend(['-qscale:v', str(quality)])
         elif codec == 'wmv2':
             if bitrate is not None:
                 warnings.warn("(wmv) quality is ignored when bitrate is set.")
             else:
-                bitrate = quality * _estimate_bitrate(sequence.frame_shape,
-                                                      export_rate)
+                bitrate = quality * _estimate_bitrate(clip.size, export_rate)
+        else:
+            raise NotImplemented
+
     if format is not None:
-        ffmpeg_params.extend(['-pixel_format', str(format)])
+        ffmpeg_params.extend(['-pixel_format', str(pixel_format)])
     if bitrate is not None:
         bitrate = str(bitrate)
-    if rate <= 0:
-        raise ValueError
 
-    clip = VideoClip(CachedFrameGenerator(sequence, rate, autoscale))
-    clip.duration = (len(sequence) - 1) / rate
-    if not (height is None and width is None):
-        clip = clip.resize(height=height, width=width)
     clip.write_videofile(filename, export_rate, codec, bitrate, audio=False,
                          verbose=verbose, ffmpeg_params=ffmpeg_params)
 
@@ -400,9 +457,12 @@ def normalize(arr):
 
 
 def _to_rgb_uint8(image, autoscale):
+    if autoscale is None:
+        autoscale = image.dtype != np.uint8
+
     if autoscale:
         image = (normalize(image) * 255).astype(np.uint8)
-    elif image.dtype is not np.uint8:
+    elif image.dtype != np.uint8:
         if np.issubdtype(image.dtype, np.integer):
             max_value = np.iinfo(image.dtype).max
             # sometimes 12-bit images are stored as unsigned 16-bit
