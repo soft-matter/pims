@@ -7,14 +7,16 @@ matrix:
       env: DEPS="numpy=1.8* slicerator tifffile" BUILD_DOCS=false
     - python: "2.7"
       env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av libtiff tifffile jpype1" DEPSPIP="moviepy imageio" BUILD_DOCS=false
-    - python: "3.5"
+    - python: "3.6"
       env: DEPS="numpy slicerator tifffile" BUILD_DOCS=false
-    - python: "3.5"
+    - python: "3.6"
       env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av tifffile libtiff jpype1 ipython sphinx sphinx_rtd_theme numpydoc" DEPSPIP="moviepy imageio" BUILD_DOCS=true
 
 install:
   - conda update --yes conda
-  - conda config --add channels conda-forge
+  # Append the conda-forge channel, instead of adding it. See:
+  # https://github.com/conda-forge/conda-forge.github.io/issues/232)
+  - conda config --append channels conda-forge
   - conda create -n testenv --yes $DEPS nose python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   # only install pip if there are pip dependencies
