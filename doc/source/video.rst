@@ -32,30 +32,3 @@ ImageIO and MoviePy
 Both `ImageIO <https://imageio.github.io>`_ and `MoviePy <http://zulko.github.io/moviepy>`_
 implement interfaces with ffmpeg through a Pipe. These are implemented through
 ``ImageIOReader`` and ``MoviePyReader``, respectively.
-
-
-Troubleshooting
----------------
-
-If you use conda / Anaconda, watch out for an error like:
-
-.. code-block:: bash
-
-    version `GLIBC_2.15' not found
-
-This seems to be because `conda includes an old version of a library
-needed by PyAV <github.com/ContinuumIO/anaconda-issues/issues/182>`__.
-To work around this, simply delete anaconda's version of the library:
-
-.. code-block:: bash
-
-    rm ~/anaconda/lib/libm.so.6
-
-and/or
-
-.. code-block:: bash
-
-    rm ~/anaconda/envs/name_of_your_environment/lib/libm.so.6
-
-which will cause PyAV to use the your operating system's version of the
-library.
