@@ -41,7 +41,7 @@ def _gen_jar_locations():
     yield os.path.join(os.path.expanduser('~'), '.config', 'pims')
 
 
-def _find_jar(url=None):
+def _find_jar(url=None, sha256_checksum=None):
     """
     Finds the location of loci_tools.jar, if necessary download it to a
     writeable location.
@@ -68,9 +68,21 @@ def _find_jar(url=None):
 
     from six.moves.urllib.request import urlretrieve
     if url is None:
-        url = ('http://downloads.openmicroscopy.org/bio-formats/5.1.7/' +
+        url = ('http://downloads.openmicroscopy.org/bio-formats/5.4.1/' +
                'artifacts/loci_tools.jar')
+        sha256_checksum = '64466c8fb05f581099acffcf2f10883a130fd53cdd17' \
+                          'af6d9dc0da81bb37cc1b'
+
     urlretrieve(url, os.path.join(loc, 'loci_tools.jar'))
+    path = os.path.join(loc, 'loci_tools.jar')
+
+    if sha256_checksum is not None:
+        import hashlib
+        with open(path, 'rb') as open_file:
+            downloaded = hashlib.sha256(open_file.read()).hexdigest()
+            if downloaded != sha256_checksum:
+                raise IOError("Downloaded loci_tools.jar has invalid checksum. "
+                              "Please try again.")
 
     return os.path.join(loc, 'loci_tools.jar')
 
