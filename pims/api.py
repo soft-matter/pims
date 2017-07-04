@@ -113,6 +113,10 @@ try:
 except ImportError:
     ND2_Reader = not_available("pims_nd2")
 
+try:
+    from nd2reader import ND2Reader
+except ImportError:
+    ND2Reader = not_available("nd2reader")
 
 def open(sequence, **kwargs):
     """Read a filename, list of filenames, or directory of image files into an
