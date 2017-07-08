@@ -38,16 +38,14 @@ def _skip_if_no_ImageIO():
 
 
 def _skip_if_no_libtiff():
-    try:
-        import libtiff
-    except ImportError:
+    import pims.tiff_stack
+    if not pims.tiff_stack.libtiff_available():
         raise nose.SkipTest('libtiff not installed. Skipping.')
 
 
 def _skip_if_no_tifffile():
-    try:
-        import tifffile
-    except ImportError:
+    import pims.tiff_stack
+    if not pims.tiff_stack.tifffile_available():
         raise nose.SkipTest('tifffile not installed. Skipping.')
 
 
@@ -65,9 +63,8 @@ def _skip_if_no_skimage():
 
 
 def _skip_if_no_PIL():
-    try:
-        from PIL import Image
-    except ImportError:
+    import pims.tiff_stack
+    if not pims.tiff_stack.PIL_available():
         raise nose.SkipTest('PIL/Pillow not installed. Skipping.')
 
 
