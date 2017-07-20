@@ -118,8 +118,8 @@ class FormatTiffStack_tifffile(PimsFormat):
 
             self.bundle_axes, self.iter_axes = default_axes(self.sizes,
                                                             self.request.mode)
-
-        def _get_dtype(self):
+        @property
+        def pixel_type(self):
             return self._dtype
 
         def _get_frame(self, **inds):

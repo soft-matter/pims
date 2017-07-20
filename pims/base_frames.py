@@ -669,11 +669,15 @@ def default_axes(sizes, mode):
 
 class _PimsFormat(Format):
     def _can_read(self, request):
+        """Determine whether `request.filename` can be read using this
+        Format.Reader, judging from the imageio.core.Request object."""
         if request.mode[1] in (self.modes + '?'):
             if request.filename.lower().endswith(self.extensions):
                 return True
 
     def _can_write(self, request):
+        """Determine whether file type `request.filename` can be written using
+        this Format.Writer, judging from the imageio.core.Request object."""
         return False
 
     @Slicerator.from_class
@@ -681,45 +685,9 @@ class _PimsFormat(Format):
         def __getitem__(self, key):
             return self.get_data(key)
 
-        @abstractmethod
-        def _get_length(self):
-            pass
-
-        @abstractmethod
-        def _open(self, **kwargs):
-            pass
-
-        @abstractmethod
-        def _get_dtype(self):
-            pass
-
-        @property
-        def dtype(self):
-            return self._get_dtype()
-
-        @property
-        def shape(self):
-            return (len(self),) + self.frame_shape
-
-        @abstractproperty
-        def frame_shape(self):
-            """ Returns the shape of the frame as returned by get_frame. """
-            pass
-
-        @property
-        def ndim(self):
-            """ Returns the number of axes. """
-            return len(self.frame_shape) + 1
-
         def get_data(self, index, **kwargs):
-            """ get_data(index, **kwargs)
-
-            Read image data from the file, using the image index. The
-            returned image has a 'meta' attribute with the meta data.
-
-            Some formats may support additional keyword arguments. These are
-            listed in the documentation of those formats.
-            """
+            # This function is a copy of the imageio Format.Reader,
+            # replacing the returned Image object with a PIMS Frame.
             self._checkClosed()
             self._BaseReaderWriter_last_index = index
             im, meta = self._get_data(index, **kwargs)
@@ -728,12 +696,35 @@ class _PimsFormat(Format):
         def iter_data(self):
             return iter(self[:])
 
+        def get_meta_data(self, i):
+            # can be overwritten by a reader for better performance
+            return self.get_data(i).metadata
+
+        @property
+        def shape(self):
+            return (len(self),) + tuple(self.frame_shape)
+
+        @abstractmethod
+        def _open(self, **kwargs):
+            pass
+
         @abstractmethod
         def _get_data(self, i):
             pass
 
-        def _get_meta_data(self, i):
-            return self.get_data(i).metadata
+        @abstractmethod
+        def __len__(self):
+            pass
+
+        @abstractproperty
+        def frame_shape(self):
+            """ Returns the shape of the frame as returned by get_frame. """
+            pass
+
+        @abstractproperty
+        def pixel_type(self):
+            """Returns a numpy.dtype for the data type of the pixel values"""
+            pass
 
 
 class PimsFormat(_PimsFormat):
@@ -774,14 +765,6 @@ class PimsFormat(_PimsFormat):
             self.default_coords[name] = int(default)
 
         def get_data(self, index, **kwargs):
-            """ get_data(index, **kwargs)
-
-            Read image data from the file, using the image index. The
-            returned image has a 'meta' attribute with the meta data.
-
-            Some formats may support additional keyword arguments. These are
-            listed in the documentation of those formats.
-            """
             self._checkClosed()
             self._BaseReaderWriter_last_index = index
             return self._get_data(index, **kwargs)
@@ -820,7 +803,7 @@ class PimsFormat(_PimsFormat):
                 dict(axes=self.bundle_axes, coords=metadata_coords))
             return Frame(result, frame_no=i, metadata=metadata)
 
-        def _get_length(self):
+        def __len__(self):
             return int(np.prod([self._sizes[d] for d in self._iter_axes]))
 
         @property
@@ -885,7 +868,7 @@ class PimsFormat(_PimsFormat):
             # update the get_frame method
             get_frame = _make_get_frame(self._bundle_axes,
                                         self._get_frame_dict,
-                                        self.sizes, self.dtype)
+                                        self.sizes, self.pixel_type)
             self._get_frame_wrapped = get_frame
 
         @property

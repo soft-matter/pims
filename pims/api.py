@@ -30,7 +30,9 @@ def not_available(requirement):
     return raiser
 
 
-def wrap_fmt(reader, name, description, extensions=None, modes=None):
+def register_fmt(reader, name, description, extensions=None, modes=None):
+    """Registers a Format with the format manager. Returns a reader
+    for backwards compatibility."""
     formats.add_format(reader(name, description, extensions, modes))
     @wraps(reader)
     def wrapper(filename, **kwargs):
@@ -92,11 +94,10 @@ from pims.tiff_stack import TiffStack_pil, TiffStack_libtiff, \
 if not pims.tiff_stack.tifffile_available():
     TiffStack_tifffile = not_available("tifffile")
 else:
-    TiffStack_tifffile = wrap_fmt(FormatTiffStack_tifffile,
-                                  'TIFF_tifffile',
-                                  'Reads TIFF files through tifffile.py.',
-                                  'tif tiff lsm stk',
-                                  'iIvV')
+    TiffStack_tifffile = register_fmt(FormatTiffStack_tifffile,
+                                      'TIFF_tifffile',
+                                      'Reads TIFF files through tifffile.py.',
+                                      'tif tiff lsm stk', 'iIvV')
 if not pims.tiff_stack.libtiff_available():
     TiffStack_libtiff = not_available("libtiff")
 if not pims.tiff_stack.PIL_available():
