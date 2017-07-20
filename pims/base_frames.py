@@ -667,7 +667,7 @@ def default_axes(sizes, mode):
     return bundle_axes, iter_axes
 
 
-class PimsFormat(Format):
+class _PimsFormat(Format):
     def _can_read(self, request):
         if request.mode[1] in (self.modes + '?'):
             if request.filename.lower().endswith(self.extensions):
@@ -678,13 +678,70 @@ class PimsFormat(Format):
 
     @Slicerator.from_class
     class Reader(with_metaclass(ABCMeta, Format.Reader)):
+        def __getitem__(self, key):
+            return self.get_data(key)
+
+        @abstractmethod
+        def _get_length(self):
+            pass
+
+        @abstractmethod
+        def _open(self, **kwargs):
+            pass
+
+        @abstractmethod
+        def _get_dtype(self):
+            pass
+
+        @property
+        def dtype(self):
+            return self._get_dtype()
+
+        @property
+        def shape(self):
+            return (len(self),) + self.frame_shape
+
+        @abstractproperty
+        def frame_shape(self):
+            """ Returns the shape of the frame as returned by get_frame. """
+            pass
+
+        @property
+        def ndim(self):
+            """ Returns the number of axes. """
+            return len(self.frame_shape) + 1
+
+        def get_data(self, index, **kwargs):
+            """ get_data(index, **kwargs)
+
+            Read image data from the file, using the image index. The
+            returned image has a 'meta' attribute with the meta data.
+
+            Some formats may support additional keyword arguments. These are
+            listed in the documentation of those formats.
+            """
+            self._checkClosed()
+            self._BaseReaderWriter_last_index = index
+            im, meta = self._get_data(index, **kwargs)
+            return Frame(im, frame_no=index, metadata=meta)
+
+        def iter_data(self):
+            return iter(self[:])
+
+        @abstractmethod
+        def _get_data(self, i):
+            pass
+
+        def _get_meta_data(self, i):
+            return self.get_data(i).metadata
+
+
+class PimsFormat(_PimsFormat):
+    class Reader(_PimsFormat.Reader):
         def __init__(self, *args, **kwargs):
             self._clear_axes()
             self._get_frame_dict = dict()
             Format.Reader.__init__(self, *args, **kwargs)
-
-        def __getitem__(self, key):
-            return self.get_data(key)
 
         def _register_get_frame(self, method, axes):
             axes = tuple([a for a in axes])
@@ -716,12 +773,55 @@ class PimsFormat(Format):
             self.default_coords.axes = self.axes
             self.default_coords[name] = int(default)
 
+        def get_data(self, index, **kwargs):
+            """ get_data(index, **kwargs)
+
+            Read image data from the file, using the image index. The
+            returned image has a 'meta' attribute with the meta data.
+
+            Some formats may support additional keyword arguments. These are
+            listed in the documentation of those formats.
+            """
+            self._checkClosed()
+            self._BaseReaderWriter_last_index = index
+            return self._get_data(index, **kwargs)
+
+        def _get_data(self, i):
+            """ Returns a Frame of shape determined by bundle_axes. The index value
+            is interpreted according to the iter_axes property. Coordinates not
+            present in both iter_axes and bundle_axes will be set to their default
+            value (see default_coords). """
+            if i > len(self):
+                raise IndexError('index out of range')
+            if self._get_frame_wrapped is None:
+                self.bundle_axes = tuple(self.bundle_axes)  # kick bundle_axes
+
+            # start with the default coordinates
+            coords = self.default_coords.copy()
+
+            # list sizes of iteration axes
+            iter_sizes = [self._sizes[k] for k in self.iter_axes]
+            # list how much i has to increase to get an increase of coordinate n
+            iter_cumsizes = np.append(np.cumprod(iter_sizes[::-1])[-2::-1], 1)
+            # calculate the coordinates and update the coords dictionary
+            iter_coords = (i // iter_cumsizes) % iter_sizes
+            coords.update(
+                **{k: v for k, v in zip(self.iter_axes, iter_coords)})
+
+            result = self._get_frame_wrapped(**coords)
+            if hasattr(result, 'metadata'):
+                metadata = result.metadata
+            else:
+                metadata = dict()
+
+            metadata_axes = set(self.axes) - set(self.bundle_axes)
+            metadata_coords = {ax: coords[ax] for ax in metadata_axes}
+            metadata.update(
+                dict(axes=self.bundle_axes, coords=metadata_coords))
+            return Frame(result, frame_no=i, metadata=metadata)
+
         def _get_length(self):
             return int(np.prod([self._sizes[d] for d in self._iter_axes]))
-
-        @property
-        def dtype(self):
-            return self._get_dtype()
 
         @property
         def shape(self):
@@ -816,64 +916,3 @@ class PimsFormat(Format):
         @default_coords.setter
         def default_coords(self, value):
             self._default_coords.update(**value)
-
-        def get_data(self, index, **kwargs):
-            """ get_data(index, **kwargs)
-
-            Read image data from the file, using the image index. The
-            returned image has a 'meta' attribute with the meta data.
-
-            Some formats may support additional keyword arguments. These are
-            listed in the documentation of those formats.
-            """
-            self._checkClosed()
-            self._BaseReaderWriter_last_index = index
-            return self._get_data(index, **kwargs)
-
-        def iter_data(self):
-            return iter(self[:])
-
-        def _get_data(self, i):
-            """ Returns a Frame of shape determined by bundle_axes. The index value
-            is interpreted according to the iter_axes property. Coordinates not
-            present in both iter_axes and bundle_axes will be set to their default
-            value (see default_coords). """
-            if i > len(self):
-                raise IndexError('index out of range')
-            if self._get_frame_wrapped is None:
-                self.bundle_axes = tuple(self.bundle_axes)  # kick bundle_axes
-
-            # start with the default coordinates
-            coords = self.default_coords.copy()
-
-            # list sizes of iteration axes
-            iter_sizes = [self._sizes[k] for k in self.iter_axes]
-            # list how much i has to increase to get an increase of coordinate n
-            iter_cumsizes = np.append(np.cumprod(iter_sizes[::-1])[-2::-1], 1)
-            # calculate the coordinates and update the coords dictionary
-            iter_coords = (i // iter_cumsizes) % iter_sizes
-            coords.update(
-                **{k: v for k, v in zip(self.iter_axes, iter_coords)})
-
-            result = self._get_frame_wrapped(**coords)
-            if hasattr(result, 'metadata'):
-                metadata = result.metadata
-            else:
-                metadata = dict()
-
-            metadata_axes = set(self.axes) - set(self.bundle_axes)
-            metadata_coords = {ax: coords[ax] for ax in metadata_axes}
-            metadata.update(
-                dict(axes=self.bundle_axes, coords=metadata_coords))
-            return Frame(result, frame_no=i, metadata=metadata)
-
-        def _get_meta_data(self, i):
-            return self.get_data(i).metadata
-
-        @abstractmethod
-        def _open(self, **kwargs):
-            pass
-
-        @abstractmethod
-        def _get_dtype(self):
-            pass
