@@ -40,7 +40,7 @@ def tifffile_available():
     return tifffile is not None
 
 
-from pims.base_frames import FramesSequence
+from pims.base_frames import FramesSequence, PimsFormat, guess_axes, default_axes
 
 _dtype_map = {4: np.uint8,
               8: np.uint8,
@@ -53,7 +53,7 @@ def _tiff_datetime(dt_str):
                     minute=int(dt_str[14:16]), second=int(dt_str[17:19]))
 
 
-class TiffStack_tifffile(FramesSequence):
+class FormatTiffStack_tifffile(PimsFormat):
     """Read TIFF stacks (single files containing many images) into an
     iterable object that returns images as numpy arrays.
 
@@ -97,73 +97,58 @@ class TiffStack_tifffile(FramesSequence):
     --------
     TiffStack_pil, TiffStack_libtiff, ImageSequence
     """
-    @classmethod
-    def class_exts(cls):
-        # TODO extend this set to match reality
-        return {'tif', 'tiff', 'lsm',
-                'stk'} | super(TiffStack_tifffile, cls).class_exts()
+    class Reader(PimsFormat.Reader):
+        def _open(self, **kwargs):
+            handle = self.request.get_file()
+            record = tifffile.TiffFile(handle, **kwargs).series[0]
+            if hasattr(record, 'pages'):
+                self._tiff = record.pages
+            else:
+                self._tiff = record['pages']
 
-    def __init__(self, filename):
-        self._filename = filename
-        record = tifffile.TiffFile(filename).series[0]
-        if hasattr(record, 'pages'):
-            self._tiff = record.pages
-        else:
-            self._tiff = record['pages']
+            tmp = self._tiff[0]
+            self._dtype = tmp.dtype
 
-        tmp = self._tiff[0]
-        self._dtype = tmp.dtype
-        self._im_sz = tmp.shape
+            axes = guess_axes(tmp)
+            for name, size in zip(axes, tmp.shape):
+                self._init_axis(name, size)
+            self._init_axis('t', len(self._tiff))
 
-    def get_frame(self, j):
-        t = self._tiff[j]
-        data = t.asarray()
-        return Frame(data, frame_no=j, metadata=self._read_metadata(t))
+            self._register_get_frame(self._get_frame, axes)
 
-    def _read_metadata(self, tiff):
-        """Read metadata for current frame and return as dict"""
-        md = {}
-        try:
-            md["ImageDescription"] = (
-                tiff.tags["image_description"].value.decode())
-        except:
-            pass
-        try:
-            dt = tiff.tags["datetime"].value.decode()
-            md["DateTime"] = _tiff_datetime(dt)
-        except:
-            pass
-        try:
-            md["Software"] = tiff.tags["software"].value.decode()
-        except:
-            pass
-        try:
-            md["DocumentName"] = tiff.tags["document_name"].value.decode()
-        except:
-            pass
-        return md
+            self.bundle_axes, self.iter_axes = default_axes(self.sizes,
+                                                            self.request.mode)
 
-    @property
-    def pixel_type(self):
-        return self._dtype
+        def _get_dtype(self):
+            return self._dtype
 
-    @property
-    def frame_shape(self):
-        return self._im_sz
+        def _get_frame(self, **inds):
+            t = self._tiff[inds['t']]
+            return Frame(t.asarray(), frame_no=0,
+                         metadata=self._read_metadata(t))
 
-    def __len__(self):
-        return len(self._tiff)
-
-    def __repr__(self):
-        # May be overwritten by subclasses
-        return """<Frames>
-Source: {filename}
-Length: {count} frames
-Frame Shape: {frame_shape!r}
-Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
-                                  count=len(self),
-                                  filename=self._filename,
-                                  dtype=self.pixel_type)
+        def _read_metadata(self, tiff):
+            """Read metadata for current frame and return as dict"""
+            md = {}
+            try:
+                md["ImageDescription"] = (
+                    tiff.tags["image_description"].value.decode())
+            except:
+                pass
+            try:
+                dt = tiff.tags["datetime"].value.decode()
+                md["DateTime"] = _tiff_datetime(dt)
+            except:
+                pass
+            try:
+                md["Software"] = tiff.tags["software"].value.decode()
+            except:
+                pass
+            try:
+                md["DocumentName"] = tiff.tags["document_name"].value.decode()
+            except:
+                pass
+            return md
 
 
 class TiffStack_libtiff(FramesSequence):

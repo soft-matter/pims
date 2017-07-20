@@ -14,6 +14,8 @@ import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 from nose.tools import assert_true
 import pims
+import imageio
+from datetime import datetime
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -476,13 +478,11 @@ class TestVideo_MoviePy(_image_series, unittest.TestCase):
 class _tiff_image_series(_image_series):
     def test_metadata(self):
         m = self.v[0].metadata
-        if sys.version_info.major < 3:
-            pkl_path = os.path.join(path, 'stuck_metadata_py2.pkl')
-        else:
-            pkl_path = os.path.join(path, 'stuck_metadata_py3.pkl')
-        with open(pkl_path, 'rb') as p:
-            d = pickle.load(p)
-        assert_equal(m, d)
+        expected = {'Software': 'tifffile.py',
+                    'DateTime': datetime(2015, 1, 18, 15, 33, 49),
+                    'axes': ['y', 'x'], 'coords': {'t': 0},
+                    'ImageDescription': 'shape=(5,512,512)'}
+        assert_equal(m, expected)
 
 
 class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):

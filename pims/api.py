@@ -7,6 +7,7 @@ from pims.frame import Frame
 from pims.display import (export, play, scrollable_stack, to_rgb, normalize,
                           plot_to_frame, plots_to_frame)
 from itertools import chain
+from functools import wraps
 
 import six
 import glob
@@ -18,8 +19,8 @@ from pims.image_sequence import ImageSequence, ImageSequenceND, ReaderSequence  
 from pims.image_reader import ImageReader, ImageReaderND  # noqa
 from .cine import Cine  # noqa
 from .norpix_reader import NorpixSeq  # noqa
-from pims.tiff_stack import TiffStack_tifffile  # noqa
 from .spe_stack import SpeStack
+from imageio import formats, get_reader
 
 
 def not_available(requirement):
@@ -27,6 +28,15 @@ def not_available(requirement):
         raise ImportError(
             "This reader requires {0}.".format(requirement))
     return raiser
+
+
+def wrap_fmt(reader, name, description, extensions=None, modes=None):
+    formats.add_format(reader(name, description, extensions, modes))
+    @wraps(reader)
+    def wrapper(filename, **kwargs):
+        return get_reader(filename, name, **kwargs)
+    return wrapper
+
 
 if export is None:
     export = not_available("PyAV or MoviePy")
@@ -75,12 +85,18 @@ if Video is None:
     Video = not_available("PyAV, MoviePy, or ImageIO")
 
 import pims.tiff_stack
-from pims.tiff_stack import (TiffStack_pil, TiffStack_libtiff,
-                                TiffStack_tifffile)
+from pims.tiff_stack import TiffStack_pil, TiffStack_libtiff, \
+                        FormatTiffStack_tifffile
 # First, check if each individual class is available
 # and drop in placeholders as needed.
 if not pims.tiff_stack.tifffile_available():
-    TiffStack_tiffile = not_available("tifffile")
+    TiffStack_tifffile = not_available("tifffile")
+else:
+    TiffStack_tifffile = wrap_fmt(FormatTiffStack_tifffile,
+                                  'TIFF_tifffile',
+                                  'Reads TIFF files through tifffile.py.',
+                                  'tif tiff lsm stk',
+                                  'iIvV')
 if not pims.tiff_stack.libtiff_available():
     TiffStack_libtiff = not_available("libtiff")
 if not pims.tiff_stack.PIL_available():
@@ -95,6 +111,7 @@ elif pims.tiff_stack.PIL_available():
     TiffStack = TiffStack_pil
 else:
     TiffStack = not_available("tifffile, libtiff, or PIL/Pillow")
+
 
 
 try:

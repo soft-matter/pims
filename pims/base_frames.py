@@ -8,6 +8,7 @@ from slicerator import Slicerator, propagate_attr, index_attr
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
 from warnings import warn
+from imageio.core import Format
 
 
 class FramesStream(with_metaclass(ABCMeta, object)):
@@ -606,3 +607,273 @@ class FramesSequenceND(FramesSequence):
             s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
         s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s
+
+
+def guess_axes(image):
+    shape = image.shape
+    ndim = len(shape)
+
+    if ndim == 2:
+        return 'yx'
+    elif ndim == 3 and shape[2] in [3, 4]:
+        return 'yxc'
+    elif ndim == 3:
+        return 'zyx'
+    elif ndim == 4 and shape[3] in [3, 4]:
+        return 'zyxc'
+    else:
+        raise ValueError("Cannot interpret dimensions for an image of "
+                         "shape {0}".format(shape))
+
+
+def default_axes(sizes, mode):
+    if mode == 'i':  # single image
+        if sizes.get('z', 1) == 1 and sizes.get('t', 1) == 1:
+            bundle_axes = 'yx'
+            iter_axes = ''
+        else:
+            raise ValueError("This file cannot be opened as single image.")
+    elif mode == 'I':  # multiple images
+        if sizes.get('z', 1) == 1 and 't' in sizes:
+            bundle_axes = 'yx'
+            iter_axes = 't'
+        else:
+            raise ValueError("This file cannot be opened as multiple images.")
+    elif mode == 'v':  # single volume
+        if 'z' in sizes and sizes.get('t', 1) == 1:
+            bundle_axes = 'zyx'
+            iter_axes = ''
+        else:
+            raise ValueError("This file cannot be opened as single volume.")
+    elif mode == 'v':  # single volume
+        if 'z' in sizes and 't' in sizes:
+            bundle_axes = 'zyx'
+            iter_axes = 't'
+        else:
+            raise ValueError("This file cannot be opened as multiple volumes.")
+    else:
+        if 'z' in sizes:
+            bundle_axes = 'zyx'
+        else:
+            bundle_axes = 'yx'
+        if 't' in sizes:
+            iter_axes = 't'
+        else:
+            iter_axes = ''
+
+    if 'c' in sizes:
+        bundle_axes += 'c'
+
+    return bundle_axes, iter_axes
+
+
+class PimsFormat(Format):
+    def _can_read(self, request):
+        if request.mode[1] in (self.modes + '?'):
+            if request.filename.lower().endswith(self.extensions):
+                return True
+
+    def _can_write(self, request):
+        return False
+
+    @Slicerator.from_class
+    class Reader(with_metaclass(ABCMeta, Format.Reader)):
+        def __init__(self, *args, **kwargs):
+            self._clear_axes()
+            self._get_frame_dict = dict()
+            Format.Reader.__init__(self, *args, **kwargs)
+
+        def __getitem__(self, key):
+            return self.get_data(key)
+
+        def _register_get_frame(self, method, axes):
+            axes = tuple([a for a in axes])
+            if not hasattr(self, '_get_frame_dict'):
+                warn(
+                    "Please call FramesSequenceND.__init__() at the start of the"
+                    "the reader initialization.")
+                self._get_frame_dict = dict()
+            self._get_frame_dict[axes] = method
+
+        def _clear_axes(self):
+            self._sizes = {}
+            self._default_coords = DefaultCoordsDict()
+            self._iter_axes = []
+            self._bundle_axes = ['y', 'x']
+            self._get_frame_wrapped = None
+
+        def _init_axis(self, name, size, default=0):
+            # check if the axes have been initialized, if not, do it here
+            if not hasattr(self, '_sizes'):
+                warn(
+                    "Please call FramesSequenceND.__init__() at the start of the"
+                    "the reader initialization.")
+                self._clear_axes()
+                self._get_frame_dict = dict()
+            if name in self._sizes:
+                raise ValueError("axis '{}' already exists".format(name))
+            self._sizes[name] = int(size)
+            self.default_coords.axes = self.axes
+            self.default_coords[name] = int(default)
+
+        def _get_length(self):
+            return int(np.prod([self._sizes[d] for d in self._iter_axes]))
+
+        @property
+        def dtype(self):
+            return self._get_dtype()
+
+        @property
+        def shape(self):
+            iter_shape = tuple([self._sizes[d] for d in self._iter_axes])
+            return iter_shape + self.frame_shape
+
+        @property
+        def frame_shape(self):
+            """ Returns the shape of the frame as returned by get_frame. """
+            return tuple([self._sizes[d] for d in self._bundle_axes])
+
+        @property
+        def axes(self):
+            """ Returns a list of all axes. """
+            return [k for k in self._sizes]
+
+        @property
+        def ndim(self):
+            """ Returns the number of axes. """
+            return len(self._sizes)
+
+        @property
+        def sizes(self):
+            """ Returns a dict of all axis sizes. """
+            return self._sizes
+
+        @property
+        def bundle_axes(self):
+            """ This determines which axes will be bundled into one Frame.
+            The ndarray that is returned by get_frame has the same axis order
+            as the order of `bundle_axes`.
+            """
+            return self._bundle_axes[:]  # return a copy
+
+        @bundle_axes.setter
+        def bundle_axes(self, value):
+            value = list(value)
+            invalid = [k for k in value if k not in self._sizes]
+            if invalid:
+                raise ValueError("axes %r do not exist" % invalid)
+
+            for k in value:
+                if k in self._iter_axes:
+                    del self._iter_axes[self._iter_axes.index(k)]
+
+            self._bundle_axes = value
+            if not hasattr(self, '_get_frame_dict'):
+                warn(
+                    "Please call FramesSequenceND.__init__() at the start of the"
+                    "the reader initialization.")
+                self._get_frame_dict = dict()
+            if len(self._get_frame_dict) == 0:
+                if hasattr(self, 'get_frame_2D'):
+                    # include get_frame_2D for backwards compatibility
+                    self._register_get_frame(self.get_frame_2D, 'yx')
+                else:
+                    raise RuntimeError(
+                        'No reader methods found. Register a reader '
+                        'method with _register_get_frame')
+
+            # update the get_frame method
+            get_frame = _make_get_frame(self._bundle_axes,
+                                        self._get_frame_dict,
+                                        self.sizes, self.dtype)
+            self._get_frame_wrapped = get_frame
+
+        @property
+        def iter_axes(self):
+            """ This determines which axes will be iterated over by the
+            FramesSequence. The last element will iterate fastest. """
+            return self._iter_axes[:]  # return a copy
+
+        @iter_axes.setter
+        def iter_axes(self, value):
+            value = list(value)
+            invalid = [k for k in value if k not in self._sizes]
+            if invalid:
+                raise ValueError("axes %r do not exist" % invalid)
+
+            for k in value:
+                if k in self._bundle_axes:
+                    del self._bundle_axes[self._bundle_axes.index(k)]
+
+            self._iter_axes = value
+
+        @property
+        def default_coords(self):
+            """ When a axis is not present in both iter_axes and bundle_axes, the
+            coordinate contained in this dictionary will be used. """
+            return self._default_coords  # this is a custom dict (DefaultCoordsDict)
+
+        @default_coords.setter
+        def default_coords(self, value):
+            self._default_coords.update(**value)
+
+        def get_data(self, index, **kwargs):
+            """ get_data(index, **kwargs)
+
+            Read image data from the file, using the image index. The
+            returned image has a 'meta' attribute with the meta data.
+
+            Some formats may support additional keyword arguments. These are
+            listed in the documentation of those formats.
+            """
+            self._checkClosed()
+            self._BaseReaderWriter_last_index = index
+            return self._get_data(index, **kwargs)
+
+        def iter_data(self):
+            return iter(self[:])
+
+        def _get_data(self, i):
+            """ Returns a Frame of shape determined by bundle_axes. The index value
+            is interpreted according to the iter_axes property. Coordinates not
+            present in both iter_axes and bundle_axes will be set to their default
+            value (see default_coords). """
+            if i > len(self):
+                raise IndexError('index out of range')
+            if self._get_frame_wrapped is None:
+                self.bundle_axes = tuple(self.bundle_axes)  # kick bundle_axes
+
+            # start with the default coordinates
+            coords = self.default_coords.copy()
+
+            # list sizes of iteration axes
+            iter_sizes = [self._sizes[k] for k in self.iter_axes]
+            # list how much i has to increase to get an increase of coordinate n
+            iter_cumsizes = np.append(np.cumprod(iter_sizes[::-1])[-2::-1], 1)
+            # calculate the coordinates and update the coords dictionary
+            iter_coords = (i // iter_cumsizes) % iter_sizes
+            coords.update(
+                **{k: v for k, v in zip(self.iter_axes, iter_coords)})
+
+            result = self._get_frame_wrapped(**coords)
+            if hasattr(result, 'metadata'):
+                metadata = result.metadata
+            else:
+                metadata = dict()
+
+            metadata_axes = set(self.axes) - set(self.bundle_axes)
+            metadata_coords = {ax: coords[ax] for ax in metadata_axes}
+            metadata.update(
+                dict(axes=self.bundle_axes, coords=metadata_coords))
+            return Frame(result, frame_no=i, metadata=metadata)
+
+        def _get_meta_data(self, i):
+            return self.get_data(i).metadata
+
+        @abstractmethod
+        def _open(self, **kwargs):
+            pass
+
+        @abstractmethod
+        def _get_dtype(self):
+            pass
