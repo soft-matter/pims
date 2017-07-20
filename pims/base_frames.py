@@ -722,7 +722,7 @@ class _PimsFormat(Format):
             pass
 
         @abstractproperty
-        def pixel_type(self):
+        def dtype(self):
             """Returns a numpy.dtype for the data type of the pixel values"""
             pass
 
@@ -868,7 +868,7 @@ class PimsFormat(_PimsFormat):
             # update the get_frame method
             get_frame = _make_get_frame(self._bundle_axes,
                                         self._get_frame_dict,
-                                        self.sizes, self.pixel_type)
+                                        self.sizes, self.dtype)
             self._get_frame_wrapped = get_frame
 
         @property
