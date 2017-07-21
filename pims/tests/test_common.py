@@ -448,7 +448,11 @@ class TestVideo_ImageIO(_image_series, unittest.TestCase):
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
         self.klass = pims.ImageIOReader
         self.kwargs = dict()
-        self.v = self.klass(self.filename, **self.kwargs)
+        try:
+            self.v = self.klass(self.filename, **self.kwargs)
+        except imageio.core.fetching.NeedDownloadError:
+            imageio.plugins.ffmpeg.download()
+            self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
 
@@ -566,6 +570,7 @@ class TestOpenFiles(unittest.TestCase):
         _skip_if_no_PIL()
 
     def test_open_png(self):
+        _skip_if_no_imread()
         self.filenames = ['dummy_png.png']
         shape = (10, 11)
         save_dummy_png(path, self.filenames, shape)
@@ -573,6 +578,7 @@ class TestOpenFiles(unittest.TestCase):
         clean_dummy_png(path, self.filenames)
 
     def test_open_pngs(self):
+        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
