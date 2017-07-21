@@ -19,13 +19,13 @@ Pipelines
    from slicerator import pipeline
    as_grey = pipeline(_as_grey)
 
-Videos loaded by pims are (``FramesSequence`` objects) are like lists of numpy
+Videos loaded by pims (``FramesSequence`` objects) are like lists of numpy
 arrays. Unlike Python lists of arrays they are "lazy", they only load the data
 from the harddrive when it is necessary.
 
 In order to modify a ``FramesSequence``, for instance to convert RGB color
 videos to grayscale, one could load all the video frames in memory and do the
-conversion. THis however costs a lot of time and memory, and for very large
+conversion. This however costs a lot of time and memory, and for very large
 videos this is just not feasible. To solve this problem, PIMS uses
 so-called pipeline decorators from a sister project called ``slicerator``.
 A pipeline-decorated function is only evaluated when needed, so that the
@@ -55,7 +55,7 @@ The behavior of ``as_grey`` is unchanged if it is used on a single frame:
 
    frame = video[0]
    print(frame.shape)   # the shape of the example video is RGB
-   processed_frame = as_grey(video[0])
+   processed_frame = as_grey(frame)
    print(processed_frame.shape)  # the converted frame is indeed greyscale
 
 
@@ -69,8 +69,15 @@ However, the ``@pipeline`` decorator enables lazy evaluation of full videos:
    processed_frame = processed_video[0]  # now the conversion takes place
    print(processed_frame.shape)
 
+This means that the modified video can be used exactly as you would use the
+original one. In most cases, it will look as though you are accessing
+a grayscale video file, even though the file on disk is still in color.
 Please keep in mind that these simple pipelines do not change the reader
-properties, such as ``video.frame_shape``.
+properties, such as ``video.frame_shape``. Propagating metadata properly through
+pipelines is partly implemented, but currently still experimental.
+For a detailed description of this tricky point, please consult
+`this <https://github.com/soft-matter/slicerator/pull/5#issuecomment-143560978>`_
+discussion on GitHub.
 
 
 Converting existing functions to a pipeline
