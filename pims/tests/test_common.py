@@ -480,9 +480,9 @@ class _tiff_image_series(_image_series):
         m = self.v[0].metadata
         expected = {'Software': 'tifffile.py',
                     'DateTime': datetime(2015, 1, 18, 15, 33, 49),
-                    'axes': ['y', 'x'], 'coords': {'t': 0},
                     'ImageDescription': 'shape=(5,512,512)'}
-        assert_equal(m, expected)
+        for key in expected:
+            assert_equal(m[key], expected[key])
 
 
 class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
