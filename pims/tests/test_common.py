@@ -127,42 +127,9 @@ class _image_single(object):
         repr(self.v)
 
 
-class _deprecated_functions(object):
-    def test_dtype_conversion(self):
-        self.check_skip()
-        v8 = self.klass(self.filename, dtype='uint8', **self.kwargs)
-        v16 = self.klass(self.filename, dtype='uint16', **self.kwargs)
-        type8 = v8[0].dtype
-        type16 = v16[0].dtype
-        self.assertEqual(type8, np.uint8)
-        self.assertEqual(type16, np.uint16)
-
-    def test_process_func(self):
-        self.check_skip()
-        # Use a trivial identity function to verify the process_func exists.
-        f = lambda x: x
-        self.klass(self.filename, process_func=f, **self.kwargs)
-
-        # Also, it should be the second positional arg for each class.
-        # This is verified more directly in later tests, too.
-        self.klass(self.filename, f, **self.kwargs)
-
-    def test_inversion_process_func(self):
-        self.check_skip()
-        def invert(image):
-            if np.issubdtype(image.dtype, np.integer):
-                max_value = np.iinfo(image.dtype).max
-                image = image ^ max_value
-            else:
-                image = 1 - image
-            return image
-
-        v_raw = self.klass(self.filename, **self.kwargs)
-        v = self.klass(self.filename, invert, **self.kwargs)
-        assert_image_equal(v[0], invert(v_raw[0]))
-
 def box(letter):
     return pims.Frame(np.array(letter))
+
 
 def assert_letters_equal(actual, expected):
     for actual_, expected_ in zip(actual, expected):
@@ -290,7 +257,6 @@ class TestRecursiveSlicing(unittest.TestCase):
         assert_true(isinstance(slice2, types.GeneratorType))
 
 def _rescale(img):
-    # print(type(img))
     return (img - img.min()) / img.ptp()
 
 def _color_channel(img, channel):
@@ -398,27 +364,6 @@ class _image_series(_image_single):
         list(self.v[[0, -1]])
 
 
-class _image_rgb(_image_single):
-    # Only include these tests for 2D RGB files.
-    def test_greyscale_process_func(self):
-        self.check_skip()
-        def greyscale(image):
-            assert image.ndim == 3
-            image = image[:, :, 0]
-            assert image.ndim == 2
-            return image
-
-        v_raw = self.klass(self.filename, **self.kwargs)
-        v = self.klass(self.filename, greyscale, **self.kwargs)
-        assert_image_equal(v[0], greyscale(v_raw[0]))
-
-    def test_as_grey(self):
-        self.check_skip()
-        v = self.klass(self.filename, as_grey=True, **self.kwargs)
-        ndim = v[0].ndim
-        self.assertEqual(ndim, 2)
-
-
 class TestImageReaderTIFF(_image_single, unittest.TestCase):
     def setUp(self):
         _skip_if_no_imread()
@@ -474,8 +419,7 @@ class TestVideo_PyAV_timed(_image_series, unittest.TestCase):
         self.expected_len = 480
 
 
-class TestVideo_PyAV_indexed(_image_series, _image_rgb, _deprecated_functions,
-                             unittest.TestCase):
+class TestVideo_PyAV_indexed(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_PyAV()
 
@@ -529,7 +473,7 @@ class TestVideo_MoviePy(_image_series, unittest.TestCase):
         self.v.close()
 
 
-class _tiff_image_series(_image_series, _deprecated_functions):
+class _tiff_image_series(_image_series):
     def test_metadata(self):
         m = self.v[0].metadata
         if sys.version_info.major < 3:
@@ -541,8 +485,7 @@ class _tiff_image_series(_image_series, _deprecated_functions):
         assert_equal(m, d)
 
 
-class TestTiffStack_libtiff(_tiff_image_series, _deprecated_functions,
-                            unittest.TestCase):
+class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_libtiff()
 
@@ -558,8 +501,7 @@ class TestTiffStack_libtiff(_tiff_image_series, _deprecated_functions,
         self.expected_len = 5
 
 
-class TestTiffStack_pil(_tiff_image_series, _deprecated_functions,
-                        unittest.TestCase):
+class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -575,8 +517,7 @@ class TestTiffStack_pil(_tiff_image_series, _deprecated_functions,
         self.expected_len = 5
 
 
-class TestTiffStack_tifffile(_tiff_image_series, _deprecated_functions,
-                             unittest.TestCase):
+class TestTiffStack_tifffile(_tiff_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -592,8 +533,7 @@ class TestTiffStack_tifffile(_tiff_image_series, _deprecated_functions,
         self.expected_len = 5
 
 
-class TestSpeStack(_image_series, _deprecated_functions,
-                   unittest.TestCase):
+class TestSpeStack(_image_series, unittest.TestCase):
     def check_skip(self):
         pass
 
@@ -649,7 +589,6 @@ class TestOpenFiles(unittest.TestCase):
     def test_open_tiff(self):
         _skip_if_no_tifffile()
         pims.open(os.path.join(path, 'stuck.tif'))
-
 
 if __name__ == '__main__':
     nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],

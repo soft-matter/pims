@@ -63,14 +63,6 @@ class TiffStack_tifffile(FramesSequence):
     Parameters
     ----------
     filename : string
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
 
     Examples
     --------
@@ -111,8 +103,7 @@ class TiffStack_tifffile(FramesSequence):
         return {'tif', 'tiff', 'lsm',
                 'stk'} | super(TiffStack_tifffile, cls).class_exts()
 
-    def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False):
+    def __init__(self, filename):
         self._filename = filename
         record = tifffile.TiffFile(filename).series[0]
         if hasattr(record, 'pages'):
@@ -121,21 +112,13 @@ class TiffStack_tifffile(FramesSequence):
             self._tiff = record['pages']
 
         tmp = self._tiff[0]
-        if dtype is None:
-            self._dtype = tmp.dtype
-        else:
-            self._dtype = dtype
-
+        self._dtype = tmp.dtype
         self._im_sz = tmp.shape
-
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
         t = self._tiff[j]
         data = t.asarray()
-        return Frame(self.process_func(data).astype(self._dtype),
-                      frame_no=j, metadata=self._read_metadata(t))
+        return Frame(data, frame_no=j, metadata=self._read_metadata(t))
 
     def _read_metadata(self, tiff):
         """Read metadata for current frame and return as dict"""
@@ -192,14 +175,6 @@ class TiffStack_libtiff(FramesSequence):
     Parameters
     ----------
     filename : string
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
 
     Examples
     --------
@@ -224,8 +199,7 @@ class TiffStack_libtiff(FramesSequence):
     --------
     TiffStack_pil, TiffStack_tiffile, ImageSequence
     """
-    def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False):
+    def __init__(self, filename):
         self._filename = filename
         self._tiff = TIFF.open(filename)
 
@@ -238,17 +212,11 @@ class TiffStack_libtiff(FramesSequence):
         self._tiff.SetDirectory(0)
 
         tmp = self._tiff.read_image()
-        if dtype is None:
-            self._dtype = tmp.dtype
-        else:
-            self._dtype = dtype
+        self._dtype = tmp.dtype
 
         self._im_sz = tmp.shape
 
         self._byte_swap = bool(self._tiff.IsByteSwapped())
-
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
         if j > self._count:
@@ -257,11 +225,7 @@ class TiffStack_libtiff(FramesSequence):
         res = self._tiff.read_image()
         if self._byte_swap:
             res = res.newbyteorder()
-        if res.dtype != self._dtype:
-            res = res.astype(self._dtype)
-
-        return Frame(self.process_func(res), frame_no=j,
-                     metadata=self._read_metadata())
+        return Frame(res, frame_no=j, metadata=self._read_metadata())
 
     def _read_metadata(self):
         """Read metadata for current frame and return as dict"""
@@ -327,14 +291,6 @@ class TiffStack_pil(FramesSequence):
     Parameters
     ----------
     filename : string
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
 
     Examples
     --------
@@ -359,20 +315,15 @@ class TiffStack_pil(FramesSequence):
     --------
     TiffStack_libtiff, TiffStack_tiffile, ImageSequence
     """
-    def __init__(self, fname, process_func=None, dtype=None,
-                 as_grey=None):
+    def __init__(self, fname):
 
         self.im = Image.open(fname)
         self._filename = fname  # used by __repr__
 
         self.im.seek(0)
         # this will need some work to deal with color
-        if dtype is None:
-            res = self.im.tag[0x102][0]
-            self._dtype = _dtype_map.get(res, np.int16)
-        else:
-            self._dtype = dtype
-
+        res = self.im.tag[0x102][0]
+        self._dtype = _dtype_map.get(res, np.int16)
         try:
             samples_per_pixel = self.im.tag[0x115][0]
             if samples_per_pixel != 1:
@@ -398,8 +349,6 @@ class TiffStack_pil(FramesSequence):
 
         self._count = j
         self.cur = self.im.tell()
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
 
     def get_frame(self, j):
         '''Extracts the jth frame from the image sequence.
@@ -415,10 +364,8 @@ class TiffStack_pil(FramesSequence):
             raise IndexError("out of bounds; length is {0}".format(len(self)))
         # If j == self.cur, do nothing.
         self.cur = self.im.tell()
-        res = np.reshape(self.im.getdata(),
-                         self._im_sz).astype(self._dtype)
-        return Frame(self.process_func(res), frame_no=j,
-                     metadata=self._read_metadata())
+        res = np.reshape(self.im.getdata(), self._im_sz)
+        return Frame(res, frame_no=j, metadata=self._read_metadata())
 
     def _read_metadata(self):
         """Read metadata for current frame and return as dict"""
@@ -507,12 +454,8 @@ class TiffSeries(FramesSequence):
     offset : int, default 1
         The file number for frame 0.
 
-    dtype : None or numpy.dtype
-        If `None`, use the native type of the image,
-        other wise coerce into the specified dtype.
-
     '''
-    def __init__(self, name_template, offset=1, dtype=None):
+    def __init__(self, name_template, offset=1):
 
         self._name_template = name_template
         self._offset = offset
@@ -522,11 +465,9 @@ class TiffSeries(FramesSequence):
         # due to row major v col major ordering in tiffs and numpy
         self._im_sz = (im.tag[0x101][0],
                        im.tag[0x100][0])
-        if dtype is None:
-            res = im.tag[0x102][0]
-            self._dtype = _dtype_map.get(res, np.int16)
-        else:
-            self._dtype = dtype
+
+        res = im.tag[0x102][0]
+        self._dtype = _dtype_map.get(res, np.int16)
 
         try:
             samples_per_pixel = im.tag[0x115][0]
@@ -548,8 +489,7 @@ class TiffSeries(FramesSequence):
 
         im = Image.open(self._name_template.format(ind=j + self._offset))
 
-        return np.reshape(im.getdata(),
-                          self._im_sz).astype(self._dtype)
+        return np.reshape(im.getdata(), self._im_sz)
 
     @property
     def pixel_type(self):

@@ -77,13 +77,6 @@ class NorpixSeq(FramesSequence):
     ----------
     filename : string
         Path to the .seq file
-    process_func : function, optional
-        callable with signature `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Ignored.
     as_raw : boolean, optional
         Required for non-monochrome frames.
         Images will be returned as an ndarray of bytes.
@@ -98,7 +91,7 @@ class NorpixSeq(FramesSequence):
                        'get_time_float', 'filename', 'width', 'height',
                        'frame_rate']
 
-    def __init__(self, filename, process_func=None, dtype=None, as_grey=False, as_raw=False):
+    def __init__(self, filename, as_raw=False):
         super(NorpixSeq, self).__init__()
         self._file = open(filename, 'rb')
         self._filename = filename
@@ -138,29 +131,21 @@ class NorpixSeq(FramesSequence):
                 self._shape = (self._height, int(self._pixel_count / self._height))
             else:
                 self._shape = (self._image_bytes,)
-            self._dtype_native = 'uint8'
+            self._dtype = 'uint8'
         else:
             try:
                 self._pixel_count = self._width * self._height
                 dtype_native = 'uint%i' % self.header_dict['bit_depth']
-                self._dtype_native = np.dtype(dtype_native)
+                self._dtype = np.dtype(dtype_native)
                 self._shape = (self._height, self._width)
             except TypeError as e:
-                raise IOError(dtype + " pixels not supported; use as_raw and convert")
+                raise IOError(self._dtype + " pixels not supported; use as_raw and convert")
 
         # Public metadata
         self.metadata = {k: self.header_dict[k] for k in
                          ('description', 'bit_depth_real', 'origin',
                           'suggested_frame_rate', 'width', 'height')}
         self.metadata['gamut'] = 2**self.metadata['bit_depth_real'] - 1
-
-        # Handle optional parameters
-        if dtype is None:
-            self._dtype = self._dtype_native
-        else:
-            self._dtype = dtype
-
-        self.set_process_func(process_func)
 
         self._file_lock = Lock()
 
@@ -198,14 +183,13 @@ class NorpixSeq(FramesSequence):
         self._verify_frame_no(i)
         with FileLocker(self._file_lock):
             self._file.seek(self._image_offset + self._image_block_size * i)
-            imdata = np.fromfile(self._file, self._dtype_native, self._pixel_count
+            imdata = np.fromfile(self._file, self.pixel_type, self._pixel_count
                                  ).reshape(self._shape)
             # Timestamp immediately follows
             tfloat, ts = self._read_timestamp()
             md = {'time': ts, 'time_float': tfloat,
                   'gamut': self.metadata['gamut']}
-            return Frame(self.process_func(imdata.astype(self._dtype)),
-                         frame_no=i, metadata=md)
+            return Frame(imdata, frame_no=i, metadata=md)
 
     def _read_timestamp(self):
         """Read a timestamp at the current position in the file.

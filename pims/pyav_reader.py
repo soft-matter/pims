@@ -281,14 +281,6 @@ class PyAVReaderIndexed(FramesSequence):
     Parameters
     ----------
     filename : string
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
 
     Examples
     --------
@@ -316,20 +308,9 @@ class PyAVReaderIndexed(FramesSequence):
         return {'mov', 'avi',
                 'mp4'} | super(PyAVReaderIndexed, cls).class_exts()
 
-    def __init__(self, filename, process_func=None, dtype=None,
-                 as_grey=False):
-
-        if dtype is not None:
-            self._dtype = dtype
-        else:
-            # No need to detect dtype: PyAV always returns uint8.
-            self._dtype = np.uint8
-
+    def __init__(self, filename):
         self.filename = str(filename)
         self._initialize()
-
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
 
     def _initialize(self):
         "Scan through and tabulate contents to enable random access."
@@ -375,7 +356,7 @@ class PyAVReaderIndexed(FramesSequence):
         if frame.index != j:
             raise AssertionError("Seeking failed to obtain the correct frame.")
         result = _to_nd_array(frame)
-        return Frame(self.process_func(result).astype(self._dtype), frame_no=j)
+        return Frame(result, frame_no=j)
 
     def _seek_packet(self, packet_no):
         """Advance through the container generator until we get the packet
@@ -394,7 +375,8 @@ class PyAVReaderIndexed(FramesSequence):
 
     @property
     def pixel_type(self):
-        raise np.uint8
+        # No need to detect dtype: PyAV always returns uint8.
+        return np.uint8
 
     def __repr__(self):
         # May be overwritten by subclasses

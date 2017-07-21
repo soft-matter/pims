@@ -66,8 +66,8 @@ def test_copy_update_md():
     tt = Frame(tt_base, frame_no=frame_no, metadata=md_dict2)
     target_dict = dict(md_dict)
     target_dict.update(md_dict2)
-    print(target_dict)
-    print(tt.metadata)
+    # print(target_dict)
+    # print(tt.metadata)
     assert_equal(tt.metadata, target_dict)
 
     tt2 = Frame(tt_base, frame_no=frame_no, metadata=md_dict3)
