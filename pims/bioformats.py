@@ -575,3 +575,7 @@ class BioformatsReader(FramesSequenceND):
     @property
     def reader_class_name(self):
         return self.rdr.getFormat()
+
+    @property
+    def version(self):
+        return loci.formats.FormatTools.VERSION
