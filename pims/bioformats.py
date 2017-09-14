@@ -41,7 +41,7 @@ def _gen_jar_locations():
     yield os.path.join(os.path.expanduser('~'), '.config', 'pims')
 
 
-def _find_jar(url=None, sha256_checksum=None):
+def _find_jar():
     """
     Finds the location of loci_tools.jar, if necessary download it to a
     writeable location.
@@ -51,6 +51,13 @@ def _find_jar(url=None, sha256_checksum=None):
             return os.path.join(loc, 'loci_tools.jar')
 
     warn('loci_tools.jar not found, downloading')
+    _download_jar()
+
+
+def _download_jar(version='5.7.0'):
+    from six.moves.urllib.request import urlopen
+    import hashlib
+
     for loc in _gen_jar_locations():
         # check if dir exists and has write access:
         if os.path.exists(loc) and os.access(loc, os.W_OK):
@@ -66,25 +73,25 @@ def _find_jar(url=None, sha256_checksum=None):
                       'loci_tools.jar to the pims program folder or one of '
                       'the locations provided by _gen_jar_locations().')
 
-    from six.moves.urllib.request import urlretrieve
-    if url is None:
-        url = ('http://downloads.openmicroscopy.org/bio-formats/5.4.1/' +
-               'artifacts/loci_tools.jar')
-        sha256_checksum = '64466c8fb05f581099acffcf2f10883a130fd53cdd17' \
-                          'af6d9dc0da81bb37cc1b'
+    url = ('http://downloads.openmicroscopy.org/bio-formats/' + version +
+           '/artifacts/loci_tools.jar')
 
-    urlretrieve(url, os.path.join(loc, 'loci_tools.jar'))
     path = os.path.join(loc, 'loci_tools.jar')
+    with urlopen(url) as file_req:
+        loci_tools = file_req.read()
 
-    if sha256_checksum is not None:
-        import hashlib
-        with open(path, 'rb') as open_file:
-            downloaded = hashlib.sha256(open_file.read()).hexdigest()
-            if downloaded != sha256_checksum:
-                raise IOError("Downloaded loci_tools.jar has invalid checksum. "
-                              "Please try again.")
+    with urlopen(url + '.sha1') as sha1_req:
+        sha1_checksum = sha1_req.read().split(b' ')[0].decode()
 
-    return os.path.join(loc, 'loci_tools.jar')
+    downloaded = hashlib.sha1(loci_tools).hexdigest()
+    if downloaded != sha1_checksum:
+        raise IOError("Downloaded loci_tools.jar has invalid checksum. "
+                      "Please try again.")
+
+    with open(path, 'wb') as output:
+        output.write(loci_tools)
+
+    return path
 
 
 def _maybe_tostring(field):
