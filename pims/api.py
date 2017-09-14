@@ -109,10 +109,25 @@ except (ImportError, IOError):
 
 
 try:
-    from pims_nd2 import ND2_Reader
+    from pims_nd2 import ND2_Reader as ND2Reader_SDK
+
+    class ND2_Reader(ND2Reader_SDK):
+        class_priority = 0
+
+        def __init__(self, *args, **kwargs):
+            warn("'ND2_Reader' has been renamed to 'ND2Reader_SDK' and will be"
+                 "removed in future pims versions. "
+                 "Please use the new name, or try out the pure-Python one named "
+                 "`ND2Reader`.")
+            super(ND2_Reader, self).__init__(*args, **kwargs)
 except ImportError:
+    ND2Reader_SDK = not_available("pims_nd2")
     ND2_Reader = not_available("pims_nd2")
 
+try:
+    from nd2reader import ND2Reader
+except ImportError:
+    ND2Reader = not_available("nd2reader")
 
 def open(sequence, **kwargs):
     """Read a filename, list of filenames, or directory of image files into an

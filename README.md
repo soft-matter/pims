@@ -35,6 +35,7 @@ PIMS is based on readers by:
    reads and writes many formats)
 * [moviepy](http://zulko.github.io/moviepy) (a Python module that supports
    video editing)
+* [nd2reader](https://github.com/rbnvrw/nd2reader) (a Pure Python module for reading Nikon NIS Elements ND2 images and metadata)
 
 Examples & Documentation
 ------------------------
