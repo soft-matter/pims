@@ -51,7 +51,7 @@ def _find_jar():
             return os.path.join(loc, 'loci_tools.jar')
 
     warn('loci_tools.jar not found, downloading')
-    _download_jar()
+    return _download_jar()
 
 
 def _download_jar(version='5.7.0'):
@@ -77,11 +77,8 @@ def _download_jar(version='5.7.0'):
            '/artifacts/loci_tools.jar')
 
     path = os.path.join(loc, 'loci_tools.jar')
-    with urlopen(url) as file_req:
-        loci_tools = file_req.read()
-
-    with urlopen(url + '.sha1') as sha1_req:
-        sha1_checksum = sha1_req.read().split(b' ')[0].decode()
+    loci_tools = urlopen(url).read()
+    sha1_checksum = urlopen(url + '.sha1').read().split(b' ')[0].decode()
 
     downloaded = hashlib.sha1(loci_tools).hexdigest()
     if downloaded != sha1_checksum:
