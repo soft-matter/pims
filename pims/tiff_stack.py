@@ -41,7 +41,7 @@ def tifffile_available():
     return tifffile is not None
 
 
-from pims.base_frames import FramesSequence, PimsFormat, guess_axes, default_axes
+from pims.base_frames import FramesSequence
 
 _dtype_map = {4: np.uint8,
               8: np.uint8,
@@ -126,26 +126,13 @@ class FormatTiffStack_tifffile(Format):
             else:
                 self._tiff = record['pages']
 
-            # tmp = self._tiff[0]
-            # self._dtype = tmp.dtype
-            #
-            # axes = guess_axes(tmp)
-            # for name, size in zip(axes, tmp.shape):
-            #     self._init_axis(name, size)
-            # self._init_axis('t', len(self._tiff))
-            #
-            # self._register_get_frame(self._get_frame, axes)
-            #
-            # self.bundle_axes, self.iter_axes = default_axes(self.sizes,
-            #                                                 self.request.mode)
-
         def _close(self):
             # Close the reader.
             # Note that the request object will close self._fp
             pass
 
         def _get_pims_info(self):
-            return dict(dtype=self._dtype)
+            return dict()
 
         def _get_length(self):
             # Return the number of images. Can be np.inf

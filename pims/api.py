@@ -15,6 +15,7 @@ import os
 from warnings import warn
 
 # has to be here for API stuff
+from pims.base_frames import WrapImageIOReader
 from pims.image_sequence import ImageSequence, ImageSequenceND, ReaderSequence  # noqa
 from pims.image_reader import ImageReader, ImageReaderND  # noqa
 from .cine import Cine  # noqa
@@ -36,7 +37,7 @@ def register_fmt(reader, name, description, extensions=None, modes=None):
     formats.add_format(reader(name, description, extensions, modes))
     @wraps(reader)
     def wrapper(filename, **kwargs):
-        return get_reader(filename, name, **kwargs)
+        return WrapImageIOReader(get_reader(filename, name, **kwargs))
     return wrapper
 
 
