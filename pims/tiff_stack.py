@@ -8,6 +8,7 @@ from datetime import datetime
 import itertools
 import numpy as np
 from pims.frame import Frame
+from imageio.core import Format
 
 try:
     from PIL import Image  # should work with PIL or PILLOW
@@ -53,7 +54,7 @@ def _tiff_datetime(dt_str):
                     minute=int(dt_str[14:16]), second=int(dt_str[17:19]))
 
 
-class FormatTiffStack_tifffile(PimsFormat):
+class FormatTiffStack_tifffile(Format):
     """Read TIFF stacks (single files containing many images) into an
     iterable object that returns images as numpy arrays.
 
@@ -97,8 +98,27 @@ class FormatTiffStack_tifffile(PimsFormat):
     --------
     TiffStack_pil, TiffStack_libtiff, ImageSequence
     """
-    class Reader(PimsFormat.Reader):
+    def _can_read(self, request):
+        """Determine whether `request.filename` can be read using this
+        Format.Reader, judging from the imageio.core.Request object."""
+        if request.mode[1] in (self.modes + '?'):
+            if request.filename.lower().endswith(self.extensions):
+                return True
+
+    def _can_write(self, request):
+        """Determine whether file type `request.filename` can be written using
+        this Format.Writer, judging from the imageio.core.Request object."""
+        return False
+
+    class Reader(Format.Reader):
         def _open(self, **kwargs):
+            # Specify kwargs here. Optionally, the user-specified kwargs
+            # can also be accessed via the request.kwargs object.
+            #
+            # The request object provides two ways to get access to the
+            # data. Use just one:
+            #  - Use request.get_file() for a file object (preferred)
+            #  - Use request.get_local_filename() for a file on the system
             handle = self.request.get_file()
             record = tifffile.TiffFile(handle, **kwargs).series[0]
             if hasattr(record, 'pages'):
@@ -106,26 +126,40 @@ class FormatTiffStack_tifffile(PimsFormat):
             else:
                 self._tiff = record['pages']
 
-            tmp = self._tiff[0]
-            self._dtype = tmp.dtype
+            # tmp = self._tiff[0]
+            # self._dtype = tmp.dtype
+            #
+            # axes = guess_axes(tmp)
+            # for name, size in zip(axes, tmp.shape):
+            #     self._init_axis(name, size)
+            # self._init_axis('t', len(self._tiff))
+            #
+            # self._register_get_frame(self._get_frame, axes)
+            #
+            # self.bundle_axes, self.iter_axes = default_axes(self.sizes,
+            #                                                 self.request.mode)
 
-            axes = guess_axes(tmp)
-            for name, size in zip(axes, tmp.shape):
-                self._init_axis(name, size)
-            self._init_axis('t', len(self._tiff))
+        def _close(self):
+            # Close the reader.
+            # Note that the request object will close self._fp
+            pass
 
-            self._register_get_frame(self._get_frame, axes)
+        def _get_pims_info(self):
+            return dict(dtype=self._dtype)
 
-            self.bundle_axes, self.iter_axes = default_axes(self.sizes,
-                                                            self.request.mode)
-        @property
-        def dtype(self):
-            return self._dtype
+        def _get_length(self):
+            # Return the number of images. Can be np.inf
+            return len(self._tiff)
 
-        def _get_frame(self, **inds):
-            t = self._tiff[inds['t']]
-            return Frame(t.asarray(), frame_no=0,
-                         metadata=self._read_metadata(t))
+        def _get_data(self, index):
+            tiff = self._tiff[index]
+            return tiff.asarray(), self._read_metadata(tiff)
+
+        def _get_meta_data(self, index):
+            # Get the meta data for the given index. If index is None, it
+            # should return the global meta data.
+            tiff = self._tiff[index]
+            return self._read_metadata(tiff)
 
         def _read_metadata(self, tiff):
             """Read metadata for current frame and return as dict"""
