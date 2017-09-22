@@ -393,7 +393,7 @@ class TestBioformatsIPL(_image_single, unittest.TestCase):
             raise nose.SkipTest('File missing. Skipping.')
 
     def setUp(self):
-        self.filename = os.path.join(path, 'bioformats', 'blend_final.ipl')
+        self.filename = os.path.join(path, 'bioformats', 'Blend_Final.IPL')
         self.check_skip()
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
@@ -414,7 +414,7 @@ class TestBioformatsSEQ(_image_single, _image_stack, unittest.TestCase):
             raise nose.SkipTest('File missing. Skipping.')
 
     def setUp(self):
-        self.filename = os.path.join(path, 'bioformats', 'heart.seq')
+        self.filename = os.path.join(path, 'bioformats', 'HEART.SEQ')
         self.check_skip()
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}

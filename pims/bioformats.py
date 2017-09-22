@@ -41,7 +41,7 @@ def _gen_jar_locations():
     yield os.path.join(os.path.expanduser('~'), '.config', 'pims')
 
 
-def _find_jar(url=None):
+def _find_jar():
     """
     Finds the location of loci_tools.jar, if necessary download it to a
     writeable location.
@@ -51,6 +51,13 @@ def _find_jar(url=None):
             return os.path.join(loc, 'loci_tools.jar')
 
     warn('loci_tools.jar not found, downloading')
+    return _download_jar()
+
+
+def _download_jar(version='5.7.0'):
+    from six.moves.urllib.request import urlopen
+    import hashlib
+
     for loc in _gen_jar_locations():
         # check if dir exists and has write access:
         if os.path.exists(loc) and os.access(loc, os.W_OK):
@@ -66,13 +73,22 @@ def _find_jar(url=None):
                       'loci_tools.jar to the pims program folder or one of '
                       'the locations provided by _gen_jar_locations().')
 
-    from six.moves.urllib.request import urlretrieve
-    if url is None:
-        url = ('http://downloads.openmicroscopy.org/bio-formats/5.1.7/' +
-               'artifacts/loci_tools.jar')
-    urlretrieve(url, os.path.join(loc, 'loci_tools.jar'))
+    url = ('http://downloads.openmicroscopy.org/bio-formats/' + version +
+           '/artifacts/loci_tools.jar')
 
-    return os.path.join(loc, 'loci_tools.jar')
+    path = os.path.join(loc, 'loci_tools.jar')
+    loci_tools = urlopen(url).read()
+    sha1_checksum = urlopen(url + '.sha1').read().split(b' ')[0].decode()
+
+    downloaded = hashlib.sha1(loci_tools).hexdigest()
+    if downloaded != sha1_checksum:
+        raise IOError("Downloaded loci_tools.jar has invalid checksum. "
+                      "Please try again.")
+
+    with open(path, 'wb') as output:
+        output.write(loci_tools)
+
+    return path
 
 
 def _maybe_tostring(field):
@@ -343,6 +359,14 @@ class BioformatsReader(FramesSequenceND):
         # Initialize reader and metadata
         self.filename = str(filename)
         self.rdr = loci.formats.ChannelSeparator(loci.formats.ChannelFiller())
+
+        # patch for issue with ND2 files and the Chunkmap implemented in 5.4.0
+        # See https://github.com/openmicroscopy/bioformats/issues/2955
+        # circumventing the reserved keyword 'in'
+        mo = getattr(loci.formats, 'in').DynamicMetadataOptions()
+        mo.set('nativend2.chunkmap', 'False')  # Format Bool as String
+        self.rdr.setMetadataOptions(mo)
+
         if meta:
             self._metadata = loci.formats.MetadataTools.createOMEXMLMetadata()
             self.rdr.setMetadataStore(self._metadata)
@@ -548,3 +572,7 @@ class BioformatsReader(FramesSequenceND):
     @property
     def reader_class_name(self):
         return self.rdr.getFormat()
+
+    @property
+    def version(self):
+        return loci.formats.FormatTools.VERSION
