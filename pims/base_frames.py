@@ -19,7 +19,6 @@ class FramesStream(with_metaclass(ABCMeta, object)):
 
     Does not support slicing.
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def __iter__(self):
