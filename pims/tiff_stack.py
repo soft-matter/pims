@@ -131,9 +131,6 @@ class FormatTiffStack_tifffile(Format):
             # Note that the request object will close self._fp
             pass
 
-        def _get_pims_info(self):
-            return dict()
-
         def _get_length(self):
             # Return the number of images. Can be np.inf
             return len(self._tiff)
