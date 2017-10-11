@@ -42,7 +42,7 @@ class _image_single(object):
 
     def test_open(self):
         self.v.close()
-        self.v = pims.open(self.filename)
+        self.v = pims.open(self.filename, format='Bioformats')
 
     def test_integer_attributes(self):
         self.check_skip()

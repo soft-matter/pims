@@ -182,51 +182,56 @@ def open(sequence, **kwargs):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
+    # check if it is an ImageSequence
     files = glob.glob(sequence)
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type,
         #       delegate to subclasses as needed
         return ImageSequence(sequence, **kwargs)
 
-    _, ext = os.path.splitext(sequence)
-    if ext is None or len(ext) < 2:
-        raise UnknownFormatError(
-            "Could not detect your file type because it did not have an "
-            "extension. Try specifying a loader class, e.g. "
-            "Video({0})".format(sequence))
-    ext = ext.lower()[1:]
-
-    # list all readers derived from the pims baseclasses
-    all_handlers = chain(_recursive_subclasses(FramesSequence),
-                         _recursive_subclasses(FramesSequenceND))
-    # keep handlers that support the file ext. use set to avoid duplicates.
-    eligible_handlers = set(h for h in all_handlers
-                            if ext and ext in map(_drop_dot, h.class_exts()))
-    if len(eligible_handlers) < 1:
-        raise UnknownFormatError(
-            "Could not autodetect how to load a file of type {0}. "
-            "Try manually "
-            "specifying a loader class, e.g. Video({1})".format(ext, sequence))
-
-    def sort_on_priority(handlers):
-        # This uses optional priority information from subclasses
-        # > 10 means that it will be used instead of than built-in subclasses
-        def priority(cls):
-            try:
-                return cls.class_priority
-            except AttributeError:
-                return 10
-        return sorted(handlers, key=priority, reverse=True)
-
-    exceptions = ''
-    for handler in sort_on_priority(eligible_handlers):
-        try:
-            return handler(sequence, **kwargs)
-        except Exception as e:
-            message = '{0} errored: {1}'.format(str(handler), str(e))
-            warn(message)
-            exceptions += message + '\n'
-    raise UnknownFormatError("All handlers returned exceptions:\n" + exceptions)
+    # the rest of the Reader choosing logic is handled by imageio
+    return WrapImageIOReader(get_reader(sequence, **kwargs))
+    #
+    #
+    # _, ext = os.path.splitext(sequence)
+    # if ext is None or len(ext) < 2:
+    #     raise UnknownFormatError(
+    #         "Could not detect your file type because it did not have an "
+    #         "extension. Try specifying a loader class, e.g. "
+    #         "Video({0})".format(sequence))
+    # ext = ext.lower()[1:]
+    #
+    # # list all readers derived from the pims baseclasses
+    # all_handlers = chain(_recursive_subclasses(FramesSequence),
+    #                      _recursive_subclasses(FramesSequenceND))
+    # # keep handlers that support the file ext. use set to avoid duplicates.
+    # eligible_handlers = set(h for h in all_handlers
+    #                         if ext and ext in map(_drop_dot, h.class_exts()))
+    # if len(eligible_handlers) < 1:
+    #     raise UnknownFormatError(
+    #         "Could not autodetect how to load a file of type {0}. "
+    #         "Try manually "
+    #         "specifying a loader class, e.g. Video({1})".format(ext, sequence))
+    #
+    # def sort_on_priority(handlers):
+    #     # This uses optional priority information from subclasses
+    #     # > 10 means that it will be used instead of than built-in subclasses
+    #     def priority(cls):
+    #         try:
+    #             return cls.class_priority
+    #         except AttributeError:
+    #             return 10
+    #     return sorted(handlers, key=priority, reverse=True)
+    #
+    # exceptions = ''
+    # for handler in sort_on_priority(eligible_handlers):
+    #     try:
+    #         return handler(sequence, **kwargs)
+    #     except Exception as e:
+    #         message = '{0} errored: {1}'.format(str(handler), str(e))
+    #         warn(message)
+    #         exceptions += message + '\n'
+    # raise UnknownFormatError("All handlers returned exceptions:\n" + exceptions)
 
 
 class UnknownFormatError(Exception):
