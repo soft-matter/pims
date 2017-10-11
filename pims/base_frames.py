@@ -686,21 +686,28 @@ class WrapImageIOReader(FramesSequenceND):
 
         # TODO pass the dimension-awareness through this field
         try:
-            info = self.rdr._get_pims_info()
-            if not isinstance(info, dict):
-                info = dict()
+            info = self.rdr.pims_info
         except AttributeError:
-            info = dict()
+            info = None
 
-        # interpret first frame (TODO skip if reader is already dimension-aware)
-        tmp, _ = self.rdr._get_data(0)
-        self._dtype = tmp.dtype
+        if info is None:
+            # guess everything from the first frame
+            tmp, _ = self.rdr._get_data(0)
+            self._dtype = tmp.dtype
 
-        axes = guess_axes(tmp)
-        for name, size in zip(axes, tmp.shape):
-            self._init_axis(name, size)
-        self._init_axis('t', self.rdr._get_length())
-        self._register_get_frame(wrap_get_data(self.rdr._get_data, 't'), axes)
+            axes = guess_axes(tmp)
+            for name, size in zip(axes, tmp.shape):
+                self._init_axis(name, size)
+            self._init_axis('t', self.rdr._get_length())
+            self._register_get_frame(wrap_get_data(self.rdr._get_data, 't'), axes)
+        else:
+            self._dtype = info['dtype']
+            for axis, size in info['sizes'].items():
+                self._init_axis(axis, size)
+
+            for name, axes in info['read_methods']:
+                method = getattr(self.rdr, name)
+                self._register_get_frame(method, axes)
 
         self.bundle_axes, self.iter_axes = default_axes(self.sizes,
                                                         self.rdr.request.mode)

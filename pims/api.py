@@ -119,13 +119,24 @@ else:
 try:
     import pims.bioformats
     if pims.bioformats.available():
-        Bioformats = pims.bioformats.BioformatsReader
+        Bioformats = register_fmt(pims.bioformats.BioformatsFormat,
+                                  'Bioformats',
+                                  'Reads multidimensional images from a file supported by bioformats.',
+                                  'lsm ipl dm3 seq nd2 ics ids ipw tif tiff'
+                                  ' jpg bmp lif lei', 'iIvV')
     else:
         raise ImportError()
 except (ImportError, IOError):
-    BioformatsRaw = not_available("JPype")
     Bioformats = not_available("JPype")
 
+
+if not pims.tiff_stack.tifffile_available():
+    TiffStack_tifffile = not_available("tifffile")
+else:
+    TiffStack_tifffile = register_fmt(FormatTiffStack_tifffile,
+                                      'TIFF_tifffile',
+                                      'Reads TIFF files through tifffile.py.',
+                                      'tif tiff lsm stk', 'iIvV')
 
 try:
     from pims_nd2 import ND2_Reader as ND2Reader_SDK
