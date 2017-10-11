@@ -327,10 +327,9 @@ class BioformatsFormat(Format):
         this Format.Writer, judging from the imageio.core.Request object."""
         return False
 
-    # TODO What to do with these??
-    # class_priority = 2
-    # propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
-    #                    'get_metadata_raw', 'reader_class_name']
+    # class_priority = 2  # Unused, ImageIO handles the reader choosing logic
+    propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
+                       'get_metadata_raw', 'reader_class_name']
 
     class Reader(Format.Reader):
         def _open(self, series=0, meta=True, java_memory='512m',
@@ -402,11 +401,11 @@ class BioformatsFormat(Format):
 
             # Set the correct series and initialize the sizes
             self.size_series = self.rdr.getSeriesCount()
-            if series >= self.size_series or series < 0:
+            self.series = None
+            try:
+                self.change_series(series)
+            except IndexError:
                 self.rdr.close()
-                raise IndexError('Series index out of bounds.')
-            self._series = series
-            self._change_series()
 
             # Set read mode. When auto, tryout fast and check the image size.
             if read_mode == 'auto':
@@ -437,11 +436,13 @@ class BioformatsFormat(Format):
                 if hasattr(self.metadata, 'PlanePositionZ'):
                     self.frame_metadata['z_um'] = 'PlanePositionZ'
 
-        def _change_series(self):
-            """Changes series and rereads axes, sizes and metadata.
-            """
+        def change_series(self, series):
+            """Changes series and rereads axes, sizes and metadata."""
+            if series >= self.size_series or series < 0:
+                raise IndexError('Series index out of bounds.')
+            self.series = series
             self.pims_info = dict(read_methods=dict(), sizes=dict(), dtype=None)
-            series = self._series
+
             self.rdr.setSeries(series)
             sizeX = self.rdr.getSizeX()
             sizeY = self.rdr.getSizeY()
@@ -524,7 +525,7 @@ class BioformatsFormat(Format):
                 return self.get_metadata_raw()
 
             z, c, t = self.rdr.getZCTCoords(j)
-            metadata = dict(frame=j, z=z, c=c, t=t, series=self._series)
+            metadata = dict(frame=j, z=z, c=c, t=t, series=self.series)
             if self.colors is not None:
                 metadata['colors'] = self.colors
             if self.calibration is not None:
@@ -532,24 +533,11 @@ class BioformatsFormat(Format):
             if self.calibrationZ is not None:
                 metadata['mppZ'] = self.calibrationZ
             for key, method in self.frame_metadata.items():
-                metadata[key] = getattr(self.metadata, method)(self._series, j)
+                metadata[key] = getattr(self.metadata, method)(self.series, j)
             return metadata
 
         def _get_length(self):
             return self._len
-
-        @property
-        def series(self):
-            return self._series
-
-        @series.setter
-        def series(self, value):
-            if value >= self.size_series or value < 0:
-                raise IndexError('Series index out of bounds.')
-            else:
-                if value != self._series:
-                    self._series = value
-                    self._change_series()
 
         def get_frame_2D(self, **coords):
             """Actual reader, returns image as 2D numpy array and metadata as

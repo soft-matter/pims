@@ -354,7 +354,8 @@ class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
         assert_equal(self.v.size_series, 2)
 
     def test_switch_series(self):
-        self.v.series = 1
+        self.v.change_series(1)
+        self.v.update_nd()
         assert_equal(self.v.sizes['z'], 46)
 
     def tearDown(self):
@@ -384,7 +385,7 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
         self.v.close()
 
 
-class TestBioformatsIPL(_image_single, unittest.TestCase):
+class TestBioformatsIPL(_image_single,_image_multichannel, unittest.TestCase):
     # IPLab format, 650 x 515 pixels, 8 bits per sample, 3 channels
     # Scanalytics has provided a sample multi-channel image in IPLab format.
     def check_skip(self):
@@ -398,7 +399,8 @@ class TestBioformatsIPL(_image_single, unittest.TestCase):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (515, 650)
+        self.expected_shape = (515, 650, 3)
+        self.expected_C = 3
         self.expected_len = 1
 
     def tearDown(self):

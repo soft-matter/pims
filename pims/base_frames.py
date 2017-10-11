@@ -683,6 +683,11 @@ class WrapImageIOReader(FramesSequenceND):
 
         super(WrapImageIOReader, self).__init__()
         self.rdr = imageio_reader
+        self.update_nd()
+
+    def update_nd(self):
+        self._clear_axes()
+        self._get_frame_dict = dict()
 
         try:
             info = self.rdr.pims_info
@@ -710,6 +715,9 @@ class WrapImageIOReader(FramesSequenceND):
 
         self.bundle_axes, self.iter_axes = default_axes(self.sizes,
                                                         self.rdr.request.mode)
+
+    def __getattr__(self, key):
+        return getattr(self.rdr, key)
 
     @property
     def pixel_type(self):
