@@ -627,25 +627,25 @@ def guess_axes(image):
 
 
 def default_axes(sizes, mode):
-    if mode == 'i':  # single image
+    if 'i' in mode:  # single image
         if sizes.get('z', 1) == 1 and sizes.get('t', 1) == 1:
             bundle_axes = 'yx'
             iter_axes = ''
         else:
             raise ValueError("This file cannot be opened as single image.")
-    elif mode == 'I':  # multiple images
+    elif 'I' in mode:  # multiple images
         if sizes.get('z', 1) == 1 and 't' in sizes:
             bundle_axes = 'yx'
             iter_axes = 't'
         else:
             raise ValueError("This file cannot be opened as multiple images.")
-    elif mode == 'v':  # single volume
+    elif 'v' in mode:  # single volume
         if 'z' in sizes and sizes.get('t', 1) == 1:
             bundle_axes = 'zyx'
             iter_axes = ''
         else:
             raise ValueError("This file cannot be opened as single volume.")
-    elif mode == 'v':  # single volume
+    elif 'V' in mode:  # multiple volumes
         if 'z' in sizes and 't' in sizes:
             bundle_axes = 'zyx'
             iter_axes = 't'
@@ -684,7 +684,6 @@ class WrapImageIOReader(FramesSequenceND):
         super(WrapImageIOReader, self).__init__()
         self.rdr = imageio_reader
 
-        # TODO pass the dimension-awareness through this field
         try:
             info = self.rdr.pims_info
         except AttributeError:
@@ -705,7 +704,7 @@ class WrapImageIOReader(FramesSequenceND):
             for axis, size in info['sizes'].items():
                 self._init_axis(axis, size)
 
-            for name, axes in info['read_methods']:
+            for name, axes in info['read_methods'].items():
                 method = getattr(self.rdr, name)
                 self._register_get_frame(method, axes)
 

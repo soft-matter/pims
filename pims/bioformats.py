@@ -332,11 +332,7 @@ class BioformatsFormat(Format):
     # propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
     #                    'get_metadata_raw', 'reader_class_name']
 
-    class BioformatsReader(Format.Reader):
-        @property
-        def pixel_type(self):
-            return self._pixel_type
-
+    class Reader(Format.Reader):
         def _open(self, series=0, meta=True, java_memory='512m',
                   read_mode='auto'):
             global loci
@@ -444,6 +440,7 @@ class BioformatsFormat(Format):
         def _change_series(self):
             """Changes series and rereads axes, sizes and metadata.
             """
+            self.pims_info = dict(read_methods=dict(), sizes=dict(), dtype=None)
             series = self._series
             self.rdr.setSeries(series)
             sizeX = self.rdr.getSizeX()
@@ -466,12 +463,16 @@ class BioformatsFormat(Format):
                 self.pims_info['read_methods'] = {'get_frame_2D': 'yx'}
 
             self.pims_info['sizes'] = {'x': sizeX, 'y': sizeY}
+            self._len = 1
             if sizeC > 1:
                 self.pims_info['sizes']['c'] = sizeC
+                self._len *= sizeC
             if sizeT > 1:
                 self.pims_info['sizes']['t'] = sizeT
+                self._len *= sizeT
             if sizeZ > 1:
                 self.pims_info['sizes']['z'] = sizeZ
+                self._len *= sizeZ
 
             # determine pixel type
             pixel_type = self.rdr.getPixelType()
@@ -503,8 +504,39 @@ class BioformatsFormat(Format):
             except AttributeError:
                 self.calibrationZ = None
 
-        def close(self):
+        def _close(self):
             self.rdr.close()
+
+        def _get_data(self, j):
+            if self.read_mode == 'jpype':
+                im = np.frombuffer(self.rdr.openBytes(j)[:],
+                                   dtype=self.pims_info['dtype'])
+            elif self.read_mode == 'stringbuffer':
+                im = self._jbytearr_stringbuffer(self.rdr.openBytes(j))
+            elif self.read_mode == 'javacasting':
+                im = self._jbytearr_javacasting(self.rdr.openBytes(j))
+
+            im.shape = self._frame_shape_2D
+            return im, self._get_meta_data(j)
+
+        def _get_meta_data(self, j):
+            if j is None:
+                return self.get_metadata_raw()
+
+            z, c, t = self.rdr.getZCTCoords(j)
+            metadata = dict(frame=j, z=z, c=c, t=t, series=self._series)
+            if self.colors is not None:
+                metadata['colors'] = self.colors
+            if self.calibration is not None:
+                metadata['mpp'] = self.calibration
+            if self.calibrationZ is not None:
+                metadata['mppZ'] = self.calibrationZ
+            for key, method in self.frame_metadata.items():
+                metadata[key] = getattr(self.metadata, method)(self._series, j)
+            return metadata
+
+        def _get_length(self):
+            return self._len
 
         @property
         def series(self):
@@ -529,29 +561,7 @@ class BioformatsFormat(Format):
                 _coords['c'] = 0
             j = self.rdr.getIndex(int(_coords['z']), int(_coords['c']),
                                   int(_coords['t']))
-            if self.read_mode == 'jpype':
-                im = np.frombuffer(self.rdr.openBytes(j)[:],
-                                   dtype=self._pixel_type)
-            elif self.read_mode == 'stringbuffer':
-                im = self._jbytearr_stringbuffer(self.rdr.openBytes(j))
-            elif self.read_mode == 'javacasting':
-                im = self._jbytearr_javacasting(self.rdr.openBytes(j))
-
-            im.shape = self._frame_shape_2D
-            im = im.astype(self._pixel_type, copy=False)
-
-            metadata = {'frame': j,
-                        'series': self._series}
-            if self.colors is not None:
-                metadata['colors'] = self.colors
-            if self.calibration is not None:
-                metadata['mpp'] = self.calibration
-            if self.calibrationZ is not None:
-                metadata['mppZ'] = self.calibrationZ
-            metadata.update(coords)
-            for key, method in self.frame_metadata.items():
-                metadata[key] = getattr(self.metadata, method)(self._series, j)
-
+            im, metadata = self._get_data(j)
             return Frame(im, metadata=metadata)
 
         def get_metadata_raw(self, form='dict'):

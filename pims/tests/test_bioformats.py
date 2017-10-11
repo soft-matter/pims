@@ -109,7 +109,7 @@ class _image_stack(object):
 
     def test_getting_stack(self):
         self.check_skip()
-        assert_equal(self.v[0].shape[-3], self.expected_Z)
+        assert_equal(self.v[0].shape[0], self.expected_Z)
 
     def test_sizeZ(self):
         self.check_skip()
@@ -171,7 +171,7 @@ class TestBioformatsND2(_image_series, _image_multichannel, unittest.TestCase):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (10, 31, 38)
+        self.expected_shape = (10, 31, 38, 2)
         self.expected_len = 3
         self.expected_Z = 10
         self.expected_C = 2
@@ -195,7 +195,7 @@ class TestBioformatsMOV(_image_series, unittest.TestCase):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (240, 320)
+        self.expected_shape = (240, 320, 3)
         self.expected_len = 108
         self.expected_C = 3
 
@@ -220,7 +220,7 @@ class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel,
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (24, 256, 256)
+        self.expected_shape = (24, 256, 256, 2)
         self.expected_len = 7
         self.expected_C = 2
         self.expected_Z = 24
@@ -267,7 +267,7 @@ class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel,
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (21, 300, 400)
+        self.expected_shape = (21, 300, 400, 2)
         self.expected_len = 19
         self.expected_C = 2
         self.expected_Z = 21
@@ -292,7 +292,7 @@ class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel,
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (4, 256, 256)
+        self.expected_shape = (4, 256, 256, 2)
         self.expected_len = 5
         self.expected_C = 2
         self.expected_Z = 4
@@ -345,7 +345,7 @@ class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False, 'series': 0}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (25, 512, 512)
+        self.expected_shape = (25, 512, 512, 4)
         self.expected_len = 1
         self.expected_C = 4
         self.expected_Z = 25
@@ -375,7 +375,7 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False, 'series': 1}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (46, 512, 512)
+        self.expected_shape = (46, 512, 512, 4)
         self.expected_len = 1
         self.expected_C = 4
         self.expected_Z = 46
@@ -491,7 +491,7 @@ class TestBioformatsZPO(_image_stack, _image_multichannel, unittest.TestCase):
         self.klass = pims.Bioformats
         self.kwargs = {'meta': False}
         self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (29, 672, 512)
+        self.expected_shape = (29, 672, 512, 3)
         self.expected_C = 3
         self.expected_Z = 29
 

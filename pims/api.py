@@ -129,15 +129,6 @@ try:
 except (ImportError, IOError):
     Bioformats = not_available("JPype")
 
-
-if not pims.tiff_stack.tifffile_available():
-    TiffStack_tifffile = not_available("tifffile")
-else:
-    TiffStack_tifffile = register_fmt(FormatTiffStack_tifffile,
-                                      'TIFF_tifffile',
-                                      'Reads TIFF files through tifffile.py.',
-                                      'tif tiff lsm stk', 'iIvV')
-
 try:
     from pims_nd2 import ND2_Reader as ND2Reader_SDK
 
