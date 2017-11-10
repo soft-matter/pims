@@ -28,8 +28,8 @@ except ImportError:
 class ImageReader(FramesSequence):
     """Reads a single image into a length-1 reader.
 
-    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread or
-    scipy.ndimage.imread, in that priority order."""
+    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread,
+    in that priority order."""
     @classmethod
     def class_exts(cls):
         return {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico'}
@@ -40,7 +40,7 @@ class ImageReader(FramesSequence):
         if imread is None:
             raise ImportError("One of the following packages are required for "
                               "using the ImageReader: "
-                              "scipy, matplotlib or scikit-image.")
+                              "matplotlib or scikit-image.")
 
         self._data = imread(filename, **kwargs)
 
@@ -62,8 +62,8 @@ class ImageReader(FramesSequence):
 class ImageReaderND(FramesSequenceND):
     """Reads a single image into a dimension-aware reader.
 
-    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread or
-    scipy.ndimage.imread, in that priority order."""
+    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread,
+    in that priority order."""
     @classmethod
     def class_exts(cls):
         return {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico'}
@@ -74,7 +74,7 @@ class ImageReaderND(FramesSequenceND):
         if imread is None:
             raise ImportError("One of the following packages are required for "
                               "using the ImageReaderND: "
-                              "scipy, matplotlib or scikit-image.")
+                              "matplotlib or scikit-image.")
         super(ImageReaderND, self).__init__()
 
         self._data = Frame(imread(filename, **kwargs), frame_no=0)
