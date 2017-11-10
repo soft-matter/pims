@@ -6,18 +6,26 @@ import numpy as np
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 
-# skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
-# If skimage is not available, go down our own hard-coded hierarchy.
+# If scikit-image is not available, use matplotlib (with a warning) instead.
+import warnings
 try:
-    from skimage.io import imread
-except ImportError:
+    from sklearn.io import imread
+except (ImportError, ModuleNotFoundError):
     try:
         from matplotlib.pyplot import imread
-    except ImportError:
-        try:
-            from scipy.ndimage import imread
-        except:
-            imread = None
+        # imread() works differently between scikit-image and matplotlib.
+        # We don't require users to have scikit-image, 
+        # but if we fall back to matplotlib, make sure the user 
+        # is aware of the consequences.
+        skimage_preferred = "pim prefers to read images using scikit-image, but you do not appear to have scikit-image installed. " \
+                            "pim will use matplotlib instead. Note that matplotlib reads pixel values as floats (0-1), not integers (0-255). " \
+                            "\n\n" \
+                            "This might break your script." \
+                            "\n\n" \
+                            "(To ignore this warning, include the line \"warnings.simplefilter(\"ignore\", RuntimeWarning)\" in your script.)"
+        warnings.warn(RuntimeWarning(skimage_preferred))
+    except (ImportError, ModuleNotFoundError):
+        imread = None
 
 
 class ImageReader(FramesSequence):
