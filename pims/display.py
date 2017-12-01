@@ -149,6 +149,8 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
                                                       export_rate)
                 stream.bit_rate = int(bitrate)
 
+	# Ensure correct memory layout
+        img = img.astype(img.dtype, order='C', copy=False)
         frame = av.VideoFrame.from_ndarray(img, format=str('rgb24'))
         packet = stream.encode(frame)
         if packet is not None:
@@ -483,9 +485,10 @@ def _to_rgb_uint8(image, autoscale):
         color_axis = shape.index(3)
         image = np.rollaxis(image, color_axis, 3)
     elif image.ndim == 3 and shape.count(4) == 1:
-        # This is an RGBA image. Drop the A values.
+        # This is an RGBA image. Ensure that the color axis is axis 2, and 
+        # drop the A values.
         color_axis = shape.index(4)
-        image = np.rollaxis(image, color_axis, 4)[:, :, :3]
+        image = np.rollaxis(image, color_axis, 3)[:, :, :3]
     elif ndim == 2:
         # Expand into color to satisfy moviepy's expectation
         image = np.repeat(image[:, :, np.newaxis], 3, axis=2)
