@@ -192,15 +192,21 @@ class ExportCommon(object):
                 assert_array_equal(a, b)
 
 
-class TestExportMoviePy(unittest.TestCase, ExportCommon):
+class TestExportMoviePy(ExportCommon, unittest.TestCase):
     def setUp(self):
         _skip_if_no_MoviePy()
         self.export_func = functools.partial(export_moviepy, verbose=False)
         ExportCommon.setUp(self)
 
+    def tearDown(self):
+        super(TestExportMoviePy, self).tearDown()
 
-class TestExportPyAV(unittest.TestCase, ExportCommon):
+
+class TestExportPyAV(ExportCommon, unittest.TestCase):
     def setUp(self):
         _skip_if_no_PyAV()
         self.export_func = export_pyav
         ExportCommon.setUp(self)
+
+    def tearDown(self):
+        super(TestExportPyAV, self).tearDown()
