@@ -110,12 +110,19 @@ class ExportCommon(object):
     def setUp(self):
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
-        self.expected_shape = (128, 128, 3)
+        h, w = 128, 128
+        self.expected_shape = (h, w, 3)
+        self.expected_shape_rgba = (h, w, 4)
         self.expected_len = 20
 
-        self.sequence = np.random.randint(0, 255, size=(self.expected_len,) +
-                                                       self.expected_shape,
-                                          dtype=np.uint8)
+        self.sequence = np.random.randint(0, 255,
+                                          size=(self.expected_len,) +
+                                               self.expected_shape,
+                                          ).astype(np.uint8)
+        self.sequence_rgba = np.random.randint(0, 255,
+                                               size=(self.expected_len,) +
+                                               self.expected_shape_rgba,
+                                               ).astype(np.uint8)
         self.tempfile = 'tempvideo.avi'  # avi containers support most codecs
 
     def tearDown(self):
@@ -154,6 +161,25 @@ class ExportCommon(object):
         compressed_size = int(os.path.getsize(self.tempfile))
 
         assert_less(compressed_size, lossless_size)
+
+    def test_rgba_h264(self):
+        """Remove alpha channel."""
+        # Start with smoke test for H.264
+        self.export_func(self.sequence_rgba, self.tempfile, codec='libx264')
+        # Check that RGB channels are preserved
+        self.export_func(self.sequence_rgba, self.tempfile, codec='rawvideo',
+                         pixel_format='bgr24')
+        sequence_rgba_stripped = self.sequence_rgba[:, :, :, :3]
+        with pims.open(self.tempfile) as reader:
+            assert_equal(len(reader), self.expected_len)
+            assert_equal(reader.frame_shape, self.expected_shape)
+            for a, b in zip(sequence_rgba_stripped, reader):
+                assert_array_equal(a, b)
+
+    def test_rgba_memorder(self):
+        """RGBA with alpha removed has different memory order."""
+        self.export_func(self.sequence_rgba[:, :, :, :3], self.tempfile,
+                         codec='libx264')
 
     def test_rawvideo_export(self):
         """Exported frames must equal the input exactly"""
