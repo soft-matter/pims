@@ -14,6 +14,7 @@ from nose.tools import assert_true, assert_equal, assert_less
 from .test_common import _skip_if_no_MoviePy, _skip_if_no_PyAV, path
 
 import unittest
+
 try:
     import matplotlib as mpl
     import matplotlib.pyplot as plt
@@ -21,16 +22,18 @@ except ImportError:
     mpl = None
     plt = None
 
+
 def _skip_if_no_mpl():
     if plt is None:
         raise nose.SkipTest('Matplotlib not installed. Skipping.')
+
 
 class TestPlotToFrame(unittest.TestCase):
     def setUp(self):
         _skip_if_no_mpl()
         plt.switch_backend('Agg')  # does not plot to screen
-        x = np.linspace(0, 2*np.pi, 100)
-        t = np.linspace(0, 2*np.pi, 10)
+        x = np.linspace(0, 2 * np.pi, 100)
+        t = np.linspace(0, 2 * np.pi, 10)
         y = np.sin(x[np.newaxis, :] - t[:, np.newaxis])
 
         self.figures = []
@@ -78,10 +81,10 @@ class TestPlotToFrame(unittest.TestCase):
         assert_less(plot_to_frame(fig, bbox_inches='tight').shape[:2], (384, 512))
         assert_equal(plot_to_frame(fig).shape[:2], (384, 512))
 
-        fig.set_tight_layout(True)   # default to tight
+        fig.set_tight_layout(True)  # default to tight
         assert_less(plot_to_frame(fig).shape[:2], (384, 512))
         assert_equal(plot_to_frame(fig, bbox_inches='standard').shape[:2],
-                    (384, 512))
+                     (384, 512))
         assert_less(plot_to_frame(fig).shape[:2], (384, 512))
 
     def test_plots_tight(self):
@@ -121,7 +124,7 @@ class ExportCommon(object):
                                           ).astype(np.uint8)
         self.sequence_rgba = np.random.randint(0, 255,
                                                size=(self.expected_len,) +
-                                               self.expected_shape_rgba,
+                                                    self.expected_shape_rgba,
                                                ).astype(np.uint8)
         self.tempfile = 'tempvideo.avi'  # avi containers support most codecs
 

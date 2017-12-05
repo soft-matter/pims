@@ -93,7 +93,6 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
     export_rate = _normalize_framerate(rate, *rate_range)
     sequence = CachedFrameGenerator(sequence, rate, autoscale)
 
-
     # pyav is picky with unicode strings
     codec = str(codec)
     if format is not None:
@@ -149,7 +148,7 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
                                                       export_rate)
                 stream.bit_rate = int(bitrate)
 
-	# Ensure correct memory layout
+        # Ensure correct memory layout
         img = img.astype(img.dtype, order='C', copy=False)
         frame = av.VideoFrame.from_ndarray(img, format=str('rgb24'))
         packet = stream.encode(frame)
@@ -324,12 +323,14 @@ def export_moviepy(sequence, filename, rate=30, bitrate=None, width=None,
     clip.write_videofile(filename, export_rate, codec, bitrate, audio=False,
                          verbose=verbose, ffmpeg_params=ffmpeg_params)
 
+
 if av is not None:
     export = export_pyav
 elif VideoClip is not None:
     export = export_moviepy
 else:
     export = None
+
 
 def repr_video(fname, mimetype):
     """Load the video in the file `fname`, with given mimetype,
@@ -427,7 +428,7 @@ def scrollable_stack(sequence, width=512, normed=True):
 
 
 def _as_png(arr, width, normed=True):
-    "Create a PNG image buffer from an array."
+    """Create a PNG image buffer from an array."""
     try:
         from PIL import Image
     except ImportError:
@@ -499,7 +500,7 @@ def _to_rgb_uint8(image, autoscale):
 
 
 def _estimate_bitrate(shape, frame_rate):
-    "Return a bitrate that will guarantee lossless video."
+    """Return a bitrate that will guarantee lossless video."""
     # Total Pixels x 8 bits x 3 channels x FPS
     return shape[0] * shape[1] * 8 * 3 * frame_rate
 
