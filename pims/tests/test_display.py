@@ -179,14 +179,21 @@ class ExportCommon(object):
             for a, b in zip(sequence_rgba_stripped, reader):
                 assert_array_equal(a, b)
 
-    def test_rgba_memorder(self):
-        """RGBA with alpha removed has different memory order."""
-        self.export_func(self.sequence_rgba[:, :, :, :3], self.tempfile,
-                         codec='libx264')
-
     def test_rawvideo_export(self):
         """Exported frames must equal the input exactly"""
         self.export_func(self.sequence, self.tempfile, codec='rawvideo',
+                         pixel_format='bgr24')
+        with pims.open(self.tempfile) as reader:
+            assert_equal(len(reader), self.expected_len)
+            assert_equal(reader.frame_shape, self.expected_shape)
+            for a, b in zip(self.sequence, reader):
+                assert_array_equal(a, b)
+
+    def test_rgb_memorder(self):
+        """Fortran memory order must be converted."""
+        self.export_func(self.sequence.astype(self.sequence.dtype,
+                                              order='F'),
+                         self.tempfile, codec='rawvideo',
                          pixel_format='bgr24')
         with pims.open(self.tempfile) as reader:
             assert_equal(len(reader), self.expected_len)
