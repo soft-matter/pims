@@ -6,25 +6,33 @@ import numpy as np
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 
-# skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
-# If skimage is not available, go down our own hard-coded hierarchy.
+# If scikit-image is not available, use matplotlib (with a warning) instead.
+import warnings
 try:
     from skimage.io import imread
 except ImportError:
     try:
         from matplotlib.pyplot import imread
+        # imread() works differently between scikit-image and matplotlib.
+        # We don't require users to have scikit-image, 
+        # but if we fall back to matplotlib, make sure the user 
+        # is aware of the consequences.
+        ski_preferred = ("PIMS image_reader.py could not find scikit-image. "
+                 "Falling back to matplotlib's imread(), which uses floats "
+                 "instead of integers. This may break your scripts. \n"
+                 "(To ignore this warning, include the line "
+                 '"warnings.simplefilter("ignore", RuntimeWarning)" '
+                 "in your script.)")
+        warnings.warn(RuntimeWarning(ski_preferred))
     except ImportError:
-        try:
-            from scipy.ndimage import imread
-        except:
-            imread = None
+        imread = None
 
 
 class ImageReader(FramesSequence):
     """Reads a single image into a length-1 reader.
 
-    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread or
-    scipy.ndimage.imread, in that priority order."""
+    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread,
+    in that priority order."""
     @classmethod
     def class_exts(cls):
         return {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico'}
@@ -35,7 +43,7 @@ class ImageReader(FramesSequence):
         if imread is None:
             raise ImportError("One of the following packages are required for "
                               "using the ImageReader: "
-                              "scipy, matplotlib or scikit-image.")
+                              "matplotlib or scikit-image.")
 
         self._data = imread(filename, **kwargs)
 
@@ -57,8 +65,8 @@ class ImageReader(FramesSequence):
 class ImageReaderND(FramesSequenceND):
     """Reads a single image into a dimension-aware reader.
 
-    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread or
-    scipy.ndimage.imread, in that priority order."""
+    Simple wrapper around skimage.io.imread or matplotlib.pyplot.imread,
+    in that priority order."""
     @classmethod
     def class_exts(cls):
         return {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico'}
@@ -69,7 +77,7 @@ class ImageReaderND(FramesSequenceND):
         if imread is None:
             raise ImportError("One of the following packages are required for "
                               "using the ImageReaderND: "
-                              "scipy, matplotlib or scikit-image.")
+                              "matplotlib or scikit-image.")
         super(ImageReaderND, self).__init__()
 
         self._data = Frame(imread(filename, **kwargs), frame_no=0)
