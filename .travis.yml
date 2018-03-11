@@ -4,11 +4,11 @@ sudo: false
 matrix:
   include:
     - python: "2.7"
-      env: DEPS="numpy=1.8* slicerator tifffile" BUILD_DOCS=false
+      env: DEPS="numpy=1.8* slicerator pillow tifffile jinja2" DEPSPIP="imageio" BUILD_DOCS=false
     - python: "2.7"
       env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av libtiff tifffile jpype1" DEPSPIP="moviepy imageio" BUILD_DOCS=false
     - python: "3.6"
-      env: DEPS="numpy slicerator tifffile" BUILD_DOCS=false
+      env: DEPS="numpy slicerator pillow tifffile jinja2" DEPSPIP="imageio" BUILD_DOCS=false
     - python: "3.6"
       env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av tifffile libtiff jpype1 ipython sphinx sphinx_rtd_theme numpydoc" DEPSPIP="moviepy imageio" BUILD_DOCS=true
 

@@ -14,6 +14,8 @@ import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 from nose.tools import assert_true
 import pims
+import imageio
+from datetime import datetime
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -446,7 +448,11 @@ class TestVideo_ImageIO(_image_series, unittest.TestCase):
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))
         self.klass = pims.ImageIOReader
         self.kwargs = dict()
-        self.v = self.klass(self.filename, **self.kwargs)
+        try:
+            self.v = self.klass(self.filename, **self.kwargs)
+        except imageio.core.fetching.NeedDownloadError:
+            imageio.plugins.ffmpeg.download()
+            self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
 
@@ -476,13 +482,11 @@ class TestVideo_MoviePy(_image_series, unittest.TestCase):
 class _tiff_image_series(_image_series):
     def test_metadata(self):
         m = self.v[0].metadata
-        if sys.version_info.major < 3:
-            pkl_path = os.path.join(path, 'stuck_metadata_py2.pkl')
-        else:
-            pkl_path = os.path.join(path, 'stuck_metadata_py3.pkl')
-        with open(pkl_path, 'rb') as p:
-            d = pickle.load(p)
-        assert_equal(m, d)
+        expected = {'Software': 'tifffile.py',
+                    'DateTime': datetime(2015, 1, 18, 15, 33, 49),
+                    'ImageDescription': 'shape=(5,512,512)'}
+        for key in expected:
+            assert_equal(m[key], expected[key])
 
 
 class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
@@ -566,6 +570,7 @@ class TestOpenFiles(unittest.TestCase):
         _skip_if_no_PIL()
 
     def test_open_png(self):
+        _skip_if_no_imread()
         self.filenames = ['dummy_png.png']
         shape = (10, 11)
         save_dummy_png(path, self.filenames, shape)
@@ -573,6 +578,7 @@ class TestOpenFiles(unittest.TestCase):
         clean_dummy_png(path, self.filenames)
 
     def test_open_pngs(self):
+        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',

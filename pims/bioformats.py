@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 
-from pims.base_frames import FramesSequence, FramesSequenceND
+from imageio.core import Format
 from pims.frame import Frame
 from warnings import warn
 import os
@@ -197,7 +197,7 @@ class MetadataRetrieve(object):
                'MetadataRetrieve functions: ' + ', '.join(self.fields)
 
 
-class BioformatsReader(FramesSequenceND):
+class BioformatsFormat(Format):
     """Reads multidimensional images from the frames of a file supported by
     bioformats into an iterable object that returns images as numpy arrays.
     The axes inside the numpy array (czyx, zyx, cyx or yx) depend on the
@@ -315,264 +315,267 @@ class BioformatsReader(FramesSequenceND):
         x_um, y_um, z_um: physical location of the image in microns
         t_s: timestamp of the image in seconds
     """
-    @classmethod
-    def class_exts(cls):
-        return {'lsm', 'ipl', 'dm3', 'seq', 'nd2', 'ics', 'ids',
-                'ipw', 'tif', 'tiff', 'jpg', 'bmp', 'lif', 'lei'}
+    def _can_read(self, request):
+        """Determine whether `request.filename` can be read using this
+        Format.Reader, judging from the imageio.core.Request object."""
+        if request.mode[1] in (self.modes + '?'):
+            if request.filename.lower().endswith(self.extensions):
+                return True
 
-    class_priority = 2
+    def _can_write(self, request):
+        """Determine whether file type `request.filename` can be written using
+        this Format.Writer, judging from the imageio.core.Request object."""
+        return False
+
+    # class_priority = 2  # Unused, ImageIO handles the reader choosing logic
     propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
                        'get_metadata_raw', 'reader_class_name']
 
-    @property
-    def pixel_type(self):
-        return self._pixel_type
+    class Reader(Format.Reader):
+        def _open(self, series=0, meta=True, java_memory='512m',
+                  read_mode='auto'):
+            global loci
+            self.pims_info = None
 
-    def __init__(self, filename, meta=True, java_memory='512m',
-                 read_mode='auto', series=0):
-        global loci
-        super(BioformatsReader, self).__init__()
+            if read_mode not in ['auto', 'jpype', 'stringbuffer', 'javacasting']:
+                raise ValueError('Invalid read_mode value.')
 
-        if read_mode not in ['auto', 'jpype', 'stringbuffer', 'javacasting']:
-            raise ValueError('Invalid read_mode value.')
+            filename = str(self.request.get_local_filename())
 
-        # Make sure that file exists before starting java
-        if not os.path.isfile(filename):
-            raise IOError('The file "{}" does not exist.'.format(filename))
+            # Make sure that file exists before starting java
+            if not os.path.isfile(filename):
+                raise IOError('The file "{}" does not exist.'.format(filename))
 
-        # Start java VM and initialize logger (globally)
-        if not jpype.isJVMStarted():
-            loci_path = _find_jar()
-            jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
-                           '-Djava.class.path=' + loci_path,
-                           '-Xmx' + java_memory)
-            log4j = jpype.JPackage('org.apache.log4j')
-            log4j.BasicConfigurator.configure()
-            log4j_logger = log4j.Logger.getRootLogger()
-            log4j_logger.setLevel(log4j.Level.ERROR)
+            # Start java VM and initialize logger (globally)
+            if not jpype.isJVMStarted():
+                loci_path = _find_jar()
+                jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
+                               '-Djava.class.path=' + loci_path,
+                               '-Xmx' + java_memory)
+                log4j = jpype.JPackage('org.apache.log4j')
+                log4j.BasicConfigurator.configure()
+                log4j_logger = log4j.Logger.getRootLogger()
+                log4j_logger.setLevel(log4j.Level.ERROR)
 
-        if not jpype.isThreadAttachedToJVM():
-            jpype.attachThreadToJVM()
+            if not jpype.isThreadAttachedToJVM():
+                jpype.attachThreadToJVM()
 
-        loci = jpype.JPackage('loci')
+            loci = jpype.JPackage('loci')
 
-        # Initialize reader and metadata
-        self.filename = str(filename)
-        self.rdr = loci.formats.ChannelSeparator(loci.formats.ChannelFiller())
+            # Initialize reader and metadata
+            self.filename = str(filename)
+            self.rdr = loci.formats.ChannelSeparator(loci.formats.ChannelFiller())
 
-        # patch for issue with ND2 files and the Chunkmap implemented in 5.4.0
-        # See https://github.com/openmicroscopy/bioformats/issues/2955
-        # circumventing the reserved keyword 'in'
-        mo = getattr(loci.formats, 'in').DynamicMetadataOptions()
-        mo.set('nativend2.chunkmap', 'False')  # Format Bool as String
-        self.rdr.setMetadataOptions(mo)
+            # patch for issue with ND2 files and the Chunkmap implemented in 5.4.0
+            # See https://github.com/openmicroscopy/bioformats/issues/2955
+            # circumventing the reserved keyword 'in'
+            mo = getattr(loci.formats, 'in').DynamicMetadataOptions()
+            mo.set('nativend2.chunkmap', 'False')  # Format Bool as String
+            self.rdr.setMetadataOptions(mo)
 
-        if meta:
-            self._metadata = loci.formats.MetadataTools.createOMEXMLMetadata()
-            self.rdr.setMetadataStore(self._metadata)
-        self.rdr.setId(self.filename)
-        if meta:
-            self.metadata = MetadataRetrieve(self._metadata)
+            if meta:
+                self._metadata = loci.formats.MetadataTools.createOMEXMLMetadata()
+                self.rdr.setMetadataStore(self._metadata)
+            self.rdr.setId(self.filename)
+            if meta:
+                self.metadata = MetadataRetrieve(self._metadata)
 
-        # Checkout reader dtype and define read mode
-        isLittleEndian = self.rdr.isLittleEndian()
-        LE_prefix = ['>', '<'][isLittleEndian]
-        FormatTools = loci.formats.FormatTools
-        self._dtype_dict = {FormatTools.INT8: 'i1',
-                            FormatTools.UINT8: 'u1',
-                            FormatTools.INT16: LE_prefix + 'i2',
-                            FormatTools.UINT16: LE_prefix + 'u2',
-                            FormatTools.INT32: LE_prefix + 'i4',
-                            FormatTools.UINT32: LE_prefix + 'u4',
-                            FormatTools.FLOAT: LE_prefix + 'f4',
-                            FormatTools.DOUBLE: LE_prefix + 'f8'}
-        self._dtype_dict_java = {}
-        for loci_format in self._dtype_dict.keys():
-            self._dtype_dict_java[loci_format] = \
-                (FormatTools.getBytesPerPixel(loci_format),
-                 FormatTools.isFloatingPoint(loci_format),
-                 isLittleEndian)
+            # Checkout reader dtype and define read mode
+            isLittleEndian = self.rdr.isLittleEndian()
+            LE_prefix = ['>', '<'][isLittleEndian]
+            FormatTools = loci.formats.FormatTools
+            self._dtype_dict = {FormatTools.INT8: 'i1',
+                                FormatTools.UINT8: 'u1',
+                                FormatTools.INT16: LE_prefix + 'i2',
+                                FormatTools.UINT16: LE_prefix + 'u2',
+                                FormatTools.INT32: LE_prefix + 'i4',
+                                FormatTools.UINT32: LE_prefix + 'u4',
+                                FormatTools.FLOAT: LE_prefix + 'f4',
+                                FormatTools.DOUBLE: LE_prefix + 'f8'}
+            self._dtype_dict_java = {}
+            for loci_format in self._dtype_dict.keys():
+                self._dtype_dict_java[loci_format] = \
+                    (FormatTools.getBytesPerPixel(loci_format),
+                     FormatTools.isFloatingPoint(loci_format),
+                     isLittleEndian)
 
-        # Set the correct series and initialize the sizes
-        self.size_series = self.rdr.getSeriesCount()
-        if series >= self.size_series or series < 0:
-            self.rdr.close()
-            raise IndexError('Series index out of bounds.')
-        self._series = series
-        self._change_series()
-
-        # Set read mode. When auto, tryout fast and check the image size.
-        if read_mode == 'auto':
-            Jarr = self.rdr.openBytes(0)
-            if isinstance(Jarr[:], np.ndarray):
-                read_mode = 'jpype'
-            else:
-                warn('Due to an issue with JPype 0.6.0, reading is slower. '
-                     'Please consider upgrading JPype to 0.6.1 or later.')
-                try:
-                    im = self._jbytearr_stringbuffer(Jarr)
-                    im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
-                except (AttributeError, ValueError):
-                    read_mode = 'javacasting'
-                else:
-                    read_mode = 'stringbuffer'
-        self.read_mode = read_mode
-
-        # Define the names of the standard per frame metadata.
-        self.frame_metadata = {}
-        if meta:
-            if hasattr(self.metadata, 'PlaneDeltaT'):
-                self.frame_metadata['t_s'] = 'PlaneDeltaT'
-            if hasattr(self.metadata, 'PlanePositionX'):
-                self.frame_metadata['x_um'] = 'PlanePositionX'
-            if hasattr(self.metadata, 'PlanePositionY'):
-                self.frame_metadata['y_um'] = 'PlanePositionY'
-            if hasattr(self.metadata, 'PlanePositionZ'):
-                self.frame_metadata['z_um'] = 'PlanePositionZ'
-
-    def _change_series(self):
-        """Changes series and rereads axes, sizes and metadata.
-        """
-        series = self._series
-        self._clear_axes()
-        self.rdr.setSeries(series)
-        sizeX = self.rdr.getSizeX()
-        sizeY = self.rdr.getSizeY()
-        sizeT = self.rdr.getSizeT()
-        sizeZ = self.rdr.getSizeZ()
-        self.isRGB = self.rdr.isRGB()
-        self.isInterleaved = self.rdr.isInterleaved()
-        if self.isRGB:
-            sizeC = self.rdr.getRGBChannelCount()
-            if self.isInterleaved:
-                self._frame_shape_2D = (sizeY, sizeX, sizeC)
-                self._register_get_frame(self.get_frame_2D, 'yxc')
-            else:
-                self._frame_shape_2D = (sizeC, sizeY, sizeX)
-                self._register_get_frame(self.get_frame_2D, 'cyx')
-        else:
-            sizeC = self.rdr.getSizeC()
-            self._frame_shape_2D = (sizeY, sizeX)
-            self._register_get_frame(self.get_frame_2D, 'yx')
-
-        self._init_axis('x', sizeX)
-        self._init_axis('y', sizeY)
-        if sizeC > 1:
-            self._init_axis('c', sizeC)
-        if sizeT > 1:
-            self._init_axis('t', sizeT)
-        if sizeZ > 1:
-            self._init_axis('z', sizeZ)
-
-        # determine pixel type
-        pixel_type = self.rdr.getPixelType()
-        dtype = self._dtype_dict[pixel_type]
-        java_dtype = self._dtype_dict_java[pixel_type]
-
-        self._jbytearr_stringbuffer = \
-            lambda arr: _jbytearr_stringbuffer(arr, dtype)
-        self._jbytearr_javacasting = \
-            lambda arr: _jbytearr_javacasting(arr, dtype, *java_dtype)
-        self._pixel_type = dtype
-
-        if 'z' in self.axes:
-            self.bundle_axes = 'zyx'
-        if 't' in self.axes:
-            self.iter_axes = 't'
-
-        # get some metadata fields
-        try:
-            self.colors = [_jrgba_to_rgb(self.metadata.ChannelColor(series, c))
-                           for c in range(sizeC)]
-        except AttributeError:
-            self.colors = None
-        try:
-            self.calibration = self.metadata.PixelsPhysicalSizeX(series)
-        except AttributeError:
+            # Set the correct series and initialize the sizes
+            self.size_series = self.rdr.getSeriesCount()
+            self.series = None
             try:
-                self.calibration = self.metadata.PixelsPhysicalSizeY(series)
-            except:
-                self.calibration = None
-        try:
-            self.calibrationZ = self.metadata.PixelsPhysicalSizeZ(series)
-        except AttributeError:
-            self.calibrationZ = None
+                self.change_series(series)
+            except IndexError:
+                self.rdr.close()
 
-    def close(self):
-        self.rdr.close()
+            # Set read mode. When auto, tryout fast and check the image size.
+            if read_mode == 'auto':
+                Jarr = self.rdr.openBytes(0)
+                if isinstance(Jarr[:], np.ndarray):
+                    read_mode = 'jpype'
+                else:
+                    warn('Due to an issue with JPype 0.6.0, reading is slower. '
+                         'Please consider upgrading JPype to 0.6.1 or later.')
+                    try:
+                        im = self._jbytearr_stringbuffer(Jarr)
+                        im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
+                    except (AttributeError, ValueError):
+                        read_mode = 'javacasting'
+                    else:
+                        read_mode = 'stringbuffer'
+            self.read_mode = read_mode
 
-    @property
-    def series(self):
-        return self._series
+            # Define the names of the standard per frame metadata.
+            self.frame_metadata = {}
+            if meta:
+                if hasattr(self.metadata, 'PlaneDeltaT'):
+                    self.frame_metadata['t_s'] = 'PlaneDeltaT'
+                if hasattr(self.metadata, 'PlanePositionX'):
+                    self.frame_metadata['x_um'] = 'PlanePositionX'
+                if hasattr(self.metadata, 'PlanePositionY'):
+                    self.frame_metadata['y_um'] = 'PlanePositionY'
+                if hasattr(self.metadata, 'PlanePositionZ'):
+                    self.frame_metadata['z_um'] = 'PlanePositionZ'
 
-    @series.setter
-    def series(self, value):
-        if value >= self.size_series or value < 0:
-            raise IndexError('Series index out of bounds.')
-        else:
-            if value != self._series:
-                self._series = value
-                self._change_series()
+        def change_series(self, series):
+            """Changes series and rereads axes, sizes and metadata."""
+            if series >= self.size_series or series < 0:
+                raise IndexError('Series index out of bounds.')
+            self.series = series
+            self.pims_info = dict(read_methods=dict(), sizes=dict(), dtype=None)
 
-    def get_frame_2D(self, **coords):
-        """Actual reader, returns image as 2D numpy array and metadata as
-        dict.
-        """
-        _coords = {'t': 0, 'c': 0, 'z': 0}
-        _coords.update(coords)
-        if self.isRGB:
-            _coords['c'] = 0
-        j = self.rdr.getIndex(int(_coords['z']), int(_coords['c']),
-                              int(_coords['t']))
-        if self.read_mode == 'jpype':
-            im = np.frombuffer(self.rdr.openBytes(j)[:],
-                               dtype=self._pixel_type)
-        elif self.read_mode == 'stringbuffer':
-            im = self._jbytearr_stringbuffer(self.rdr.openBytes(j))
-        elif self.read_mode == 'javacasting':
-            im = self._jbytearr_javacasting(self.rdr.openBytes(j))
+            self.rdr.setSeries(series)
+            sizeX = self.rdr.getSizeX()
+            sizeY = self.rdr.getSizeY()
+            sizeT = self.rdr.getSizeT()
+            sizeZ = self.rdr.getSizeZ()
+            self.isRGB = self.rdr.isRGB()
+            self.isInterleaved = self.rdr.isInterleaved()
+            if self.isRGB:
+                sizeC = self.rdr.getRGBChannelCount()
+                if self.isInterleaved:
+                    self._frame_shape_2D = (sizeY, sizeX, sizeC)
+                    self.pims_info['read_methods'] = {'get_frame_2D': 'yxc'}
+                else:
+                    self._frame_shape_2D = (sizeC, sizeY, sizeX)
+                    self.pims_info['read_methods'] = {'get_frame_2D': 'cyx'}
+            else:
+                sizeC = self.rdr.getSizeC()
+                self._frame_shape_2D = (sizeY, sizeX)
+                self.pims_info['read_methods'] = {'get_frame_2D': 'yx'}
 
-        im.shape = self._frame_shape_2D
-        im = im.astype(self._pixel_type, copy=False)
+            self.pims_info['sizes'] = {'x': sizeX, 'y': sizeY}
+            self._len = 1
+            if sizeC > 1:
+                self.pims_info['sizes']['c'] = sizeC
+                self._len *= sizeC
+            if sizeT > 1:
+                self.pims_info['sizes']['t'] = sizeT
+                self._len *= sizeT
+            if sizeZ > 1:
+                self.pims_info['sizes']['z'] = sizeZ
+                self._len *= sizeZ
 
-        metadata = {'frame': j,
-                    'series': self._series}
-        if self.colors is not None:
-            metadata['colors'] = self.colors
-        if self.calibration is not None:
-            metadata['mpp'] = self.calibration
-        if self.calibrationZ is not None:
-            metadata['mppZ'] = self.calibrationZ
-        metadata.update(coords)
-        for key, method in self.frame_metadata.items():
-            metadata[key] = getattr(self.metadata, method)(self._series, j)
+            # determine pixel type
+            pixel_type = self.rdr.getPixelType()
+            dtype = self._dtype_dict[pixel_type]
+            java_dtype = self._dtype_dict_java[pixel_type]
 
-        return Frame(im, metadata=metadata)
+            self._jbytearr_stringbuffer = \
+                lambda arr: _jbytearr_stringbuffer(arr, dtype)
+            self._jbytearr_javacasting = \
+                lambda arr: _jbytearr_javacasting(arr, dtype, *java_dtype)
 
-    def get_metadata_raw(self, form='dict'):
-        hashtable = self.rdr.getGlobalMetadata()
-        keys = hashtable.keys()
-        if form == 'dict':
-            result = {}
-            while keys.hasMoreElements():
-                key = keys.nextElement()
-                result[key] = _maybe_tostring(hashtable.get(key))
-        elif form == 'list':
-            result = []
-            while keys.hasMoreElements():
-                key = keys.nextElement()
-                result.append(key + ': ' + _maybe_tostring(hashtable.get(key)))
-        elif form == 'string':
-            result = u''
-            while keys.hasMoreElements():
-                key = keys.nextElement()
-                result += key + ': ' + _maybe_tostring(hashtable.get(key)) + '\n'
-        return result
+            self.pims_info['dtype'] = dtype
 
-    @property
-    def reader_class_name(self):
-        return self.rdr.getFormat()
+            # get some metadata fields
+            try:
+                self.colors = [_jrgba_to_rgb(self.metadata.ChannelColor(series, c))
+                               for c in range(sizeC)]
+            except AttributeError:
+                self.colors = None
+            try:
+                self.calibration = self.metadata.PixelsPhysicalSizeX(series)
+            except AttributeError:
+                try:
+                    self.calibration = self.metadata.PixelsPhysicalSizeY(series)
+                except:
+                    self.calibration = None
+            try:
+                self.calibrationZ = self.metadata.PixelsPhysicalSizeZ(series)
+            except AttributeError:
+                self.calibrationZ = None
 
-    @property
-    def version(self):
-        return loci.formats.FormatTools.VERSION
+        def _close(self):
+            self.rdr.close()
+
+        def _get_data(self, j):
+            if self.read_mode == 'jpype':
+                im = np.frombuffer(self.rdr.openBytes(j)[:],
+                                   dtype=self.pims_info['dtype'])
+            elif self.read_mode == 'stringbuffer':
+                im = self._jbytearr_stringbuffer(self.rdr.openBytes(j))
+            elif self.read_mode == 'javacasting':
+                im = self._jbytearr_javacasting(self.rdr.openBytes(j))
+
+            im.shape = self._frame_shape_2D
+            return im, self._get_meta_data(j)
+
+        def _get_meta_data(self, j):
+            if j is None:
+                return self.get_metadata_raw()
+
+            z, c, t = self.rdr.getZCTCoords(j)
+            metadata = dict(frame=j, z=z, c=c, t=t, series=self.series)
+            if self.colors is not None:
+                metadata['colors'] = self.colors
+            if self.calibration is not None:
+                metadata['mpp'] = self.calibration
+            if self.calibrationZ is not None:
+                metadata['mppZ'] = self.calibrationZ
+            for key, method in self.frame_metadata.items():
+                metadata[key] = getattr(self.metadata, method)(self.series, j)
+            return metadata
+
+        def _get_length(self):
+            return self._len
+
+        def get_frame_2D(self, **coords):
+            """Actual reader, returns image as 2D numpy array and metadata as
+            dict.
+            """
+            _coords = {'t': 0, 'c': 0, 'z': 0}
+            _coords.update(coords)
+            if self.isRGB:
+                _coords['c'] = 0
+            j = self.rdr.getIndex(int(_coords['z']), int(_coords['c']),
+                                  int(_coords['t']))
+            im, metadata = self._get_data(j)
+            return Frame(im, metadata=metadata)
+
+        def get_metadata_raw(self, form='dict'):
+            hashtable = self.rdr.getGlobalMetadata()
+            keys = hashtable.keys()
+            if form == 'dict':
+                result = {}
+                while keys.hasMoreElements():
+                    key = keys.nextElement()
+                    result[key] = _maybe_tostring(hashtable.get(key))
+            elif form == 'list':
+                result = []
+                while keys.hasMoreElements():
+                    key = keys.nextElement()
+                    result.append(key + ': ' + _maybe_tostring(hashtable.get(key)))
+            elif form == 'string':
+                result = u''
+                while keys.hasMoreElements():
+                    key = keys.nextElement()
+                    result += key + ': ' + _maybe_tostring(hashtable.get(key)) + '\n'
+            return result
+
+        @property
+        def reader_class_name(self):
+            return self.rdr.getFormat()
+
+        @property
+        def version(self):
+            return loci.formats.FormatTools.VERSION

@@ -8,6 +8,7 @@ from datetime import datetime
 import itertools
 import numpy as np
 from pims.frame import Frame
+from imageio.core import Format
 
 try:
     from PIL import Image  # should work with PIL or PILLOW
@@ -53,7 +54,7 @@ def _tiff_datetime(dt_str):
                     minute=int(dt_str[14:16]), second=int(dt_str[17:19]))
 
 
-class TiffStack_tifffile(FramesSequence):
+class FormatTiffStack_tifffile(Format):
     """Read TIFF stacks (single files containing many images) into an
     iterable object that returns images as numpy arrays.
 
@@ -97,73 +98,75 @@ class TiffStack_tifffile(FramesSequence):
     --------
     TiffStack_pil, TiffStack_libtiff, ImageSequence
     """
-    @classmethod
-    def class_exts(cls):
-        # TODO extend this set to match reality
-        return {'tif', 'tiff', 'lsm',
-                'stk'} | super(TiffStack_tifffile, cls).class_exts()
+    def _can_read(self, request):
+        """Determine whether `request.filename` can be read using this
+        Format.Reader, judging from the imageio.core.Request object."""
+        if request.mode[1] in (self.modes + '?'):
+            if request.filename.lower().endswith(self.extensions):
+                return True
 
-    def __init__(self, filename):
-        self._filename = filename
-        record = tifffile.TiffFile(filename).series[0]
-        if hasattr(record, 'pages'):
-            self._tiff = record.pages
-        else:
-            self._tiff = record['pages']
+    def _can_write(self, request):
+        """Determine whether file type `request.filename` can be written using
+        this Format.Writer, judging from the imageio.core.Request object."""
+        return False
 
-        tmp = self._tiff[0]
-        self._dtype = tmp.dtype
-        self._im_sz = tmp.shape
+    class Reader(Format.Reader):
+        def _open(self, **kwargs):
+            # Specify kwargs here. Optionally, the user-specified kwargs
+            # can also be accessed via the request.kwargs object.
+            #
+            # The request object provides two ways to get access to the
+            # data. Use just one:
+            #  - Use request.get_file() for a file object (preferred)
+            #  - Use request.get_local_filename() for a file on the system
+            handle = self.request.get_file()
+            record = tifffile.TiffFile(handle, **kwargs).series[0]
+            if hasattr(record, 'pages'):
+                self._tiff = record.pages
+            else:
+                self._tiff = record['pages']
 
-    def get_frame(self, j):
-        t = self._tiff[j]
-        data = t.asarray()
-        return Frame(data, frame_no=j, metadata=self._read_metadata(t))
-
-    def _read_metadata(self, tiff):
-        """Read metadata for current frame and return as dict"""
-        md = {}
-        try:
-            md["ImageDescription"] = (
-                tiff.tags["image_description"].value.decode())
-        except:
+        def _close(self):
+            # Close the reader.
+            # Note that the request object will close self._fp
             pass
-        try:
-            dt = tiff.tags["datetime"].value.decode()
-            md["DateTime"] = _tiff_datetime(dt)
-        except:
-            pass
-        try:
-            md["Software"] = tiff.tags["software"].value.decode()
-        except:
-            pass
-        try:
-            md["DocumentName"] = tiff.tags["document_name"].value.decode()
-        except:
-            pass
-        return md
 
-    @property
-    def pixel_type(self):
-        return self._dtype
+        def _get_length(self):
+            # Return the number of images. Can be np.inf
+            return len(self._tiff)
 
-    @property
-    def frame_shape(self):
-        return self._im_sz
+        def _get_data(self, index):
+            tiff = self._tiff[index]
+            return tiff.asarray(), self._read_metadata(tiff)
 
-    def __len__(self):
-        return len(self._tiff)
+        def _get_meta_data(self, index):
+            # Get the meta data for the given index. If index is None, it
+            # should return the global meta data.
+            tiff = self._tiff[index]
+            return self._read_metadata(tiff)
 
-    def __repr__(self):
-        # May be overwritten by subclasses
-        return """<Frames>
-Source: {filename}
-Length: {count} frames
-Frame Shape: {frame_shape!r}
-Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
-                                  count=len(self),
-                                  filename=self._filename,
-                                  dtype=self.pixel_type)
+        def _read_metadata(self, tiff):
+            """Read metadata for current frame and return as dict"""
+            md = {}
+            try:
+                md["ImageDescription"] = (
+                    tiff.tags["image_description"].value.decode())
+            except:
+                pass
+            try:
+                dt = tiff.tags["datetime"].value.decode()
+                md["DateTime"] = _tiff_datetime(dt)
+            except:
+                pass
+            try:
+                md["Software"] = tiff.tags["software"].value.decode()
+            except:
+                pass
+            try:
+                md["DocumentName"] = tiff.tags["document_name"].value.decode()
+            except:
+                pass
+            return md
 
 
 class TiffStack_libtiff(FramesSequence):

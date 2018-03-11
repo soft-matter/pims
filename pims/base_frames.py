@@ -8,6 +8,7 @@ from slicerator import Slicerator, propagate_attr, index_attr
 from .frame import Frame
 from abc import ABCMeta, abstractmethod, abstractproperty
 from warnings import warn
+from imageio.core import Format
 
 
 class FramesStream(with_metaclass(ABCMeta, object)):
@@ -606,3 +607,122 @@ class FramesSequenceND(FramesSequence):
             s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
         s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s
+
+
+def guess_axes(image):
+    shape = image.shape
+    ndim = len(shape)
+
+    if ndim == 2:
+        return 'yx'
+    elif ndim == 3 and shape[2] in [3, 4]:
+        return 'yxc'
+    elif ndim == 3:
+        return 'zyx'
+    elif ndim == 4 and shape[3] in [3, 4]:
+        return 'zyxc'
+    else:
+        raise ValueError("Cannot interpret dimensions for an image of "
+                         "shape {0}".format(shape))
+
+
+def default_axes(sizes, mode):
+    if 'i' in mode:  # single image
+        if sizes.get('z', 1) == 1 and sizes.get('t', 1) == 1:
+            bundle_axes = 'yx'
+            iter_axes = ''
+        else:
+            raise ValueError("This file cannot be opened as single image.")
+    elif 'I' in mode:  # multiple images
+        if sizes.get('z', 1) == 1 and 't' in sizes:
+            bundle_axes = 'yx'
+            iter_axes = 't'
+        else:
+            raise ValueError("This file cannot be opened as multiple images.")
+    elif 'v' in mode:  # single volume
+        if 'z' in sizes and sizes.get('t', 1) == 1:
+            bundle_axes = 'zyx'
+            iter_axes = ''
+        else:
+            raise ValueError("This file cannot be opened as single volume.")
+    elif 'V' in mode:  # multiple volumes
+        if 'z' in sizes and 't' in sizes:
+            bundle_axes = 'zyx'
+            iter_axes = 't'
+        else:
+            raise ValueError("This file cannot be opened as multiple volumes.")
+    else:
+        if 'z' in sizes:
+            bundle_axes = 'zyx'
+        else:
+            bundle_axes = 'yx'
+        if 't' in sizes:
+            iter_axes = 't'
+        else:
+            iter_axes = ''
+
+    if 'c' in sizes:
+        bundle_axes += 'c'
+
+    return bundle_axes, iter_axes
+
+
+def wrap_get_data(get_data_func, axis='t'):
+    # takes only kwargs (one index per named axis)
+    def get_frame(**kwargs):
+        index = kwargs[axis]
+        im, md = get_data_func(index)
+        return Frame(im, frame_no=index, metadata=md)
+    return get_frame
+
+
+class WrapImageIOReader(FramesSequenceND):
+    def __init__(self, imageio_reader):
+        if not isinstance(imageio_reader, Format.Reader):
+            raise ValueError("Can only wrap ImageIO readers")
+
+        super(WrapImageIOReader, self).__init__()
+        self.rdr = imageio_reader
+        self.update_nd()
+
+    def update_nd(self):
+        self._clear_axes()
+        self._get_frame_dict = dict()
+
+        try:
+            info = self.rdr.pims_info
+        except AttributeError:
+            info = None
+
+        if info is None:
+            # guess everything from the first frame
+            tmp, _ = self.rdr._get_data(0)
+            self._dtype = tmp.dtype
+
+            axes = guess_axes(tmp)
+            for name, size in zip(axes, tmp.shape):
+                self._init_axis(name, size)
+            self._init_axis('t', self.rdr._get_length())
+            self._register_get_frame(wrap_get_data(self.rdr._get_data, 't'), axes)
+        else:
+            self._dtype = info['dtype']
+            for axis, size in info['sizes'].items():
+                self._init_axis(axis, size)
+
+            for name, axes in info['read_methods'].items():
+                method = getattr(self.rdr, name)
+                self._register_get_frame(method, axes)
+
+        self.bundle_axes, self.iter_axes = default_axes(self.sizes,
+                                                        self.rdr.request.mode)
+
+    def __getattr__(self, key):
+        return getattr(self.rdr, key)
+
+    @property
+    def pixel_type(self):
+        return self._dtype
+
+    @property
+    def dtype(self):
+        return self._dtype

@@ -7,6 +7,7 @@ from pims.frame import Frame
 from pims.display import (export, play, scrollable_stack, to_rgb, normalize,
                           plot_to_frame, plots_to_frame)
 from itertools import chain
+from functools import wraps
 
 import six
 import glob
@@ -14,12 +15,13 @@ import os
 from warnings import warn
 
 # has to be here for API stuff
+from pims.base_frames import WrapImageIOReader
 from pims.image_sequence import ImageSequence, ImageSequenceND, ReaderSequence  # noqa
 from pims.image_reader import ImageReader, ImageReaderND  # noqa
 from .cine import Cine  # noqa
 from .norpix_reader import NorpixSeq  # noqa
-from pims.tiff_stack import TiffStack_tifffile  # noqa
 from .spe_stack import SpeStack
+from imageio import formats, get_reader
 
 
 def not_available(requirement):
@@ -27,6 +29,17 @@ def not_available(requirement):
         raise ImportError(
             "This reader requires {0}.".format(requirement))
     return raiser
+
+
+def register_fmt(reader, name, description, extensions=None, modes=None):
+    """Registers a Format with the format manager. Returns a reader
+    for backwards compatibility."""
+    formats.add_format(reader(name, description, extensions, modes))
+    @wraps(reader)
+    def wrapper(filename, **kwargs):
+        return WrapImageIOReader(get_reader(filename, name, **kwargs))
+    return wrapper
+
 
 if export is None:
     export = not_available("PyAV or MoviePy")
@@ -75,12 +88,17 @@ if Video is None:
     Video = not_available("PyAV, MoviePy, or ImageIO")
 
 import pims.tiff_stack
-from pims.tiff_stack import (TiffStack_pil, TiffStack_libtiff,
-                                TiffStack_tifffile)
+from pims.tiff_stack import TiffStack_pil, TiffStack_libtiff, \
+                        FormatTiffStack_tifffile
 # First, check if each individual class is available
 # and drop in placeholders as needed.
 if not pims.tiff_stack.tifffile_available():
-    TiffStack_tiffile = not_available("tifffile")
+    TiffStack_tifffile = not_available("tifffile")
+else:
+    TiffStack_tifffile = register_fmt(FormatTiffStack_tifffile,
+                                      'TIFF_tifffile',
+                                      'Reads TIFF files through tifffile.py.',
+                                      'tif tiff lsm stk', 'iIvV')
 if not pims.tiff_stack.libtiff_available():
     TiffStack_libtiff = not_available("libtiff")
 if not pims.tiff_stack.PIL_available():
@@ -97,16 +115,19 @@ else:
     TiffStack = not_available("tifffile, libtiff, or PIL/Pillow")
 
 
+
 try:
     import pims.bioformats
     if pims.bioformats.available():
-        Bioformats = pims.bioformats.BioformatsReader
+        Bioformats = register_fmt(pims.bioformats.BioformatsFormat,
+                                  'Bioformats',
+                                  'Reads multidimensional images from a file supported by bioformats.',
+                                  'lsm ipl dm3 seq nd2 ics ids ipw tif tiff'
+                                  ' jpg bmp lif lei', 'iIvV')
     else:
         raise ImportError()
 except (ImportError, IOError):
-    BioformatsRaw = not_available("JPype")
     Bioformats = not_available("JPype")
-
 
 try:
     from pims_nd2 import ND2_Reader as ND2Reader_SDK
@@ -161,51 +182,56 @@ def open(sequence, **kwargs):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
+    # check if it is an ImageSequence
     files = glob.glob(sequence)
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type,
         #       delegate to subclasses as needed
         return ImageSequence(sequence, **kwargs)
 
-    _, ext = os.path.splitext(sequence)
-    if ext is None or len(ext) < 2:
-        raise UnknownFormatError(
-            "Could not detect your file type because it did not have an "
-            "extension. Try specifying a loader class, e.g. "
-            "Video({0})".format(sequence))
-    ext = ext.lower()[1:]
-
-    # list all readers derived from the pims baseclasses
-    all_handlers = chain(_recursive_subclasses(FramesSequence),
-                         _recursive_subclasses(FramesSequenceND))
-    # keep handlers that support the file ext. use set to avoid duplicates.
-    eligible_handlers = set(h for h in all_handlers
-                            if ext and ext in map(_drop_dot, h.class_exts()))
-    if len(eligible_handlers) < 1:
-        raise UnknownFormatError(
-            "Could not autodetect how to load a file of type {0}. "
-            "Try manually "
-            "specifying a loader class, e.g. Video({1})".format(ext, sequence))
-
-    def sort_on_priority(handlers):
-        # This uses optional priority information from subclasses
-        # > 10 means that it will be used instead of than built-in subclasses
-        def priority(cls):
-            try:
-                return cls.class_priority
-            except AttributeError:
-                return 10
-        return sorted(handlers, key=priority, reverse=True)
-
-    exceptions = ''
-    for handler in sort_on_priority(eligible_handlers):
-        try:
-            return handler(sequence, **kwargs)
-        except Exception as e:
-            message = '{0} errored: {1}'.format(str(handler), str(e))
-            warn(message)
-            exceptions += message + '\n'
-    raise UnknownFormatError("All handlers returned exceptions:\n" + exceptions)
+    # the rest of the Reader choosing logic is handled by imageio
+    return WrapImageIOReader(get_reader(sequence, **kwargs))
+    #
+    #
+    # _, ext = os.path.splitext(sequence)
+    # if ext is None or len(ext) < 2:
+    #     raise UnknownFormatError(
+    #         "Could not detect your file type because it did not have an "
+    #         "extension. Try specifying a loader class, e.g. "
+    #         "Video({0})".format(sequence))
+    # ext = ext.lower()[1:]
+    #
+    # # list all readers derived from the pims baseclasses
+    # all_handlers = chain(_recursive_subclasses(FramesSequence),
+    #                      _recursive_subclasses(FramesSequenceND))
+    # # keep handlers that support the file ext. use set to avoid duplicates.
+    # eligible_handlers = set(h for h in all_handlers
+    #                         if ext and ext in map(_drop_dot, h.class_exts()))
+    # if len(eligible_handlers) < 1:
+    #     raise UnknownFormatError(
+    #         "Could not autodetect how to load a file of type {0}. "
+    #         "Try manually "
+    #         "specifying a loader class, e.g. Video({1})".format(ext, sequence))
+    #
+    # def sort_on_priority(handlers):
+    #     # This uses optional priority information from subclasses
+    #     # > 10 means that it will be used instead of than built-in subclasses
+    #     def priority(cls):
+    #         try:
+    #             return cls.class_priority
+    #         except AttributeError:
+    #             return 10
+    #     return sorted(handlers, key=priority, reverse=True)
+    #
+    # exceptions = ''
+    # for handler in sort_on_priority(eligible_handlers):
+    #     try:
+    #         return handler(sequence, **kwargs)
+    #     except Exception as e:
+    #         message = '{0} errored: {1}'.format(str(handler), str(e))
+    #         warn(message)
+    #         exceptions += message + '\n'
+    # raise UnknownFormatError("All handlers returned exceptions:\n" + exceptions)
 
 
 class UnknownFormatError(Exception):
