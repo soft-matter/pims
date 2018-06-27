@@ -132,7 +132,7 @@ class PyAVReaderTimed(FramesSequence):
         self._cache = [None] * cache_size
         self._fast_forward_thresh = fast_forward_thresh
 
-        demuxer = self._container.demux(streams=self._stream)
+        demuxer = self._container.demux(self._stream)
 
         # obtain first frame to get first time point
         # also tests for the presence of timestamps
@@ -150,7 +150,7 @@ class PyAVReaderTimed(FramesSequence):
         return int(self._duration * self._frame_rate)
 
     def _reset_demuxer(self):
-        demuxer = self._container.demux(streams=self._stream)
+        demuxer = self._container.demux(self._stream)
         self._frame_generator = _gen_frames(demuxer, self._stream.time_base,
                                             self._frame_rate, self._first_pts)
 
