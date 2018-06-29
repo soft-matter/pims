@@ -54,7 +54,7 @@ def _find_jar():
     return _download_jar()
 
 
-def _download_jar(version='5.7.0'):
+def _download_jar(version='5.8.2'):
     from six.moves.urllib.request import urlopen
     import hashlib
 
