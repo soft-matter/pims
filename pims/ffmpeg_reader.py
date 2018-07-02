@@ -99,14 +99,13 @@ class FFmpegVideoReader(FramesSequence):
     Parameters
     ----------
     filename : string
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
+    pix_fmt : string, optional
+        Expected number of color channels. Either 'rgb24' or 'rgba'.
+        Defaults to 'rgba'.
+    use_cache : boolean, optional
+        Saves time if the file was previously opened. Defaults to True.
+        Set to False if the file may have changed since it was
+        last read.
 
     Examples
     --------
