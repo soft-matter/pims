@@ -23,3 +23,6 @@ def as_grey(frame):
         green = frame[:, :, 1]
         blue = frame[:, :, 2]
         return 0.2125 * red + 0.7154 * green + 0.0721 * blue
+
+# "Gray" is the more common spelling
+as_gray = as_grey

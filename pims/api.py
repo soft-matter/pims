@@ -20,7 +20,7 @@ from .cine import Cine  # noqa
 from .norpix_reader import NorpixSeq  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
 from .spe_stack import SpeStack
-from pims.process import as_grey
+from pims.process import as_grey, as_gray
 
 
 def not_available(requirement):

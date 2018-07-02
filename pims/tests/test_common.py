@@ -340,6 +340,10 @@ class _image_series(_image_single):
         gr2 = pims.as_grey(gr)
         assert_image_equal(gr[0], gr2[0])
 
+        # Alternate spelling accepted
+        gr = pims.as_gray(self.v)
+        assert len(gr[0].shape) == 2
+
     def test_getting_single_frame(self):
         self.check_skip()
         assert_image_equal(self.v[0], self.frame0)
