@@ -265,6 +265,7 @@ def _color_channel(img, channel):
     else:
         return img
 
+
 class _image_series(_image_single):
     def test_iterator(self):
         self.check_skip()
@@ -331,6 +332,13 @@ class _image_series(_image_single):
 
         expected = _rescale(_color_channel(self.v[0], 0))
         assert_image_equal(composed[0], expected)
+
+    def test_as_grey(self):
+        gr = pims.as_grey(self.v)
+        assert len(gr[0].shape) == 2
+        # Calling a second time does nothing
+        gr2 = pims.as_grey(gr)
+        assert_image_equal(gr[0], gr2[0])
 
     def test_getting_single_frame(self):
         self.check_skip()
