@@ -32,13 +32,6 @@
 #
 # Files heavily edited by PIMS contributors
 # January 2014
-
-## Name (and locatio if needed) of the FFMPEG binary. It will be
-## "ffmpeg" on linux, certainly "ffmpeg.exe" on windows, else any path.
-## If not provided (None), the system will look for the right version
-## automatically each time you launch moviepy.
-## If you run this script file it will check that the
-## path to the ffmpeg binary (FFMPEG_BINARY)
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -73,6 +66,8 @@ def try_ffmpeg(FFMPEG_BINARY):
         return True
 
 
+# Name (and location if needed) of the FFMPEG binary. It will be
+# "ffmpeg" on linux, certainly "ffmpeg.exe" on windows, else any path.
 FFMPEG_BINARY_SUGGESTIONS = ['ffmpeg', 'ffmpeg.exe']
 
 FFMPEG_BINARY = None
