@@ -34,8 +34,10 @@ underlying video data is only accessed one element at a time.
 Conversion to greyscale
 -----------------------
 
-Say we want to convert an RGB video to greyscale. We define a function as
-follows and decorate it with ``@pipeline`` to turn it into a pipeline:
+Say we want to convert an RGB video to greyscale. A pipeline to do this is
+already provided as ``pims.as_grey``, but it is also easy to make our own.
+We define a function as follows and decorate it with ``@pipeline`` to turn
+it into a pipeline:
 
 .. code-block:: python
 
