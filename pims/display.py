@@ -124,10 +124,11 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
 
     output = av.open(str(filename), str('w'), format=format)
     try:
+        # from PyAv 6.0, options can be supplied here
         stream = output.add_stream(
             codec, rate=export_rate_frac, options=options
         )
-    except TypeError:  # pyav 0.4 compat: supply options at .open
+    except TypeError:  # before, we should supply it at .open
         output = av.open(
             str(filename), str('w'), format=format, options=options
         )
