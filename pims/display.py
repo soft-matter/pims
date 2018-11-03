@@ -157,7 +157,10 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
 
     # Finish encoding the stream
     while True:
-        packet = stream.encode()
+        try:
+            packet = stream.encode()
+        except av.AVError:  # End of file raises AVError since after av 0.4
+            break
         if packet is None:
             break
         output.mux(packet)
