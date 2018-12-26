@@ -94,8 +94,7 @@ HEADER_FIELDS = [
     ('off_image_header', UINT),
     ('off_setup', UINT),
     ('off_image_offsets', UINT),
-    # byte index = 36. Some trouble with that...
-    ('trigger_time', TIME64),
+    ('trigger_timestamp32', TIME64),
 ]
 
 BITMAP_INFO_FIELDS = [
@@ -605,8 +604,8 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
     @property
     def trigger_time(self):
         '''Returns the time of the trigger, tuple of (datatime_object,
-        fraction_in_ns)'''
-        trigger_time = self.header_dict['trigger_time']
+        fraction_in_s)'''
+        trigger_time = self.header_dict['trigger_timestamp32']
         ts, sf = (datetime.datetime.fromtimestamp(trigger_time >> 32),
                    float(FRACTION_MASK & trigger_time)/(MAX_INT))
 
