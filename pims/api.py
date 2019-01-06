@@ -172,9 +172,9 @@ def open(sequence, **kwargs):
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type,
         #       delegate to subclasses as needed
-        return ImageSequence(sequence, **kwargs)
+        return ImageSequence(files, **kwargs)
 
-    _, ext = os.path.splitext(sequence)
+    _, ext = os.path.splitext(files[0])
     if ext is None or len(ext) < 2:
         raise UnknownFormatError(
             "Could not detect your file type because it did not have an "
@@ -207,7 +207,7 @@ def open(sequence, **kwargs):
     exceptions = ''
     for handler in sort_on_priority(eligible_handlers):
         try:
-            return handler(sequence, **kwargs)
+            return handler(files[0], **kwargs)
         except Exception as e:
             message = '{0} errored: {1}'.format(str(handler), str(e))
             warn(message)
