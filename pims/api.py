@@ -162,7 +162,13 @@ def open(sequence, **kwargs):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    files = glob.glob(sequence)
+    if not isinstance(sequence, list):
+        sequence = [sequence]
+
+    files = []
+    for each_seq in sequence:
+        files.extend(glob.glob(each_seq))
+
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type,
         #       delegate to subclasses as needed
