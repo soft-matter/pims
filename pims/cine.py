@@ -128,7 +128,8 @@ SETUP_FIELDS = [
     ('shutter_on', BYTE),
     # Guessed at length... because it isn't documented!  This seems to work.
     ('description_short', '120s'),
-    ('unknown1', NULL),
+    # Based on the .xml file. Should check with non-zero TrigFrame.
+    ('trig_frame', BYTE),
     ('mark', '2s'),
     ('length', WORD),
     ('binning', WORD),
@@ -228,12 +229,14 @@ SETUP_FIELDS = [
     ('im_width_acq', UINT),
     ('im_height_acq', UINT),
     ('description', '4096s'),
-    # Don't know what it is after description
-    ('unknown2', INT),
+    # Don't know what there is exactly after 'description'
+    # Structure is based on the .xml file
+    ('rising_edge', BOOL), #?
     ('filter_time', INT),
-    ('unknown3', '32s'),
+    ('unknown1', '32s'),
     ('black_level', INT),
     ('white_level', INT),
+    # Length seems to work: structure correct till the end
     ('lens_description', '256s'),
     ('lens_aperture', FLOAT),
     ('lens_focus_distance', FLOAT),
@@ -262,7 +265,7 @@ SETUP_FIELDS = [
     ('resample_width', INT),
     ('resample_height', INT),
     ('f_gain16_8', FLOAT)] + [\
-    ('FRP_shape{:d}'.format(i), INT) for i in range(16)] + [\
+    ('frp_shape{:d}'.format(i), INT) for i in range(16)] + [\
 ]
 
 
@@ -293,12 +296,12 @@ class Cine(FramesSequence):
         self.f = open(filename, 'rb')
         self._filename = filename
 
-        self.header_dict = self.read_header(HEADER_FIELDS)
-        self.bitmapinfo_dict = self.read_header(BITMAP_INFO_FIELDS,
+        self.header_dict = self._read_header(HEADER_FIELDS)
+        self.bitmapinfo_dict = self._read_header(BITMAP_INFO_FIELDS,
                                                 self.off_image_header)
-        self.setup_fields_dict = self.read_header(SETUP_FIELDS, self.off_setup)
-        self._remove_trailing(self.setup_fields_dict)
-        self.image_locations = self.unpack('%dQ' % self.image_count,
+        self.setup_fields_dict = self._read_header(SETUP_FIELDS, self.off_setup)
+        self._remove_trailing_x00(self.setup_fields_dict)
+        self.image_locations = self._unpack('%dQ' % self.image_count,
                                            self.off_image_offsets)
         if type(self.image_locations) not in (list, tuple):
             self.image_locations = [self.image_locations]
@@ -400,7 +403,7 @@ class Cine(FramesSequence):
                             'second_fraction': sec_frac}
         return Frame(self._get_frame(j), frame_no=j, metadata=md)
 
-    def unpack(self, fs, offset=None):
+    def _unpack(self, fs, offset=None):
         if offset is not None:
             self.f.seek(offset)
         s = _build_struct(fs)
@@ -431,9 +434,9 @@ class Cine(FramesSequence):
         '''
         with FileLocker(self.file_lock):
             self.f.seek(self.off_setup + self.setup_length + off_set)
-            block_size = self.unpack(DWORD)
-            b_type = self.unpack(WORD)
-            more_tags = self.unpack(WORD)
+            block_size = self._unpack(DWORD)
+            b_type = self._unpack(WORD)
+            more_tags = self._unpack(WORD)
 
             if b_type == 1004:
                 # docs say to ignore range data it seems to be a poison flag,
@@ -457,7 +460,7 @@ class Cine(FramesSequence):
 
             d_count = (block_size-8)//(s_tmp.size)
 
-            data = self.unpack('%d' % d_count + d_type)
+            data = self._unpack('%d' % d_count + d_type)
             if not isinstance(data, tuple):
                 # fix up data due to design choice in self.unpack
                 data = (data, )
@@ -474,16 +477,16 @@ class Cine(FramesSequence):
 
         return block_size, more_tags
 
-    def read_header(self, fields, offset=0):
+    def _read_header(self, fields, offset=0):
         self.f.seek(offset)
         tmp = dict()
         for name, format in fields:
-            val = self.unpack(format)
+            val = self._unpack(format)
             tmp[name] = val
 
         return tmp
 
-    def _remove_trailing(self, dic):
+    def _remove_trailing_x00(self, dic):
         for k, v in dic.items():
             if isinstance(v, bytes):
                 try:
@@ -495,10 +498,10 @@ class Cine(FramesSequence):
         with FileLocker(self.file_lock):
             # get basic information about the frame we want
             image_start = self.image_locations[number]
-            annotation_size = self.unpack(DWORD, image_start)
+            annotation_size = self._unpack(DWORD, image_start)
             # this is not used, but is needed to advance the point in the file
-            annotation = self.unpack('%db' % (annotation_size - 8))
-            image_size = self.unpack(DWORD)
+            annotation = self._unpack('%db' % (annotation_size - 8))
+            image_size = self._unpack(DWORD)
 
             cfa = self.cfa
             compression = self.compression
