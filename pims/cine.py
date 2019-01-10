@@ -615,6 +615,14 @@ class Cine(FramesSequence):
         return fps
 
     def get_frame_rate(self):
+        """Actual frame rate,
+
+        See also
+        --------
+        self.frame_rate property.
+        self._compute_frame_rate() method.
+        self.setup_fields_dict['frame_rate' or 'record_frame_rate']
+        """
         return self.frame_rate
 
     def close(self):
