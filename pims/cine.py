@@ -24,6 +24,11 @@ from numpy import array, frombuffer
 from threading import Lock
 import datetime
 import hashlib
+from os.path import split, join, splitext
+import os
+import subprocess as sbp
+from skimage import io
+import warnings
 
 __all__ = ('Cine', )
 
@@ -353,7 +358,7 @@ class Cine(FramesSequence):
     @property
     def frame_rate(self):
         """Actual frame rate, averaged on frame timestamp (Hz)."""
-        return self._compute_fps()
+        return self._compute_frame_rate()
 
     # use properties for things that should not be changeable
     @property
@@ -395,6 +400,12 @@ class Cine(FramesSequence):
     @property
     def frame_shape(self):
         return self._im_sz
+
+    @property
+    def shape(self):
+        """Shape of virtual np.array containing images."""
+        W, H = self.frame_shape
+        return self.len(), H, W
 
     def get_frame(self, j):
         md = dict()
@@ -579,29 +590,6 @@ class Cine(FramesSequence):
         t0, tj = [t[0].timestamp() + t[1] for t in times]
         return tj-t0
 
-    def _compute_frame_rate(self, relative_error=1e-3):
-        """
-        Compute mean frame rate (Hz), on the basis of frame time stamps.
-
-        Parameters
-        ----------
-        relative_error : float, optional.
-            Relative error (mean/standard deviation) below which no warning is
-            raised.
-
-        Returns
-        -------
-        fps : float.
-            Actual mean frame rate, based on the frames time stamps.
-        """
-        times = np.r_[[t[0].timestamp() + t[1]\
-                       for t in self.frame_time_stamps]]
-        periods = 1/np.diff(times)
-        fps, std = periods.mean(), periods.std()
-        if std/fps > relative_error:
-            warn('Precision on the frame rate is above {:.2f} %.'\
-                 .format(1e2*relative_error))
-        return fps
 
     def get_frame_rate(self):
         return self.frame_rate
@@ -673,6 +661,64 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
 
     def __ne__(self, other):
         return not self == other
+
+    def save_image_sequence(self, method='skimage', fmt='06d', im_ext='.tif',
+            starts_with=1, crop=True):
+        """
+        Burst  and save .cine file into image sequence, following selected method.
+
+        Parameters
+        ----------
+        method : str, optional.
+            Choose between 'skimage' (default), 'ffmpeg'.
+            See description of formats in Notes.
+
+        fmt : str, optional.
+            String formatting of image labeling.
+
+        im_ext : str, optional.
+            Single image extension. Default is tif, other values may lead to unsuspected
+            behaviour (compression, etc).
+
+        starts_with : int, optional.
+            First saved image number, default 1.
+
+        crop : bool, optional.
+            Crop the output image series (requires data to be stored in the .cine).
+        """
+        # Init file, folder names
+        base, fname = split(self._filename)
+        prefix, ext = splitext(fname)
+        fol = join(base, prefix) + '{:06d}'.format(np.random.randint(0, 1e6-1))
+        try:
+            os.mkdir(fol)
+        except (FileExistsError):
+            ans = input('Folder {} already exists. Overwrite? (y/n) '.format(fol))
+            if ans != 'y':
+                print('Aborted.')
+                return None
+        # Init crop
+        if crop == True and self.setup_fields_dict['enable_crop'] == 1:
+            left, top, right, bottom = self.setup_fields_dict['crop_left_top_right_bottom']
+        else :
+            left, top, right, bottom = 0, 0, *self.frame_shape
+        if method == 'ffmpeg':
+            # TODO: check carefully what does ffmpeg.
+            # Currently, spans original 12 bits image over 16 bits.
+            # TODO: implement cropping 
+            warnings.warn('ffmpeg method may lead to undesired behaviour, '\
+                          +'such as spanning 12 bts image over 16 bits. '\
+                          +'Consider using other available method.',
+                          UserWarning)
+            call = 'ffmpeg -i ' + self._filename \
+                   +' '+join(fol, prefix)+'%'+fmt+im_ext
+            sbp.call(call, shell=True)
+        elif method == 'skimage':
+            for n in range(self.len()):
+                im = self.get_frame(n)[top:bottom, left:right]
+                s = '{:'+fmt+'}'
+                io.imsave(join(fol, prefix) + s.format(n+starts_with) + im_ext, im)
+        return None
 
 
 # Should be divisible by 3, 4 and 5!  This seems to be near-optimal.
