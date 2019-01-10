@@ -352,7 +352,8 @@ class Cine(FramesSequence):
 
     @property
     def frame_rate(self):
-        return self.setup_fields_dict['frame_rate']
+        """Actual frame rate, averaged on frame timestamp (Hz)."""
+        return self._compute_fps()
 
     # use properties for things that should not be changeable
     @property
@@ -572,16 +573,37 @@ class Cine(FramesSequence):
     len = __len__
 
     @index_attr
-    def get_time(self, i):
-        '''Returm the time of frame i in seconds.'''
-        # TODO: This is not guaranteed to be the actual time.
-        # Frames may be unevenly spaced due to e.g. external sync.
-        # The actual time is available from the timestamp tagged block,
-        # which is read above.
-        # See NorpixSeq for a timestamp API that solves this problem.
-        return float(i) / self.frame_rate
+    def get_time(self, j):
+        """Get the delta time (s) between frames j and 0."""
+        times = [self.frame_time_stamps[k] for k in [0, j]]
+        t0, tj = [t[0].timestamp() + t[1] for t in times]
+        return tj-t0
 
-    def get_fps(self):
+    def _compute_frame_rate(self, relative_error=1e-3):
+        """
+        Compute mean frame rate (Hz), on the basis of frame time stamps.
+
+        Parameters
+        ----------
+        relative_error : float, optional.
+            Relative error (mean/standard deviation) below which no warning is
+            raised.
+
+        Returns
+        -------
+        fps : float.
+            Actual mean frame rate, based on the frames time stamps.
+        """
+        times = np.r_[[t[0].timestamp() + t[1]\
+                       for t in self.frame_time_stamps]]
+        periods = 1/np.diff(times)
+        fps, std = periods.mean(), periods.std()
+        if std/fps > relative_error:
+            warn('Precision on the frame rate is above {:.2f} %.'\
+                 .format(1e2*relative_error))
+        return fps
+
+    def get_frame_rate(self):
         return self.frame_rate
 
     def close(self):
