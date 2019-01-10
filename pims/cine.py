@@ -590,6 +590,29 @@ class Cine(FramesSequence):
         t0, tj = [t[0].timestamp() + t[1] for t in times]
         return tj-t0
 
+    def _compute_frame_rate(self, relative_error=1e-3):
+        """
+        Compute mean frame rate (Hz), on the basis of frame time stamps.
+
+        Parameters
+        ----------
+        relative_error : float, optional.
+            Relative error (mean/standard deviation) below which no warning is
+            raised.
+
+        Returns
+        -------
+        fps : float.
+            Actual mean frame rate, based on the frames time stamps.
+        """
+        times = np.r_[[t[0].timestamp() + t[1]\
+                       for t in self.frame_time_stamps]]
+        periods = 1/np.diff(times)
+        fps, std = periods.mean(), periods.std()
+        if std/fps > relative_error:
+            warnings.warn('Precision on the frame rate is above {:.2f} %.'\
+                 .format(1e2*relative_error))
+        return fps
 
     def get_frame_rate(self):
         return self.frame_rate
