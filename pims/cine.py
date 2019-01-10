@@ -727,7 +727,7 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
             left, top, right, bottom = 0, 0, *self.frame_shape
         if method == 'ffmpeg':
             # TODO: check carefully what does ffmpeg.
-            # Currently, spans original 12 bits image over 16 bits.
+            # Currently, spans original 12 bits image range over 16 bits.
             # TODO: implement cropping 
             warnings.warn('ffmpeg method may lead to undesired behaviour, '\
                           +'such as spanning 12 bts image over 16 bits. '\
@@ -737,6 +737,7 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
                    +' '+join(fol, prefix)+'%'+fmt+im_ext
             sbp.call(call, shell=True)
         elif method == 'skimage':
+            # Seems to preserve the image bit range
             for n in range(self.len()):
                 im = self.get_frame(n)[top:bottom, left:right]
                 s = '{:'+fmt+'}'
