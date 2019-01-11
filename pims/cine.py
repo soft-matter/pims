@@ -750,7 +750,8 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
                    +' '+join(fol, prefix)+'%'+fmt+im_ext
             sbp.call(call, shell=True)
         elif method == 'skimage':
-            # Seems to preserve the image bit range
+            # Seems to preserve the image bit range, but raises a warning
+            warnings.filterwarnings("module", message="is a low contrast image")
             for n in range(self.len()):
                 im = self.get_frame(n)[top:bottom, left:right]
                 s = '{:'+fmt+'}'
