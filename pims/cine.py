@@ -693,10 +693,10 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
     def __ne__(self, other):
         return not self == other
 
-    def save_image_sequence(self, method='skimage', fmt='06d', im_ext='.tif',
-            starts_with=1, crop=True):
+    def save_image_sequence(self, method='skimage', im_ext='.tif', crop=True,
+            fmt='06d', starts_with=1):
         """
-        Burst  and save .cine file into image sequence, following selected method.
+        Burst and save .cine file into image sequence, following selected method.
 
         Parameters
         ----------
@@ -704,23 +704,28 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
             Choose between 'skimage' (default), 'ffmpeg'.
             See description of formats in Notes.
 
+        crop : bool, optional.
+            Crop the output image series (requires data to be stored in the .cine).
+
+        im_ext : str, optional.
+            Single image extension. Default is tif, other values may lead to 
+            unsuspected behaviour (compression, etc).
+
         fmt : str, optional.
             String formatting of image labeling.
 
-        im_ext : str, optional.
-            Single image extension. Default is tif, other values may lead to unsuspected
-            behaviour (compression, etc).
-
         starts_with : int, optional.
             First saved image number, default 1.
-
-        crop : bool, optional.
-            Crop the output image series (requires data to be stored in the .cine).
+        
+        Notes
+        -----
+        A subfolder containing all frames is created at the same location as the
+        original .cine file.
         """
         # Init file, folder names
         base, fname = split(self._filename)
         prefix, ext = splitext(fname)
-        fol = join(base, prefix) + '{:06d}'.format(np.random.randint(0, 1e6-1))
+        fol = join(base, prefix)
         try:
             os.mkdir(fol)
         except (FileExistsError):
