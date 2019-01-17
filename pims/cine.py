@@ -41,33 +41,21 @@ def _build_struct(dtype):
 FRACTION_MASK = (2**32-1)
 MAX_INT = 2**32
 
-NULL = 'b'
-BYTE = 'B'
-WORD = 'H'
+# Harmonized/simplified cine file data types with Python struct doc
+UINT8 = 'B'
+CHAR = 'b'
+UINT16 = 'H'
 INT16 = 'h'
-SHORT = 'h'
 BOOL = 'i'
-DWORD = 'I'
-UINT = 'I'
-LONG = 'l'
-INT = 'l'
+UINT32 = 'I'
+INT32 = 'i'
+INT64 = 'q'
 FLOAT = 'f'
 DOUBLE = 'd'
 TIME64 = 'Q'
 RECT = '4i'
 WBGAIN = '2f'
 IMFILTER = '28i'
-# From Python documentation about struct
-INT2 = 'h'
-UINT2= 'H'
-INT  = 'i'
-UINT = 'I'
-LONG = 'l'
-ULONG= 'L'
-INT8 = 'q'
-UINT8= 'Q'
-FLOAT= 'f'
-DOUBLE='d'
 
 CFA_NONE = 0
 CFA_VRI = 1
@@ -79,7 +67,7 @@ TAGGED_FIELDS = {
     1000: ('ang_dig_sigs', ''),
     1001: ('image_time_total', TIME64),
     1002: ('image_time_only', TIME64),
-    1003: ('exposure_only', DWORD),
+    1003: ('exposure_only', UINT32),
     1004: ('range_data', ''),
     1005: ('binsig', ''),
     1006: ('anasig', ''),
@@ -88,160 +76,157 @@ TAGGED_FIELDS = {
 
 HEADER_FIELDS = [
     ('type', '2s'),
-    ('header_size', UINT2),
-    ('compression', UINT2),
-    ('version', UINT2),
-    ('first_movie_image', INT),
-    ('total_image_count', UINT),
-    ('first_image_no', INT),
-    ('image_count', UINT),
+    ('header_size', UINT16),
+    ('compression', UINT16),
+    ('version', UINT16),
+    ('first_movie_image', INT32),
+    ('total_image_count', UINT32),
+    ('first_image_no', INT32),
+    ('image_count', UINT32),
     # Offsets of following sections
-    ('off_image_header', UINT),
-    ('off_setup', UINT),
-    ('off_image_offsets', UINT),
+    ('off_image_header', UINT32),
+    ('off_setup', UINT32),
+    ('off_image_offsets', UINT32),
     ('trigger_timestamp32', TIME64),
 ]
 
 BITMAP_INFO_FIELDS = [
-    ('bi_size', UINT),
-    ('bi_width', UINT),
-    ('bi_height', UINT),
-    ('bi_planes', UINT2),
-    ('bi_bit_count', UINT2),
-    ('bi_compression', UINT),
-    ('bi_image_size', UINT),
-    ('bi_x_pels_per_meter', LONG),
-    ('bi_y_pels_per_meter', LONG),
-    ('bi_clr_used', UINT),
-    ('bi_clr_important', UINT),
+    ('bi_size', UINT32),
+    ('bi_width', INT32),
+    ('bi_height', INT32),
+    ('bi_planes', UINT16),
+    ('bi_bit_count', UINT16),
+    ('bi_compression', UINT32),
+    ('bi_image_size', UINT32),
+    ('bi_x_pels_per_meter', INT32),
+    ('bi_y_pels_per_meter', INT32),
+    ('bi_clr_used', UINT32),
+    ('bi_clr_important', UINT32),
 ]
 
+# Inserted Res_ prefix whenever field is obsolete (to easy filter)
 SETUP_FIELDS = [
-    #('frame_rate_16', WORD),
-    ('record_frame_rate', WORD),
-    #('shutter_16', WORD),
-    ('shutter_us', WORD),
-    ('post_trigger', WORD),
-    ('frame_delay_16', WORD),
-    ('aspect_ratio', WORD),
-    ('contrast_16', WORD),
-    ('bright_16', WORD),
-    ('rotate_16', BYTE),
-    ('time_annotation', BYTE),
-    ('trig_cine', BYTE),
-    ('trig_frame', BYTE),
-    ('shutter_on', BYTE),
-    # Guessed at length... because it isn't documented!  This seems to work.
-    ('description_short', '120s'),
-    # Based on the .xml file. Should check with non-zero TrigFrame.
-    ('trig_frame', BYTE),
+    ('Res_frame_rate_16', UINT16),
+    ('Res_shutter_16', UINT16),
+    ('Res_post_trigger_16', UINT16),
+    ('Res_frame_delay_16', UINT16),
+    ('aspect_ratio', UINT16),
+    ('Res_7', UINT16),
+    ('Res_8', UINT16),
+    ('Res_9', UINT8),
+    ('Res_10', UINT8),
+    ('Res_11', UINT8),
+    ('trig_frame', UINT8),
+    ('Res_12', UINT8),
+    ('description_short', '121s'),
     ('mark', '2s'),
-    ('length', WORD),
-    ('binning', WORD),
-    ('sig_option', WORD),
-    ('bin_channels', SHORT),
-    ('samples_per_image', BYTE)] + \
+    ('length', UINT16),
+    ('Res_13', UINT16),
+    ('sig_option', UINT16),
+    ('bin_channels', INT16),
+    ('samples_per_image', UINT8)] + \
     [('bin_name{:d}'.format(i), '11s') for i in range(8)] + [
-        ('ana_option', WORD),
-        ('ana_channels', SHORT),
-        ('res_6', BYTE),
-        ('ana_board', BYTE)] + \
-    [('ch_option{:d}'.format(i), SHORT) for i in range(8)] + \
+    ('ana_option', UINT16),
+    ('ana_channels', INT16),
+    ('res_6', UINT8),
+    ('ana_board', UINT8)] + \
+    [('ch_option{:d}'.format(i), INT16) for i in range(8)] + \
     [('ana_gain{:d}'.format(i), FLOAT) for i in range(8)] + \
     [('ana_unit{:d}'.format(i), '6s') for i in range(8)] + \
     [('ana_name{:d}'.format(i), '11s') for i in range(8)] + [
-    ('i_first_image', LONG),
-    ('dw_image_count', DWORD),
-    ('n_q_factor', SHORT),
-    ('w_cine_file_type', WORD)] + \
+    ('i_first_image', INT32),
+    ('dw_image_count', UINT32),
+    ('n_q_factor', INT16),
+    ('w_cine_file_type', UINT16)] + \
     [('sz_cine_path{:d}'.format(i), '65s') for i in range(4)] + [
-    ('b_mains_freq', WORD),
-    ('b_time_code', BYTE),
-    ('b_priority', BYTE),
-    ('w_leap_sec_dy', DOUBLE),
-    ('d_delay_tc', DOUBLE),
-    ('d_delay_pps', DOUBLE),
-    ('gen_bits', WORD),
-    ('res_1', INT16),  # Manual says INT, but this is clearly wrong!
-    ('res_2', INT16),
-    ('res_3', INT16),
-    ('im_width', WORD),
-    ('im_height', WORD),
-    ('edr_shutter_16', WORD),
-    ('serial', UINT),
-    ('saturation', INT),
-    ('res_5', BYTE),
-    ('auto_exposure', UINT),
+    ('Res_14', UINT16),
+    ('Res_15', UINT8),
+    ('Res_16', UINT8),
+    ('Res_17', UINT16),
+    ('Res_18', DOUBLE),
+    ('Res_19', DOUBLE),
+    ('Res_20', UINT16),
+    ('Res_1', INT32),  
+    ('Res_2', INT32),
+    ('Res_3', INT32),
+    ('im_width', UINT16),
+    ('im_height', UINT16),
+    ('Res_edr_shutter_16', UINT16),
+    ('serial', UINT32),
+    ('Res_saturation', INT32),
+    ('Res_5', UINT8),
+    ('auto_exposure', UINT32),
     ('b_flip_h', BOOL),
     ('b_flip_v', BOOL),
-    ('grid', UINT),
-    ('frame_rate', UINT),
-    ('shutter', UINT),
-    ('edr_shutter', UINT),
-    ('post_trigger', UINT),
-    ('frame_delay', UINT),
+    ('grid', UINT32),
+    ('frame_rate_recorded', UINT32),
+    ('Res_shutter', UINT32),
+    ('Res_edr_shutter', UINT32),
+    ('post_trigger', UINT32),
+    ('Res_frame_delay', UINT32),
     ('b_enable_color', BOOL),
-    ('camera_version', UINT),
-    ('firmware_version', UINT),
-    ('software_version', UINT),
-    ('recording_time_zone', INT),
-    ('cfa', UINT),
-    ('bright', INT),
-    ('contrast', INT),
-    ('gamma', INT),
-    ('reserved1', UINT),
-    ('auto_exp_level', UINT),
-    ('auto_exp_speed', UINT),
+    ('camera_version', UINT32),
+    ('firmware_version', UINT32),
+    ('software_version', UINT32),
+    ('recording_time_zone', INT32),
+    ('cfa', UINT32),
+    ('Res_bright', INT32),
+    ('Res_contrast', INT32),
+    ('Res_gamma', INT32),
+    ('Res_21', UINT32),
+    ('auto_exp_level', UINT32),
+    ('auto_exp_speed', UINT32),
     ('auto_exp_rect', RECT),
     ('wb_gain', '8f'),
-    ('rotate', INT),
+    ('rotate', INT32),
     ('wb_view', WBGAIN),
-    ('real_bpp', UINT),
-    ('conv_8_min', UINT),
-    ('conv_8_max', UINT),
-    ('filter_code', INT),
-    ('filter_param', INT),
+    ('real_bpp', UINT32),
+    ('Res_conv_8_min', UINT32),
+    ('Res_conv_8_max', UINT32),
+    ('filter_code', INT32),
+    ('filter_param', INT32),
     ('uf', IMFILTER),
-    ('black_cal_sver', UINT),
-    ('white_cal_sver', UINT),
-    ('gray_cal_sver', UINT),
+    ('black_cal_sver', UINT32),
+    ('white_cal_sver', UINT32),
+    ('gray_cal_sver', UINT32),
     ('b_stamp_time', BOOL),
-    ('sound_dest', UINT),
-    ('frp_steps', UINT),
-    ] + [('frp_img_nr{:d}'.format(i), INT) for i in range(16)] + \
-        [('frp_rate{:d}'.format(i), UINT) for i in range(16)] + \
-        [('frp_exp{:d}'.format(i), UINT) for i in range(16)] + [
-    ('mc_cnt', INT),
+    ('sound_dest', UINT32),
+    ('frp_steps', UINT32),
+    ] + [('frp_img_nr{:d}'.format(i), INT32) for i in range(16)] + \
+        [('frp_rate{:d}'.format(i), UINT32) for i in range(16)] + \
+        [('frp_exp{:d}'.format(i), UINT32) for i in range(16)] + [
+    ('mc_cnt', INT32),
     ] + [('mc_percent{:d}'.format(i), FLOAT) for i in range(64)] + [
-    ('ci_calib', UINT),
-    ('calib_width', UINT),
-    ('calib_height', UINT),
-    ('calib_rate', UINT),
-    ('calib_exp', UINT),
-    ('calib_edr', UINT),
-    ('calib_temp', UINT),
-    ] + [('header_serial{:d}'.format(i), UINT) for i in range(4)] + [
-    ('range_code', UINT),
-    ('range_size', UINT),
-    ('decimation', UINT),
-    ('master_serial', UINT),
-    ('sensor', UINT),
-    ('shutter_ns', UINT),
-    ('edr_shutter_ns', UINT),
-    ('frame_delay_ns', UINT),
-    ('im_pos_xacq', UINT),
-    ('im_pos_yacq', UINT),
-    ('im_width_acq', UINT),
-    ('im_height_acq', UINT),
+    ('ci_calib', UINT32),
+    ('calib_width', UINT32),
+    ('calib_height', UINT32),
+    ('calib_rate', UINT32),
+    ('calib_exp', UINT32),
+    ('calib_edr', UINT32),
+    ('calib_temp', UINT32),
+    ] + [('header_serial{:d}'.format(i), UINT32) for i in range(4)] + [
+    ('range_code', UINT32),
+    ('range_size', UINT32),
+    ('decimation', UINT32),
+    ('master_serial', UINT32),
+    ('sensor', UINT32),
+    ('shutter_ns', UINT32),
+    ('edr_shutter_ns', UINT32),
+    ('frame_delay_ns', UINT32),
+    ('im_pos_xacq', UINT32),
+    ('im_pos_yacq', UINT32),
+    ('im_width_acq', UINT32),
+    ('im_height_acq', UINT32),
     ('description', '4096s'),
-    # Don't know what there is exactly after 'description'
-    # Structure is based on the .xml file
-    ('rising_edge', BOOL), #?
-    ('filter_time', INT),
-    ('unknown1', '32s'),
-    ('black_level', INT),
-    ('white_level', INT),
-    # Length seems to work: structure correct till the end
+    ('rising_edge', BOOL),
+    ('filter_time', UINT32),
+    ('long_ready', BOOL),
+    ('shutter_off', BOOL),
+    ('Res_4', '16s'),
+    ('b_meta_WB', BOOL),
+    ('Res_hue', INT32),
+    ('black_level', INT32),
+    ('white_level', INT32),
     ('lens_description', '256s'),
     ('lens_aperture', FLOAT),
     ('lens_focus_distance', FLOAT),
@@ -259,18 +244,22 @@ SETUP_FIELDS = [
     ('f_pedestal_B', FLOAT),
     ('f_chroma', FLOAT),
     ('tone_label', '256s'),
-    ('tone_points', INT)] + [\
-    ('f_tone{:d}'.format(i), '2f') for i in range(6)] + [\
-    ('user_matrix_label', '464s'),
+    ('tone_points', INT32)] + [\
+    ('f_tone{:d}'.format(i), '2f') for i in range(32)] + [\
+    ('user_matrix_label', '256s'),
     ('enable_matrices', BOOL)] + [\
     ('f_user_matrix{:d}'.format(i), FLOAT) for i in range(9)] + [\
     ('enable_crop', BOOL),
     ('crop_left_top_right_bottom', '4i'),
     ('enable_resample', BOOL),
-    ('resample_width', INT),
-    ('resample_height', INT),
+    ('resample_width', UINT32),
+    ('resample_height', UINT32),
     ('f_gain16_8', FLOAT)] + [\
-    ('frp_shape{:d}'.format(i), INT) for i in range(16)] + [\
+    ('frp_shape{:d}'.format(i), UINT32) for i in range(16)] + [\
+    #('trig_TC', TC),
+    #('f_pb_rate', FLOAT),
+    #('f_tc_rate', FLOAT),
+    #('cine_name', '256s'),
 ]
 
 
@@ -305,6 +294,10 @@ class Cine(FramesSequence):
         self.bitmapinfo_dict = self._read_header(BITMAP_INFO_FIELDS,
                                                 self.off_image_header)
         self.setup_fields_dict = self._read_header(SETUP_FIELDS, self.off_setup)
+        # Filter 'Res_' (obsolete) fields
+        k_res = [k for k in self.setup_fields_dict.keys() if k.startswith('Res_')]
+        for k in k_res:
+            del self.setup_fields_dict[k]
         self._remove_trailing_x00(self.setup_fields_dict)
         self.image_locations = self._unpack('%dQ' % self.image_count,
                                            self.off_image_offsets)
@@ -327,7 +320,6 @@ class Cine(FramesSequence):
             self._data_type = 'u1'
         else:
             self._data_type = 'u2'
-
         self.tagged_blocks = self.read_tagged_blocks()
         self.frame_time_stamps = self.tagged_blocks['image_time_only']
         self.all_exposures = self.tagged_blocks['exposure_only']
@@ -335,8 +327,8 @@ class Cine(FramesSequence):
         self.stack_meta_data.update(self.bitmapinfo_dict)
         self.stack_meta_data.update({k: self.setup_fields_dict[k]
                                      for k in set(('trig_frame',
-                                                   'gamma',
-                                                   'frame_rate',
+                                                   'f_gamma',
+                                                   'frame_rate_recorded',
                                                    'shutter_ns'
                                                    )
                                                    )
@@ -426,9 +418,9 @@ class Cine(FramesSequence):
             return vals
 
     def read_tagged_blocks(self):
-        '''
+        """
         Reads the tagged block meta-data from the header
-        '''
+        """
         tmp_dict = dict()
         if not self.off_setup + self.setup_length < self.off_image_offsets:
             return
@@ -446,9 +438,9 @@ class Cine(FramesSequence):
         '''
         with FileLocker(self.file_lock):
             self.f.seek(self.off_setup + self.setup_length + off_set)
-            block_size = self._unpack(DWORD)
-            b_type = self._unpack(WORD)
-            more_tags = self._unpack(WORD)
+            block_size = self._unpack(UINT32)
+            b_type = self._unpack(UINT16)
+            more_tags = self._unpack(UINT16)
 
             if b_type == 1004:
                 # docs say to ignore range data it seems to be a poison flag,
@@ -510,10 +502,10 @@ class Cine(FramesSequence):
         with FileLocker(self.file_lock):
             # get basic information about the frame we want
             image_start = self.image_locations[number]
-            annotation_size = self._unpack(DWORD, image_start)
+            annotation_size = self._unpack(UINT32, image_start)
             # this is not used, but is needed to advance the point in the file
             annotation = self._unpack('%db' % (annotation_size - 8))
-            image_size = self._unpack(DWORD)
+            image_size = self._unpack(UINT32)
 
             cfa = self.cfa
             compression = self.compression
@@ -751,9 +743,10 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
             sbp.call(call, shell=True)
         elif method == 'skimage':
             # Seems to preserve the image bit range, but raises a warning
-            warnings.filterwarnings("once", message=".* is a low contrast image")
+            # Don't understand why "once" or "module" does not work, so "ignore" warning.
+            warnings.filterwarnings("ignore", message='.* is a low contrast image')
             for n in range(self.len()):
-                im = self.get_frame(n)[top:bottom, left:right]
+                im = self.get_frame(n)[top:bottom+1, left:right+1]
                 s = '{:'+fmt+'}'
                 io.imsave(join(fol, prefix) + s.format(n+starts_with) + im_ext, im)
         return None
