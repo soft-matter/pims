@@ -57,6 +57,8 @@ TIME64 = 'Q'
 RECT = '4i'
 WBGAIN = '2f'
 IMFILTER = '28i'
+# TODO: get correct format for TrigTC
+TC = '8s'
 
 CFA_NONE = 0
 CFA_VRI = 1
@@ -271,10 +273,10 @@ SETUP_FIELDS = [
     ('f_gain16_8', FLOAT),
     ('frp_shape', '16'+UINT32),
     #] + [('frp_shape{:d}'.format(i), UINT32) for i in range(16)] + [\
-    #('trig_TC', TC),
-    #('f_pb_rate', FLOAT),
-    #('f_tc_rate', FLOAT),
-    #('cine_name', '256s'),
+    ('trig_TC', TC),
+    ('f_pb_rate', FLOAT),
+    ('f_tc_rate', FLOAT),
+    ('cine_name', '256s')
 ]
 
 
