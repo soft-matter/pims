@@ -29,6 +29,7 @@ import os
 import subprocess as sbp
 from skimage import io
 import warnings
+from collections.abc import Iterable
 
 __all__ = ('Cine', )
 
@@ -124,21 +125,27 @@ SETUP_FIELDS = [
     ('Res_13', UINT16),
     ('sig_option', UINT16),
     ('bin_channels', INT16),
-    ('samples_per_image', UINT8)] + \
-    [('bin_name{:d}'.format(i), '11s') for i in range(8)] + [
+    ('samples_per_image', UINT8),
+    ('bin_name', ''.join(8*['11s'])),
+    #[('bin_name{:d}'.format(i), '11s') for i in range(8)] + [
     ('ana_option', UINT16),
     ('ana_channels', INT16),
-    ('res_6', UINT8),
-    ('ana_board', UINT8)] + \
-    [('ch_option{:d}'.format(i), INT16) for i in range(8)] + \
-    [('ana_gain{:d}'.format(i), FLOAT) for i in range(8)] + \
-    [('ana_unit{:d}'.format(i), '6s') for i in range(8)] + \
-    [('ana_name{:d}'.format(i), '11s') for i in range(8)] + [
+    ('Res_6', UINT8),
+    ('ana_board', UINT8),
+    ('ch_option', '8'+INT16),
+    ('ana_gain', '8'+FLOAT),
+    ('ana_unit', ''.join(8*['6s'])),
+    ('ana_name', ''.join(8*['11s'])),
+    #[('ch_option{:d}'.format(i), INT16) for i in range(8)]
+    #[('ana_gain{:d}'.format(i), FLOAT) for i in range(8)] + \
+    #[('ana_unit{:d}'.format(i), '6s') for i in range(8)] + \
+    #[('ana_name{:d}'.format(i), '11s') for i in range(8)] + [
     ('i_first_image', INT32),
     ('dw_image_count', UINT32),
     ('n_q_factor', INT16),
-    ('w_cine_file_type', UINT16)] + \
-    [('sz_cine_path{:d}'.format(i), '65s') for i in range(4)] + [
+    ('w_cine_file_type', UINT16),
+    ('sz_cine_path', ''.join(4*['65s'])),
+    #[('sz_cine_path{:d}'.format(i), '65s') for i in range(4)] + [
     ('Res_14', UINT16),
     ('Res_15', UINT8),
     ('Res_16', UINT8),
@@ -192,11 +199,15 @@ SETUP_FIELDS = [
     ('b_stamp_time', BOOL),
     ('sound_dest', UINT32),
     ('frp_steps', UINT32),
-    ] + [('frp_img_nr{:d}'.format(i), INT32) for i in range(16)] + \
-        [('frp_rate{:d}'.format(i), UINT32) for i in range(16)] + \
-        [('frp_exp{:d}'.format(i), UINT32) for i in range(16)] + [
+    ('frp_img_nr', '16'+INT32),
+    ('frp_rate', '16'+UINT32),
+    ('frp_exp', '16'+UINT32),
+    #] + [('frp_img_nr{:d}'.format(i), INT32) for i in range(16)] + \
+    #    [('frp_rate{:d}'.format(i), UINT32) for i in range(16)] + \
+    #    [('frp_exp{:d}'.format(i), UINT32) for i in range(16)] + [
     ('mc_cnt', INT32),
-    ] + [('mc_percent{:d}'.format(i), FLOAT) for i in range(64)] + [
+    #] + [('mc_percent{:d}'.format(i), FLOAT) for i in range(64)] + [
+    ('mc_percent', '64'+FLOAT),
     ('ci_calib', UINT32),
     ('calib_width', UINT32),
     ('calib_height', UINT32),
@@ -204,7 +215,8 @@ SETUP_FIELDS = [
     ('calib_exp', UINT32),
     ('calib_edr', UINT32),
     ('calib_temp', UINT32),
-    ] + [('header_serial{:d}'.format(i), UINT32) for i in range(4)] + [
+    #] + [('header_serial{:d}'.format(i), UINT32) for i in range(4)] + [
+    ('header_serial', '4'+UINT32),
     ('range_code', UINT32),
     ('range_size', UINT32),
     ('decimation', UINT32),
@@ -244,18 +256,21 @@ SETUP_FIELDS = [
     ('f_pedestal_B', FLOAT),
     ('f_chroma', FLOAT),
     ('tone_label', '256s'),
-    ('tone_points', INT32)] + [\
-    ('f_tone{:d}'.format(i), '2f') for i in range(32)] + [\
+    ('tone_points', INT32),
+    ('f_tone', ''.join(32*['2f'])),
+    #] + [('f_tone{:d}'.format(i), '2f') for i in range(32)] + [\
     ('user_matrix_label', '256s'),
-    ('enable_matrices', BOOL)] + [\
-    ('f_user_matrix{:d}'.format(i), FLOAT) for i in range(9)] + [\
+    ('enable_matrices', BOOL),
+    ('f_user_matrix', '9'+FLOAT),
+    #] + [('f_user_matrix{:d}'.format(i), FLOAT) for i in range(9)] + [\
     ('enable_crop', BOOL),
     ('crop_left_top_right_bottom', '4i'),
     ('enable_resample', BOOL),
     ('resample_width', UINT32),
     ('resample_height', UINT32),
-    ('f_gain16_8', FLOAT)] + [\
-    ('frp_shape{:d}'.format(i), UINT32) for i in range(16)] + [\
+    ('f_gain16_8', FLOAT),
+    ('frp_shape', '16'+UINT32),
+    #] + [('frp_shape{:d}'.format(i), UINT32) for i in range(16)] + [\
     #('trig_TC', TC),
     #('f_pb_rate', FLOAT),
     #('f_tc_rate', FLOAT),
@@ -342,11 +357,16 @@ class Cine(FramesSequence):
     def _clean_setup_dict(self):
         """Remove obsolete fields and trailing blank characters \x00."""
         # Filter out 'Res_' (obsolete) fields
-        k_res = [k for k in self.setup_fields_dict.keys() if k.startswith('Res_')]
+        setup = self.setup_fields_dict
+        k_res = [k for k in setup.keys() if k.startswith('Res_')]
         for k in k_res:
-            del self.setup_fields_dict[k]
+            del setup[k]
         # Remove blank characters
-        self._remove_trailing_x00(self.setup_fields_dict)
+        self._remove_trailing_x00(setup)
+        # Format f_tone properly
+        tone = setup['f_tone']
+        setup['f_tone'] = tuple((tone[2*k], tone[2*k+1])\
+                                for k in range(setup['tone_points']))
         return None
 
     def _remove_trailing_x00(self, dic):
@@ -354,6 +374,12 @@ class Cine(FramesSequence):
             if isinstance(v, bytes):
                 try:
                     dic[k] = v.decode('utf8').replace('\x00', '')
+                except:
+                    pass
+            elif isinstance(v, Iterable):
+                try:
+                    dic[k] = [el.decode('utf8').replace('\x00', '')\
+                              for el in v]
                 except:
                     pass
 
