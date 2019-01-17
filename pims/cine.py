@@ -27,7 +27,7 @@ import hashlib
 from os.path import split, join, splitext
 import os
 import subprocess as sbp
-from skimage import io
+from skimage import io, exposure
 import warnings
 from collections.abc import Iterable
 
@@ -359,7 +359,7 @@ class Cine(FramesSequence):
         ### IMAGES
         # TODO: add support for reading sequence within the same framework, when data
         # has been saved in another format (.tif, image sequence, etc)
-        if splitext(filename)[0] in ['.cine', '.cci', '.cin']:
+        if splitext(filename)[-1] in ['.cine', '.cci', '.cin']:
             self.image_locations = self._unpack('%dQ' % self.image_count,
                                                self.off_image_offsets)
             if type(self.image_locations) not in (list, tuple):
@@ -728,19 +728,16 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
     def __ne__(self, other):
         return not self == other
 
-    def save_image_sequence(self, method='skimage', im_ext='.tif', crop=True,
-            fmt='06d', starts_with=1):
+    def save_image_sequence(self, base_dir=None, im_ext='.tif', fmt='06d',
+            starts_with=1, method='skimage', crop=True, out_range='uint16'):
         """
         Burst and save .cine file into image sequence, following selected method.
 
         Parameters
         ----------
-        method : str, optional.
-            Choose between 'skimage' (default), 'ffmpeg'.
-            See description of formats in Notes.
-
-        crop : bool, optional.
-            Crop the output image series (requires data to be stored in the .cine).
+        base_dir : None or str, optional.
+            Base directory into which create save subfolder. If None (default), 
+            take the path of the cine file.
 
         im_ext : str, optional.
             Single image extension. Default is tif, other values may lead to 
@@ -751,14 +748,30 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
 
         starts_with : int, optional.
             First saved image number, default 1.
+
+        method : str, optional.
+            Choose between 'skimage' (default), 'ffmpeg'.
+            See description of formats in Notes.
+
+        crop : bool, optional.
+            Crop the output image series (requires data to be stored in the .cine).
+
+        out_range : str.
+            Image data type.
         
         Notes
         -----
-        A subfolder containing all frames is created at the same location as the
-        original .cine file.
+        A subfolder containing all frames is systematically created (unless already
+        existing).
+
+        See also
+        --------
+        skimage.exposure.rescale_intensity
         """
         # Init file, folder names
         base, fname = split(self._filename)
+        if base_dir is not None:
+            base = base_dir
         prefix, ext = splitext(fname)
         fol = join(base, prefix)
         try:
@@ -768,6 +781,13 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
             if ans != 'y':
                 print('Aborted.')
                 return None
+        # Export .chd header
+        with open(join(fol, prefix+'.chd'), 'wb') as f:
+            n = self.f.tell()
+            self.f.seek(0)
+            f.write(self.f.read(self.header_dict['off_image_offsets']))
+            self.f.seek(n)
+        
         # Init crop
         if crop == True and self.setup_fields_dict['enable_crop'] == 1:
             left, top, right, bottom = self.setup_fields_dict['crop_left_top_right_bottom']
@@ -787,11 +807,16 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
         elif method == 'skimage':
             # Seems to preserve the image bit range, but raises a warning
             # Don't understand why "once" or "module" does not work, so "ignore" warning.
-            warnings.filterwarnings("ignore", message='.* is a low contrast image')
+            warnings.filterwarnings("once", message='.* is a low contrast image')
             for n in range(self.len()):
                 im = self.get_frame(n)[top:bottom+1, left:right+1]
+                w, b = [self.setup_fields_dict[s+'_level']\
+                        for s in ['white', 'black']]
                 s = '{:'+fmt+'}'
-                io.imsave(join(fol, prefix) + s.format(n+starts_with) + im_ext, im)
+                # Save rescaled image
+                io.imsave(join(fol, prefix) + s.format(n+starts_with) + im_ext,\
+                          exposure.rescale_intensity(im, in_range=(b, w),
+                                                         out_range=out_range))
         return None
 
 
