@@ -290,7 +290,12 @@ class Cine(FramesSequence):
     Parameters
     ----------
     filename : string
-        Path to cine file.
+        Path to cine (or chd) file.
+    
+    Notes
+    -----
+    In the case of .chd header file, class does only provide support for
+    reading the header file, NOT for files access.
     """
     # TODO: Unit tests using a small sample cine file.
     @classmethod
@@ -305,15 +310,12 @@ class Cine(FramesSequence):
         self.f = open(filename, 'rb')
         self._filename = filename
 
+        ### HEADER
         self.header_dict = self._read_header(HEADER_FIELDS)
         self.bitmapinfo_dict = self._read_header(BITMAP_INFO_FIELDS,
                                                 self.off_image_header)
         self.setup_fields_dict = self._read_header(SETUP_FIELDS, self.off_setup)
         self._clean_setup_dict()
-        self.image_locations = self._unpack('%dQ' % self.image_count,
-                                           self.off_image_offsets)
-        if type(self.image_locations) not in (list, tuple):
-            self.image_locations = [self.image_locations]
 
         self._width = self.bitmapinfo_dict['bi_width']
         self._height = self.bitmapinfo_dict['bi_height']
@@ -353,6 +355,15 @@ class Cine(FramesSequence):
                                                    )
                                                    })
         self.stack_meta_data['trigger_time'] = self.trigger_time
+
+        ### IMAGES
+        # TODO: add support for reading sequence within the same framework, when data
+        # has been saved in another format (.tif, image sequence, etc)
+        if splitext(filename)[0] in ['.cine', '.cci', '.cin']:
+            self.image_locations = self._unpack('%dQ' % self.image_count,
+                                               self.off_image_offsets)
+            if type(self.image_locations) not in (list, tuple):
+                self.image_locations = [self.image_locations]
 
     def _clean_setup_dict(self):
         """Remove obsolete fields and trailing blank characters \x00."""
