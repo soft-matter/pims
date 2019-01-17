@@ -294,11 +294,7 @@ class Cine(FramesSequence):
         self.bitmapinfo_dict = self._read_header(BITMAP_INFO_FIELDS,
                                                 self.off_image_header)
         self.setup_fields_dict = self._read_header(SETUP_FIELDS, self.off_setup)
-        # Filter 'Res_' (obsolete) fields
-        k_res = [k for k in self.setup_fields_dict.keys() if k.startswith('Res_')]
-        for k in k_res:
-            del self.setup_fields_dict[k]
-        self._remove_trailing_x00(self.setup_fields_dict)
+        self._clean_setup_dict()
         self.image_locations = self._unpack('%dQ' % self.image_count,
                                            self.off_image_offsets)
         if type(self.image_locations) not in (list, tuple):
@@ -342,6 +338,24 @@ class Cine(FramesSequence):
                                                    )
                                                    })
         self.stack_meta_data['trigger_time'] = self.trigger_time
+
+    def _clean_setup_dict(self):
+        """Remove obsolete fields and trailing blank characters \x00."""
+        # Filter out 'Res_' (obsolete) fields
+        k_res = [k for k in self.setup_fields_dict.keys() if k.startswith('Res_')]
+        for k in k_res:
+            del self.setup_fields_dict[k]
+        # Remove blank characters
+        self._remove_trailing_x00(self.setup_fields_dict)
+        return None
+
+    def _remove_trailing_x00(self, dic):
+        for k, v in dic.items():
+            if isinstance(v, bytes):
+                try:
+                    dic[k] = v.decode('utf8').replace('\x00', '')
+                except:
+                    pass
 
     @property
     def filename(self):
@@ -489,14 +503,6 @@ class Cine(FramesSequence):
             tmp[name] = val
 
         return tmp
-
-    def _remove_trailing_x00(self, dic):
-        for k, v in dic.items():
-            if isinstance(v, bytes):
-                try:
-                    dic[k] = v.decode('utf8').replace('\x00', '')
-                except:
-                    pass
 
     def _get_frame(self, number):
         with FileLocker(self.file_lock):
