@@ -809,7 +809,7 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
         elif method == 'skimage':
             # Seems to preserve the image bit range, but raises a warning
             # Don't understand why "once" or "module" does not work, so "ignore" warning.
-            warnings.filterwarnings("once", message='.* is a low contrast image')
+            warnings.filterwarnings("ignore", message='.* is a low contrast image')
             for n in range(self.len()):
                 im = self.get_frame(n)[top:bottom+1, left:right+1]
                 w, b = [self.setup_fields_dict[s+'_level']\
