@@ -281,6 +281,23 @@ UPDATED_FIELDS = {
         'hue': 'f_hue',
         }
 
+TO_BE_IGNORED_FIELDS = {
+        'contrast_16': 'res_7',
+        'bright_16': 'res_8',
+        'rotate_16': 'res_9',
+        'time_annotation': 'res_10',
+        'trig_cine': 'res_11',
+        'shutter_on': 'res_12',
+        'binning': 'res_13',
+        'b_mains_freq': 'res_14', 
+        'b_time_code': 'res_15',
+        'b_priority': 'res_16',
+        'w_leap_sec_dy': 'res_17',
+        'd_delay_tc': 'res_18',
+        'd_delay_pps': 'res_19',
+        'gen_bits': 'res_20',
+        'conv_8_min': '',
+        }
 
 class Cine(FramesSequence):
     """Read cine files
