@@ -297,7 +297,7 @@ class Cine(FramesSequence):
     Notes
     -----
     For a .chd file, this class only reads the header, not the images.
-    reading the header file, NOT for files access.
+    
     """
     # TODO: Unit tests using a small sample cine file.
     @classmethod
