@@ -296,8 +296,8 @@ class Cine(FramesSequence):
     
     Notes
     -----
-    In the case of .chd header file, class does only provide support for
-    reading the header file, NOT for files access.
+    For a .chd file, this class only reads the header, not the images.
+    
     """
     # TODO: Unit tests using a small sample cine file.
     @classmethod
@@ -625,7 +625,7 @@ class Cine(FramesSequence):
         """Get the delta time (s) between frames j and 0."""
         times = [self.frame_time_stamps[k] for k in [0, j]]
         t0, tj = [t[0].timestamp() + t[1] for t in times]
-        return tj-t0
+        return tj - t0
 
     def _compute_frame_rate(self, relative_error=1e-3):
         """
@@ -644,7 +644,7 @@ class Cine(FramesSequence):
         """
         times = np.r_[[t[0].timestamp() + t[1]\
                        for t in self.frame_time_stamps]]
-        periods = 1/np.diff(times)
+        periods = 1 / np.diff(times)
         fps, std = periods.mean(), periods.std()
         if std/fps > relative_error:
             warnings.warn('Precision on the frame rate is above {:.2f} %.'\
