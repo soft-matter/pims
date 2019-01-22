@@ -387,10 +387,12 @@ class Cine(FramesSequence):
                 self.image_locations = [self.image_locations]
 
     def _clean_setup_dict(self):
-        """Remove obsolete fields and trailing blank characters \x00."""
-        # Filter out 'Res_' (obsolete) fields
+        """
+        Remove obsolete fields and trailing blank characters \x00.
+        """
+        # Filter out 'res_' (reserved/obsolete) fields
         setup = self.setup_fields_dict
-        k_res = [k for k in setup.keys() if k.startswith('Res_')]
+        k_res = [k for k in setup.keys() if k.startswith('res_')]
         for k in k_res:
             del setup[k]
         # Remove blank characters
