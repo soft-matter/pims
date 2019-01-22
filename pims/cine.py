@@ -378,13 +378,16 @@ class Cine(FramesSequence):
         self.stack_meta_data['trigger_time'] = self.trigger_time
 
         ### IMAGES
-        # TODO: add support for reading sequence within the same framework, when data
-        # has been saved in another format (.tif, image sequence, etc)
-        if splitext(filename)[-1] in ['.cine', '.cci', '.cin']:
+        # Move to images offset to test EOF...
+        self.f.seek(self.off_image_header)
+        if self.f.read(1) != b'':
+            # ... If no, read images
             self.image_locations = self._unpack('%dQ' % self.image_count,
                                                self.off_image_offsets)
             if type(self.image_locations) not in (list, tuple):
                 self.image_locations = [self.image_locations]
+        # TODO: add support for reading sequence within the same framework, when data
+        # has been saved in another format (.tif, image sequence, etc)
 
     def _clean_setup_dict(self):
         """
