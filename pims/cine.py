@@ -264,6 +264,24 @@ SETUP_FIELDS = [
     ('cine_name', '256s')
 ]
 
+UPDATED_FIELDS = {
+        'frame_rate_16': 'frame_rate',
+        'shutter_16': 'shutter_ns',
+        'post_trigger_16': 'post_trigger',
+        'frame_delay_16': 'frame_delay_ns',
+        'edr_shutter_16': 'edr_shutter_ns',
+        'saturation': 'f_saturation',
+        'shutter': 'shutter_ns',
+        'edr_shutter': 'edr_shutter_ns',
+        'frame_delay': 'frame_delay_ns',
+        'bright': 'f_offset',
+        'contrast': 'f_gain',
+        'gamma': 'f_gamma',
+        'conv_8_max': 'f_gain16_8',
+        'hue': 'f_hue',
+        }
+
+
 class Cine(FramesSequence):
     """Read cine files
 
