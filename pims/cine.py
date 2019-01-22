@@ -625,7 +625,7 @@ class Cine(FramesSequence):
         """Get the delta time (s) between frames j and 0."""
         times = [self.frame_time_stamps[k] for k in [0, j]]
         t0, tj = [t[0].timestamp() + t[1] for t in times]
-        return tj-t0
+        return tj - t0
 
     def _compute_frame_rate(self, relative_error=1e-3):
         """
