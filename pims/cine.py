@@ -423,10 +423,18 @@ class Cine(FramesSequence):
     @property
     def filename(self):
         return self._filename
-
+    
     @property
     def frame_rate(self):
-        """Actual frame rate, averaged on frame timestamp (Hz)."""
+        """
+        Frame rate (setting in Phantom PCC software) (Hz).
+        May differ from computed average one.
+        """
+        return self.setup_fields_dict['frame_rate']
+
+    @property
+    def frame_rate_avg(self):
+        """Actual frame rate, averaged on frame timestamps (Hz)."""
         return self._compute_frame_rate()
 
     # use properties for things that should not be changeable
@@ -675,14 +683,20 @@ class Cine(FramesSequence):
                  .format(1e2*relative_error))
         return fps
 
-    def get_frame_rate(self):
-        """Actual frame rate,
+    def get_fps(self):
+        """
+        Get frame rate (setting in Phantom PCC software) (Hz).
+        May differ from computed average one.
 
         See also
         --------
-        self.frame_rate property.
-        self._compute_frame_rate() method.
-        self.setup_fields_dict['frame_rate' or 'record_frame_rate']
+        PCC setting (all fields refer to the same value)
+            self.frame_rate
+            self.setup_fields_dict['frame_rate']
+        
+        Computed average
+            self.frame_rate_avg
+            self._compute_frame_rate()
         """
         return self.frame_rate
 
