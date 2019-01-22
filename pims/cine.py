@@ -361,8 +361,8 @@ class Cine(FramesSequence):
         self.stack_meta_data.update(self.bitmapinfo_dict)
         self.stack_meta_data.update({k: self.setup_fields_dict[k]
                                      for k in set(('trig_frame',
-                                                   'f_gamma',
-                                                   'frame_rate_recorded',
+                                                   'gamma',
+                                                   'frame_rate',
                                                    'shutter_ns'
                                                    )
                                                    )
