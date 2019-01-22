@@ -106,82 +106,76 @@ BITMAP_INFO_FIELDS = [
     ('bi_clr_important', UINT32),
 ]
 
-# Inserted Res_ prefix whenever field is obsolete (to easy filter)
+
 SETUP_FIELDS = [
-    ('Res_frame_rate_16', UINT16),
-    ('Res_shutter_16', UINT16),
-    ('Res_post_trigger_16', UINT16),
-    ('Res_frame_delay_16', UINT16),
+    ('frame_rate_16', UINT16),
+    ('shutter_16', UINT16),
+    ('post_trigger_16', UINT16),
+    ('frame_delay_16', UINT16),
     ('aspect_ratio', UINT16),
-    ('Res_7', UINT16),
-    ('Res_8', UINT16),
-    ('Res_9', UINT8),
-    ('Res_10', UINT8),
-    ('Res_11', UINT8),
+    ('contrast_16', UINT16),
+    ('bright_16', UINT16),
+    ('rotate_16', UINT8),
+    ('time_annotation', UINT8),
+    ('trig_cine', UINT8),
     ('trig_frame', UINT8),
-    ('Res_12', UINT8),
+    ('shutter_on', UINT8),
     ('description_short', '121s'),
     ('mark', '2s'),
     ('length', UINT16),
-    ('Res_13', UINT16),
+    ('binning', UINT16),
     ('sig_option', UINT16),
     ('bin_channels', INT16),
     ('samples_per_image', UINT8),
-    ('bin_name', ''.join(8*['11s'])),
-    #[('bin_name{:d}'.format(i), '11s') for i in range(8)] + [
+    ] + [('bin_name{:d}'.format(i), '11s') for i in range(8)] + [
     ('ana_option', UINT16),
     ('ana_channels', INT16),
-    ('Res_6', UINT8),
+    ('res_6', UINT8),
     ('ana_board', UINT8),
-    ('ch_option', '8'+INT16),
-    ('ana_gain', '8'+FLOAT),
-    ('ana_unit', ''.join(8*['6s'])),
-    ('ana_name', ''.join(8*['11s'])),
-    #[('ch_option{:d}'.format(i), INT16) for i in range(8)]
-    #[('ana_gain{:d}'.format(i), FLOAT) for i in range(8)] + \
-    #[('ana_unit{:d}'.format(i), '6s') for i in range(8)] + \
-    #[('ana_name{:d}'.format(i), '11s') for i in range(8)] + [
+    ] + [('ch_option{:d}'.format(i), INT16) for i in range(8)] + [
+    ] + [('ana_gain{:d}'.format(i), FLOAT) for i in range(8)] + [
+    ] + [('ana_unit{:d}'.format(i), '6s') for i in range(8)] + [
+    ] + [('ana_name{:d}'.format(i), '11s') for i in range(8)] + [
     ('i_first_image', INT32),
     ('dw_image_count', UINT32),
     ('n_q_factor', INT16),
     ('w_cine_file_type', UINT16),
-    ('sz_cine_path', ''.join(4*['65s'])),
-    #[('sz_cine_path{:d}'.format(i), '65s') for i in range(4)] + [
-    ('Res_14', UINT16),
-    ('Res_15', UINT8),
-    ('Res_16', UINT8),
-    ('Res_17', UINT16),
-    ('Res_18', DOUBLE),
-    ('Res_19', DOUBLE),
-    ('Res_20', UINT16),
-    ('Res_1', INT32),  
-    ('Res_2', INT32),
-    ('Res_3', INT32),
+    ] + [('sz_cine_path{:d}'.format(i), '65s') for i in range(4)] + [
+    ('b_mains_freq', UINT16),
+    ('b_time_code', UINT8),
+    ('b_priority', UINT8),
+    ('w_leap_sec_dy', UINT16),
+    ('d_delay_tc', DOUBLE),
+    ('d_delay_pps', DOUBLE),
+    ('gen_bits', UINT16),
+    ('res_1', INT32),  
+    ('res_2', INT32),
+    ('res_3', INT32),
     ('im_width', UINT16),
     ('im_height', UINT16),
-    ('Res_edr_shutter_16', UINT16),
+    ('edr_shutter_16', UINT16),
     ('serial', UINT32),
-    ('Res_saturation', INT32),
-    ('Res_5', UINT8),
+    ('saturation', INT32),
+    ('res_5', UINT8),
     ('auto_exposure', UINT32),
     ('b_flip_h', BOOL),
     ('b_flip_v', BOOL),
     ('grid', UINT32),
-    ('frame_rate_recorded', UINT32),
-    ('Res_shutter', UINT32),
-    ('Res_edr_shutter', UINT32),
+    ('frame_rate', UINT32),
+    ('shutter', UINT32),
+    ('edr_shutter', UINT32),
     ('post_trigger', UINT32),
-    ('Res_frame_delay', UINT32),
+    ('frame_delay', UINT32),
     ('b_enable_color', BOOL),
     ('camera_version', UINT32),
     ('firmware_version', UINT32),
     ('software_version', UINT32),
     ('recording_time_zone', INT32),
     ('cfa', UINT32),
-    ('Res_bright', INT32),
-    ('Res_contrast', INT32),
-    ('Res_gamma', INT32),
-    ('Res_21', UINT32),
+    ('bright', INT32),
+    ('contrast', INT32),
+    ('gamma', INT32),
+    ('res_21', UINT32),
     ('auto_exp_level', UINT32),
     ('auto_exp_speed', UINT32),
     ('auto_exp_rect', RECT),
@@ -189,8 +183,8 @@ SETUP_FIELDS = [
     ('rotate', INT32),
     ('wb_view', WBGAIN),
     ('real_bpp', UINT32),
-    ('Res_conv_8_min', UINT32),
-    ('Res_conv_8_max', UINT32),
+    ('conv_8_min', UINT32),
+    ('conv_8_max', UINT32),
     ('filter_code', INT32),
     ('filter_param', INT32),
     ('uf', IMFILTER),
@@ -200,15 +194,11 @@ SETUP_FIELDS = [
     ('b_stamp_time', BOOL),
     ('sound_dest', UINT32),
     ('frp_steps', UINT32),
-    ('frp_img_nr', '16'+INT32),
-    ('frp_rate', '16'+UINT32),
-    ('frp_exp', '16'+UINT32),
-    #] + [('frp_img_nr{:d}'.format(i), INT32) for i in range(16)] + \
-    #    [('frp_rate{:d}'.format(i), UINT32) for i in range(16)] + \
-    #    [('frp_exp{:d}'.format(i), UINT32) for i in range(16)] + [
+    ] + [('frp_img_nr{:d}'.format(i), INT32) for i in range(16)] + [
+    ] + [('frp_rate{:d}'.format(i), UINT32) for i in range(16)] + [
+    ] + [('frp_exp{:d}'.format(i), UINT32) for i in range(16)] + [
     ('mc_cnt', INT32),
-    #] + [('mc_percent{:d}'.format(i), FLOAT) for i in range(64)] + [
-    ('mc_percent', '64'+FLOAT),
+    ] + [('mc_percent{:d}'.format(i), FLOAT) for i in range(64)] + [
     ('ci_calib', UINT32),
     ('calib_width', UINT32),
     ('calib_height', UINT32),
@@ -216,8 +206,7 @@ SETUP_FIELDS = [
     ('calib_exp', UINT32),
     ('calib_edr', UINT32),
     ('calib_temp', UINT32),
-    #] + [('header_serial{:d}'.format(i), UINT32) for i in range(4)] + [
-    ('header_serial', '4'+UINT32),
+    ] + [('header_serial{:d}'.format(i), UINT32) for i in range(4)] + [
     ('range_code', UINT32),
     ('range_size', UINT32),
     ('decimation', UINT32),
@@ -235,9 +224,9 @@ SETUP_FIELDS = [
     ('filter_time', UINT32),
     ('long_ready', BOOL),
     ('shutter_off', BOOL),
-    ('Res_4', '16s'),
+    ('res_4', '16s'),
     ('b_meta_WB', BOOL),
-    ('Res_hue', INT32),
+    ('hue', INT32),
     ('black_level', INT32),
     ('white_level', INT32),
     ('lens_description', '256s'),
@@ -259,11 +248,9 @@ SETUP_FIELDS = [
     ('tone_label', '256s'),
     ('tone_points', INT32),
     ('f_tone', ''.join(32*['2f'])),
-    #] + [('f_tone{:d}'.format(i), '2f') for i in range(32)] + [\
     ('user_matrix_label', '256s'),
     ('enable_matrices', BOOL),
     ('f_user_matrix', '9'+FLOAT),
-    #] + [('f_user_matrix{:d}'.format(i), FLOAT) for i in range(9)] + [\
     ('enable_crop', BOOL),
     ('crop_left_top_right_bottom', '4i'),
     ('enable_resample', BOOL),
@@ -271,13 +258,11 @@ SETUP_FIELDS = [
     ('resample_height', UINT32),
     ('f_gain16_8', FLOAT),
     ('frp_shape', '16'+UINT32),
-    #] + [('frp_shape{:d}'.format(i), UINT32) for i in range(16)] + [\
     ('trig_TC', TC),
     ('f_pb_rate', FLOAT),
     ('f_tc_rate', FLOAT),
     ('cine_name', '256s')
 ]
-
 
 class Cine(FramesSequence):
     """Read cine files
