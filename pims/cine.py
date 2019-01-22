@@ -644,7 +644,7 @@ class Cine(FramesSequence):
         """
         times = np.r_[[t[0].timestamp() + t[1]\
                        for t in self.frame_time_stamps]]
-        periods = 1/np.diff(times)
+        periods = 1 / np.diff(times)
         fps, std = periods.mean(), periods.std()
         if std/fps > relative_error:
             warnings.warn('Precision on the frame rate is above {:.2f} %.'\
