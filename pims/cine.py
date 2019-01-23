@@ -657,12 +657,12 @@ class Cine(FramesSequence):
         tt = tt['datetime'].timestamp() + tt['second_fraction']
         return tj - tt
 
-    def _compute_frame_rate(self, error_toler=1e-3):
+    def _compute_frame_rate(self, error_tol=1e-3):
         """Compute mean frame rate (Hz), on the basis of frame time stamps.
 
         Parameters
         ----------
-        error_toler : float, optional.
+        error_tol : float, optional.
             Tolerance on relative error (mean/standard deviation),
             above which a warning is raised.
 
@@ -675,9 +675,9 @@ class Cine(FramesSequence):
                        for t in self.frame_time_stamps]]
         periods = 1 / np.diff(times)
         fps, std = periods.mean(), periods.std()
-        if std/fps > relative_error:
+        if std/fps > error_tol:
             warnings.warn('Precision on the mean frame rate is above '\
-                          +'{:.2f}%.'.format(1e2*error_toler))
+                          +'{:.2f}%.'.format(1e2*error_tol))
         return fps
 
     def get_fps(self):
