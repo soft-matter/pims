@@ -390,9 +390,7 @@ class Cine(FramesSequence):
         # has been saved in another format (.tif, image sequence, etc)
 
     def _clean_setup_dict(self):
-        """
-        Remove obsolete fields and trailing blank characters \x00.
-        """
+        """Remove obsolete fields and trailing blank characters \x00."""
         # Filter out 'res_' (reserved/obsolete) fields
         setup = self.setup_fields_dict
         k_res = [k for k in setup.keys() if k.startswith('res_')]
@@ -426,8 +424,7 @@ class Cine(FramesSequence):
     
     @property
     def frame_rate(self):
-        """
-        Frame rate (setting in Phantom PCC software) (Hz).
+        """Frame rate (setting in Phantom PCC software) (Hz).
         May differ from computed average one.
         """
         return self.setup_fields_dict['frame_rate']
@@ -504,9 +501,7 @@ class Cine(FramesSequence):
             return vals
 
     def read_tagged_blocks(self):
-        """
-        Reads the tagged block meta-data from the header
-        """
+        """Reads the tagged block meta-data from the header."""
         tmp_dict = dict()
         if not self.off_setup + self.setup_length < self.off_image_offsets:
             return
@@ -662,14 +657,13 @@ class Cine(FramesSequence):
         tt = tt['datetime'].timestamp() + tt['second_fraction']
         return tj - tt
 
-    def _compute_frame_rate(self, relative_error_toler=1e-3):
-        """
-        Compute mean frame rate (Hz), on the basis of frame time stamps.
+    def _compute_frame_rate(self, error_toler=1e-3):
+        """Compute mean frame rate (Hz), on the basis of frame time stamps.
 
         Parameters
         ----------
-        relative_error_toler : float, optional.
-            Tolerance on elative error (mean/standard deviation),
+        error_toler : float, optional.
+            Tolerance on relative error (mean/standard deviation),
             above which a warning is raised.
 
         Returns
@@ -687,8 +681,7 @@ class Cine(FramesSequence):
         return fps
 
     def get_fps(self):
-        """
-        Get frame rate (setting in Phantom PCC software) (Hz).
+        """Get frame rate (setting in Phantom PCC software) (Hz).
         May differ from computed average one.
 
         See also
@@ -743,8 +736,7 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
         return int(self.hash, base=16)
 
     def _hash_fun(self):
-        """
-        generates the md5 hash of the header of the file.  Here the
+        """Generates the md5 hash of the header of the file.  Here the
         header is defined as everything before the first image starts.
 
         This includes all of the meta-data (including the plethora of
@@ -777,9 +769,7 @@ CHUNK_SIZE = 6 * 10 ** 5
 
 
 def _ten2sixteen(a):
-    """
-    Convert array of 10bit uints to array of 16bit uints
-    """
+    """Convert array of 10bit uints to array of 16bit uints."""
     b = np.zeros(a.size//5*4, dtype='u2')
 
     for j in range(0, len(a), CHUNK_SIZE):
@@ -798,9 +788,7 @@ def _ten2sixteen(a):
 
 
 def _sixteen2ten(b):
-    """
-    Convert array of 16bit uints to array of 10bit uints
-    """
+    """Convert array of 16bit uints to array of 10bit uints."""
     a = np.zeros(b.size//4*5, dtype='u1')
 
     for j in range(0, len(a), CHUNK_SIZE):
@@ -819,9 +807,7 @@ def _sixteen2ten(b):
 
 
 def _twelve2sixteen(a):
-    """
-    Convert array of 12bit uints to array of 16bit uints
-    """
+    """Convert array of 12bit uints to array of 16bit uints."""
     b = np.zeros(a.size//3*2, dtype='u2')
 
     for j in range(0, len(a), CHUNK_SIZE):
@@ -837,9 +823,7 @@ def _twelve2sixteen(a):
 
 
 def _sixteen2twelve(b):
-    """
-    Convert array of 16bit uints to array of 12bit uints
-    """
+    """Convert array of 16bit uints to array of 12bit uints."""
     a = np.zeros(b.size//2*3, dtype='u1')
 
     for j in range(0, len(a), CHUNK_SIZE):
