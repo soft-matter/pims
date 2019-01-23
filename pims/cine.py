@@ -89,7 +89,7 @@ HEADER_FIELDS = [
     ('off_image_header', UINT32),
     ('off_setup', UINT32),
     ('off_image_offsets', UINT32),
-    ('trigger_timestamp32', TIME64),
+    ('trigger_time', TIME64),
 ]
 
 BITMAP_INFO_FIELDS = [
@@ -450,6 +450,7 @@ class Cine(FramesSequence):
     def pixel_type(self):
         return np.dtype(self._data_type)
 
+    # TODO: what is this field???
     @property
     def off_set(self):
         return self.header_dict['offset']
@@ -654,10 +655,12 @@ class Cine(FramesSequence):
 
     @index_attr
     def get_time(self, j):
-        """Get the delta time (s) between frames j and 0."""
-        times = [self.frame_time_stamps[k] for k in [0, j]]
-        t0, tj = [t[0].timestamp() + t[1] for t in times]
-        return tj - t0
+        """Get the delta time (s) between frame j and trigger."""
+        tj = self.frame_time_stamps[j]
+        tj = tj[0].timestamp() + tj[1]
+        tt= self.trigger_time
+        tt = tt['datetime'].timestamp() + tt['second_fraction']
+        return tj - tt
 
     def _compute_frame_rate(self, relative_error=1e-3):
         """
@@ -724,7 +727,7 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
     def trigger_time(self):
         '''Returns the time of the trigger, tuple of (datatime_object,
         fraction_in_s)'''
-        trigger_time = self.header_dict['trigger_timestamp32']
+        trigger_time = self.header_dict['trigger_time']
         ts, sf = (datetime.datetime.fromtimestamp(trigger_time >> 32),
                    float(FRACTION_MASK & trigger_time)/(MAX_INT))
 
