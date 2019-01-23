@@ -655,7 +655,7 @@ class Cine(FramesSequence):
 
     @index_attr
     def get_time(self, j):
-        """Get the delta time (s) between frame j and trigger."""
+        """Get the time (s) of frame j, relative to trigger."""
         tj = self.frame_time_stamps[j]
         tj = tj[0].timestamp() + tj[1]
         tt= self.trigger_time
