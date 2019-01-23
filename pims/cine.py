@@ -676,8 +676,8 @@ class Cine(FramesSequence):
         periods = 1 / np.diff(times)
         fps, std = periods.mean(), periods.std()
         if std/fps > relative_error:
-            warnings.warn('Precision on the frame rate is above {:.2f} %.'\
-                 .format(1e2*relative_error))
+            warnings.warn('Precision on the mean frame rate is above '\
+                          +'{:.2f}%.'.format(1e2*error_toler))
         return fps
 
     def get_fps(self):
