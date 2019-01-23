@@ -264,6 +264,9 @@ SETUP_FIELDS = [
     ('cine_name', '256s')
 ]
 
+#from VR doc: This field is maintained for compatibility with old versions but
+#a new field was added for that information. The new field can be larger or may
+#have a different measurement unit.
 UPDATED_FIELDS = {
         'frame_rate_16': 'frame_rate',
         'shutter_16': 'shutter_ns',
@@ -281,6 +284,7 @@ UPDATED_FIELDS = {
         'hue': 'f_hue',
         }
 
+#from VR doc: to be ignored, not used anymore
 TO_BE_IGNORED_FIELDS = {
         'contrast_16': 'res_7',
         'bright_16': 'res_8',
