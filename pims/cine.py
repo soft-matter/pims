@@ -59,11 +59,11 @@ IMFILTER = '28i'
 # TODO: get correct format for TrigTC
 TC = '8s'
 
-CFA_NONE = 0
-CFA_VRI = 1
-CFA_VRIV6 = 2
-CFA_BAYER = 3
-CFA_BAYERFLIP = 4
+CFA_NONE = 0    # gray sensor
+CFA_VRI = 1     # gbrg/rggb sensor
+CFA_VRIV6 = 2   # bggr/grbg sensor
+CFA_BAYER = 3   # gb/rg sensor
+CFA_BAYERFLIP = 4   #rg/gb sensor
 
 TAGGED_FIELDS = {
     1000: ('ang_dig_sigs', ''),
