@@ -487,7 +487,9 @@ class Cine(FramesSequence):
         md['exposure'] = self.all_exposures[j]
         ts, sec_frac = self.frame_time_stamps[j]
         md['frame_time'] = {'datetime': ts,
-                            'second_fraction': sec_frac}
+                            'second_fraction': sec_frac,
+                            'time_to_trigger': self.get_time(j),
+                            }
         return Frame(self._get_frame(j), frame_no=j, metadata=md)
 
     def _unpack(self, fs, offset=None):
