@@ -73,8 +73,7 @@ TAGGED_FIELDS = {
     1004: ('range_data', ''),
     1005: ('binsig', ''),
     1006: ('anasig', ''),
-    # 1007 exists in my files, but is not in documentation I can find
-    1007: ('undocumented', '')}
+    1007: ('time_code', '')}
 
 HEADER_FIELDS = [
     ('type', '2s'),
