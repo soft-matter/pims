@@ -28,6 +28,7 @@ class _common_cine_sample_tests(object):
 
 
 class test_legacy_cine_sample(_common_cine_sample_tests, unittest.TestCase):
+    # File made by Nathan Keim in December 2008, using Phantom Camera Control
     def setUp(self):
         self.sample_filename = os.path.join(tests_path, 'data',
                                             'cine_legacy.cine')
