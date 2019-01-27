@@ -357,7 +357,7 @@ class Cine(FramesSequence):
             self._data_type = 'u1'
         else:
             self._data_type = 'u2'
-        self.tagged_blocks = self.read_tagged_blocks()
+        self.tagged_blocks = self._read_tagged_blocks()
         self.frame_time_stamps = self.tagged_blocks['image_time_only']
         self.all_exposures = self.tagged_blocks['exposure_only']
         self.stack_meta_data = dict()
@@ -503,7 +503,7 @@ class Cine(FramesSequence):
         else:
             return vals
 
-    def read_tagged_blocks(self):
+    def _read_tagged_blocks(self):
         """Reads the tagged block meta-data from the header."""
         tmp_dict = dict()
         if not self.off_setup + self.setup_length < self.off_image_offsets:
