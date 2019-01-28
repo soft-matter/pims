@@ -73,8 +73,7 @@ TAGGED_FIELDS = {
     1004: ('range_data', ''),
     1005: ('binsig', ''),
     1006: ('anasig', ''),
-    # 1007 exists in my files, but is not in documentation I can find
-    1007: ('undocumented', '')}
+    1007: ('time_code', '')}
 
 HEADER_FIELDS = [
     ('type', '2s'),
@@ -264,6 +263,9 @@ SETUP_FIELDS = [
     ('cine_name', '256s')
 ]
 
+#from VR doc: This field is maintained for compatibility with old versions but
+#a new field was added for that information. The new field can be larger or may
+#have a different measurement unit.
 UPDATED_FIELDS = {
         'frame_rate_16': 'frame_rate',
         'shutter_16': 'shutter_ns',
@@ -281,6 +283,7 @@ UPDATED_FIELDS = {
         'hue': 'f_hue',
         }
 
+#from VR doc: to be ignored, not used anymore
 TO_BE_IGNORED_FIELDS = {
         'contrast_16': 'res_7',
         'bright_16': 'res_8',
@@ -354,7 +357,7 @@ class Cine(FramesSequence):
             self._data_type = 'u1'
         else:
             self._data_type = 'u2'
-        self.tagged_blocks = self.read_tagged_blocks()
+        self.tagged_blocks = self._read_tagged_blocks()
         self.frame_time_stamps = self.tagged_blocks['image_time_only']
         self.all_exposures = self.tagged_blocks['exposure_only']
         self.stack_meta_data = dict()
@@ -502,7 +505,7 @@ class Cine(FramesSequence):
         else:
             return vals
 
-    def read_tagged_blocks(self):
+    def _read_tagged_blocks(self):
         """Reads the tagged block meta-data from the header."""
         tmp_dict = dict()
         if not self.off_setup + self.setup_length < self.off_image_offsets:
