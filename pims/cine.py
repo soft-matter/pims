@@ -26,6 +26,7 @@ import datetime
 import hashlib
 from os.path import split, join, splitext
 import os
+import sys
 import subprocess as sbp
 import warnings
 from collections.abc import Iterable
@@ -330,6 +331,7 @@ class Cine(FramesSequence):
                        'get_fps', 'compression', 'cfa', 'off_set']
 
     def __init__(self, filename):
+        py_ver = sys.version_info
         super(Cine, self).__init__()
         self.f = open(filename, 'rb')
         self._filename = filename
@@ -382,7 +384,7 @@ class Cine(FramesSequence):
 
         ### IMAGES
         # Move to images offset to test EOF...
-        self.f.seek(self.off_image_header)
+        self.f.seek(self.off_image_offsets)
         if self.f.read(1) != b'':
             # ... If no, read images
             self.image_locations = self._unpack('%dQ' % self.image_count,
