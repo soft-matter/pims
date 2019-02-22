@@ -452,7 +452,7 @@ class Cine(FramesSequence):
     def pixel_type(self):
         return np.dtype(self._data_type)
 
-    # TODO: what is this field???
+    # TODO: what is this field??? (baneel)
     @property
     def off_set(self):
         return self.header_dict['offset']
@@ -688,10 +688,9 @@ class Cine(FramesSequence):
         fps : float.
             Actual mean frame rate, based on the frames time stamps.
         """
-        times = np.r_[[t[0].timestamp() + t[1]\
-                       for t in self.frame_time_stamps]]
-        periods = 1 / np.diff(times)
-        fps, std = periods.mean(), periods.std()
+        times = np.r_[[self.get_time_to_trigger(i) for i in range(self.len())]]
+        freqs = 1 / np.diff(times)
+        fps, std = freqs.mean(), freqs.std()
         if std/fps > error_tol:
             warnings.warn('Precision on the mean frame rate is above '\
                           +'{:.2f}%.'.format(1e2*error_tol))
