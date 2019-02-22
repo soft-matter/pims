@@ -437,7 +437,7 @@ class Cine(FramesSequence):
     @property
     def frame_rate_avg(self):
         """Actual frame rate, averaged on frame timestamps (Hz)."""
-        return self._compute_frame_rate()
+        return self.get_frame_rate_avg()
 
     # use properties for things that should not be changeable
     @property
@@ -674,7 +674,7 @@ class Cine(FramesSequence):
         tt = tt['datetime'].timestamp() + tt['second_fraction']
         return ti - tt
 
-    def _compute_frame_rate(self, error_tol=1e-3):
+    def get_frame_rate_avg(self, error_tol=1e-3):
         """Compute mean frame rate (Hz), on the basis of frame time stamps.
 
         Parameters
@@ -708,7 +708,7 @@ class Cine(FramesSequence):
         
         Computed average
             self.frame_rate_avg
-            self._compute_frame_rate()
+            self.get_frame_rate_avg()
         """
         return self.frame_rate
 
