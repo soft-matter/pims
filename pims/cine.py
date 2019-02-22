@@ -493,7 +493,7 @@ class Cine(FramesSequence):
         ts, sec_frac = self.frame_time_stamps[j]
         md['frame_time'] = {'datetime': ts,
                             'second_fraction': sec_frac,
-                            'time_to_trigger': self.get_time(j),
+                            'time_to_trigger': self.get_time_to_trigger(j),
                             }
         return Frame(self._get_frame(j), frame_no=j, metadata=md)
 
@@ -602,6 +602,8 @@ class Cine(FramesSequence):
             # I am leaving it.  good luck.
             if actual_bits in (10, 12):
                 data_type = 'u1'
+            elif actual_bits == 16:
+                data_type = 'u2'
 
             # move the file to the right point in the file
             self.f.seek(image_start + annotation_size)
@@ -656,13 +658,21 @@ class Cine(FramesSequence):
     len = __len__
 
     @index_attr
-    def get_time(self, j):
-        """Get the time (s) of frame j, relative to trigger."""
-        tj = self.frame_time_stamps[j]
-        tj = tj[0].timestamp() + tj[1]
+    def get_time(self, i):
+        """Return the time of frame i in seconds, relative to first frame."""
+        warnings.warn("This is not guaranteed to be the actual time. "\
+                      +"See self.get_time_to_trigger(i) method.",
+                      category=PendingDeprecationWarning)
+        return float(i) / self.frame_rate
+
+    @index_attr
+    def get_time_to_trigger(self, i):
+        """Get actual time (s) of frame i, relative to trigger."""
+        ti = self.frame_time_stamps[i]
+        ti = ti[0].timestamp() + ti[1]
         tt= self.trigger_time
         tt = tt['datetime'].timestamp() + tt['second_fraction']
-        return tj - tt
+        return ti - tt
 
     def _compute_frame_rate(self, error_tol=1e-3):
         """Compute mean frame rate (Hz), on the basis of frame time stamps.
