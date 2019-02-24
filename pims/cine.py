@@ -640,8 +640,6 @@ class Cine(FramesSequence):
             # I am leaving it.  good luck.
             if actual_bits in (10, 12):
                 data_type = 'u1'
-            elif actual_bits == 16:
-                data_type = 'u2'
 
             # move the file to the right point in the file
             self.f.seek(image_start + annotation_size)
