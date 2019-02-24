@@ -303,6 +303,27 @@ TO_BE_IGNORED_FIELDS = {
         'conv_8_min': '',
         }
 
+# from VR doc: last setup field appearing in software version
+END_OF_SETUP = {
+        551: 'software_version',
+        552: 'recording_time_zone',
+        578: 'rotate',
+        605: 'b_stamp_time',
+        606: 'mc_percent63',
+        607: 'head_serial3',
+        614: 'decimation',
+        624: 'master_serial',
+        625: 'sensor',
+        631: 'frame_delay_ns',
+        637: 'description',
+        671: 'hue',
+        691: 'lens_focal_length',
+        693: 'f_gain16_8',
+        701: 'f_tc_rate',
+        702: 'cine_name',
+        }
+
+
 class Cine(FramesSequence):
     """Read cine files
 
@@ -405,8 +426,8 @@ class Cine(FramesSequence):
         self._remove_trailing_x00(setup)
         # Format f_tone properly
         tone = setup['f_tone']
-        setup['f_tone'] = tuple((tone[2*k], tone[2*k+1])\
-                                for k in range(setup['tone_points']))
+        #setup['f_tone'] = tuple((tone[2*k], tone[2*k+1])\
+        #                        for k in range(setup['tone_points']))
         return None
 
     def _remove_trailing_x00(self, dic):
