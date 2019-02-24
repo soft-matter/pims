@@ -363,7 +363,7 @@ class Cine(FramesSequence):
         self.bitmapinfo_dict = self._read_header(BITMAP_INFO_FIELDS,
                                                 self.off_image_header)
         self.setup_fields_dict = self._read_header(SETUP_FIELDS, self.off_setup)
-        self.clean_setup_dict()
+        self.setup_fields_dict = self.clean_setup_dict()
 
         self._width = self.bitmapinfo_dict['bi_width']
         self._height = self.bitmapinfo_dict['bi_height']
@@ -430,7 +430,7 @@ class Cine(FramesSequence):
         --------
         `Vision Research Phantom documentation <http://phantomhighspeed-knowledge.force.com/servlet/fileField?id=0BE1N000000kD2i>`_
         """
-        setup = self.setup_fields_dict
+        setup = self.setup_fields_dict.copy()
         # End setup at correct field (according to doc)
         versions = sorted(END_OF_SETUP.keys())
         fields = [v[0] for v in SETUP_FIELDS]
@@ -458,7 +458,7 @@ class Cine(FramesSequence):
             tone = setup['f_tone']
             setup['f_tone'] = tuple((tone[2*k], tone[2*k+1])\
                                     for k in range(setup['tone_points']))
-        return None
+        return setup
 
 
     @property
@@ -730,8 +730,8 @@ class Cine(FramesSequence):
         freqs = 1 / np.diff(times)
         fps, std = freqs.mean(), freqs.std()
         if std/fps > error_tol:
-            warnings.warn('Precision on the mean frame rate is above '\
-                          +'{:.2f}%.'.format(1e2*error_tol))
+            warnings.warn('Relative precision on the average frame rate is '\
+                          +'{:.2f}%.'.format(1e2*std/fps))
         return fps
 
     def get_fps(self):
