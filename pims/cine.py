@@ -304,7 +304,7 @@ TO_BE_IGNORED_FIELDS = {
         }
 
 # from VR doc: last setup field appearing in software version
-# TODO: update with newer and more precise doc, if available
+# TODO: keep up-to-date with newer and more precise doc, if available
 END_OF_SETUP = {
         551: 'software_version',
         552: 'recording_time_zone',
