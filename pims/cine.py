@@ -120,7 +120,7 @@ SETUP_FIELDS = [
     ('trig_cine', UINT8),
     ('trig_frame', UINT8),
     ('shutter_on', UINT8),
-    ('description_short', '121s'),
+    ('description_old', '121s'),
     ('mark', '2s'),
     ('length', UINT16),
     ('binning', UINT16),
