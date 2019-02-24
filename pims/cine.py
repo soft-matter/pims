@@ -417,7 +417,7 @@ class Cine(FramesSequence):
         # has been saved in another format (.tif, image sequence, etc)
 
     def clean_setup_dict(self):
-        """Clean setup dictionary by removing newer fields, when compared to the
+        r"""Clean setup dictionary by removing newer fields, when compared to the
         software version, and trailing null character b'\x00' in entries.
 
         Notes
