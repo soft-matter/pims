@@ -20,7 +20,7 @@ from pims.utils.misc import FileLocker
 import time
 import struct
 import numpy as np
-from numpy import array, frombuffer
+from numpy import array, frombuffer, where
 from threading import Lock
 import datetime
 import hashlib
@@ -304,6 +304,7 @@ TO_BE_IGNORED_FIELDS = {
         }
 
 # from VR doc: last setup field appearing in software version
+# TODO: update with newer and more precise doc, if available
 END_OF_SETUP = {
         551: 'software_version',
         552: 'recording_time_zone',
@@ -362,7 +363,7 @@ class Cine(FramesSequence):
         self.bitmapinfo_dict = self._read_header(BITMAP_INFO_FIELDS,
                                                 self.off_image_header)
         self.setup_fields_dict = self._read_header(SETUP_FIELDS, self.off_setup)
-        self._clean_setup_dict()
+        self.clean_setup_dict()
 
         self._width = self.bitmapinfo_dict['bi_width']
         self._height = self.bitmapinfo_dict['bi_height']
@@ -415,34 +416,50 @@ class Cine(FramesSequence):
         # TODO: add support for reading sequence within the same framework, when data
         # has been saved in another format (.tif, image sequence, etc)
 
-    def _clean_setup_dict(self):
-        """Remove obsolete fields and trailing blank characters \x00."""
-        # Filter out 'res_' (reserved/obsolete) fields
+    def clean_setup_dict(self):
+        """Clean setup dictionary by removing newer fields, when compared to the
+        software version, and trailing null character b'\x00' in entries.
+
+        Notes
+        -----
+        The method is called after building the setup from the raw cine header.
+        It can be overridden to match more specific purposes (e.g. filtering
+        out TO_BE_IGNORED_ and UPDATED_FIELDS).
+
+        See also
+        --------
+        `Vision Research Phantom documentation <http://phantomhighspeed-knowledge.force.com/servlet/fileField?id=0BE1N000000kD2i>`_
+        """
         setup = self.setup_fields_dict
-        k_res = [k for k in setup.keys() if k.startswith('res_')]
-        for k in k_res:
-            del setup[k]
+        # End setup at correct field (according to doc)
+        versions = sorted(END_OF_SETUP.keys())
+        fields = [v[0] for v in SETUP_FIELDS]
+        v = setup['software_version']
+        # Get next field where setup is known to have ended, according to VR
+        try:
+            v_up = versions[sorted(where(array(versions) >= v)[0])[0]]
+            last_field = END_OF_SETUP[v_up]
+            for k in fields[fields.index(last_field)+1:]:
+                del setup[k]
+        except IndexError:
+            # Or go to the end (waiting for updated documentation)
+            pass
+
         # Remove blank characters
-        self._remove_trailing_x00(setup)
+        setup = _remove_trailing_x00(setup)
+
+        # Filter out 'res_' (reserved/obsolete) fields
+        #k_res = [k for k in setup.keys() if k.startswith('res_')]
+        #for k in k_res:
+        #    del setup[k]
+
         # Format f_tone properly
-        tone = setup['f_tone']
-        #setup['f_tone'] = tuple((tone[2*k], tone[2*k+1])\
-        #                        for k in range(setup['tone_points']))
+        if 'f_tone' in setup.keys():
+            tone = setup['f_tone']
+            setup['f_tone'] = tuple((tone[2*k], tone[2*k+1])\
+                                    for k in range(setup['tone_points']))
         return None
 
-    def _remove_trailing_x00(self, dic):
-        for k, v in dic.items():
-            if isinstance(v, bytes):
-                try:
-                    dic[k] = v.decode('utf8').replace('\x00', '')
-                except:
-                    pass
-            elif isinstance(v, Iterable):
-                try:
-                    dic[k] = [el.decode('utf8').replace('\x00', '')\
-                              for el in v]
-                except:
-                    pass
 
     @property
     def filename(self):
@@ -874,3 +891,20 @@ def _sixteen2twelve(b):
         a[k+2:k2:3] = ((b1 & 0x0FF) << 0)
 
     return a
+
+
+def _remove_trailing_x00(dic):
+    """Remove binary null character b'\x00' in dictionary dic entries."""
+    for k, v in dic.items():
+        if isinstance(v, bytes):
+            try:
+                dic[k] = v.decode('utf8').replace('\x00', '')
+            except (UnicodeDecodeError):
+                pass
+        elif isinstance(v, Iterable):
+            try:
+                dic[k] = [el.decode('utf8').replace('\x00', '')\
+                          for el in v]
+            except (AttributeError, UnicodeDecodeError):
+                pass
+    return dic
