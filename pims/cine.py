@@ -716,7 +716,7 @@ class Cine(FramesSequence):
         Parameters
         ----------
         error_tol : float, optional.
-            Tolerance on relative error (mean/standard deviation),
+            Tolerance on relative error (standard deviation/mean),
             above which a warning is raised.
 
         Returns
@@ -727,9 +727,10 @@ class Cine(FramesSequence):
         times = np.r_[[self.get_time_to_trigger(i) for i in range(self.len())]]
         freqs = 1 / np.diff(times)
         fps, std = freqs.mean(), freqs.std()
-        if std/fps > error_tol:
+        error = std / fps
+        if error > error_tol:
             warnings.warn('Relative precision on the average frame rate is '\
-                          +'{:.2f}%.'.format(1e2*std/fps))
+                          +'{:.2f}%.'.format(1e2*error))
         return fps
 
     def get_fps(self):
