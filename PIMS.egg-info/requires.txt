@@ -1,0 +1,3 @@
+slicerator>=0.9.7
+six>=1.8
+numpy>=1.7

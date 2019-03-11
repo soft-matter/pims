@@ -606,3 +606,28 @@ class FramesSequenceND(FramesSequence):
             s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
         s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s
+
+    def _init_axis_if_exists(self, axis, size, min_size=1):
+        if size >= min_size:
+            self._init_axis(axis, size)
+
+    def _guess_default_iter_axis(self):
+        """
+        Guesses the default axis to iterate over based on axis sizes.
+        Returns:
+            the axis to iterate over
+        """
+        priority = ['t', 'z', 'c', 'v']
+        found_axes = []
+        for axis in priority:
+            try:
+                current_size = self.sizes[axis]
+            except KeyError:
+                continue
+
+            if current_size > 1:
+                return axis
+
+            found_axes.append(axis)
+
+        return found_axes[0]
