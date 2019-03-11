@@ -53,8 +53,8 @@ class ImageIOReader(FramesSequenceND):
         """Setup the xyctz axes, iterate over t axis by default
 
         """
-        self._init_axis_if_exists('x', self._shape[0])
-        self._init_axis_if_exists('y', self._shape[1])
+        self._init_axis_if_exists('x', self._shape[1])
+        self._init_axis_if_exists('y', self._shape[0])
         self._init_axis_if_exists('t', self._len)
 
         if len(self.sizes) == 0:
