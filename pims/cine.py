@@ -24,17 +24,14 @@ from numpy import array, frombuffer, where
 from threading import Lock
 import datetime
 import hashlib
-from os.path import split, join, splitext
-import os
 import sys
-import subprocess as sbp
 import warnings
-from collections.abc import Iterable
+from collections import Iterable
 
 __all__ = ('Cine', )
 
 
-# '<' stands for little endian, depends on host (? or .cine encoding?)
+# '<' for little endian (cine documentation)
 def _build_struct(dtype):
     return struct.Struct(str("<" + dtype))
 
