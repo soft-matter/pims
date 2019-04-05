@@ -53,6 +53,7 @@ class test_new_cine_sample(_common_cine_sample_tests, unittest.TestCase):
         if not os.path.exists(self.sample_filename):
             raise nose.SkipTest('Newer sample cine file not found. '
                                 'Skipping.')
+        self.options = {}
         super(test_new_cine_sample, self).setUp()
 
     def test_new_file_info(self):
