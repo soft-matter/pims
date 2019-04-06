@@ -13,6 +13,9 @@ try:
         from moviepy.editor import VideoFileClip
 except ImportError:
     VideoFileClip = None
+except RuntimeError:
+    # there is an incompatibility between moviepy 2.3.5 and imageio >= 2.5.0
+    VideoFileClip = None
 
 
 def available():
