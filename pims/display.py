@@ -118,11 +118,22 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
         else:
             raise NotImplemented
 
-    output = av.open(str(filename), str('w'), format=format, options=options)
     # Maximum allowed timebase is 66535 (at least for mpeg4)
     # see https://github.com/mikeboers/PyAV/issues/242
     export_rate_frac = Fraction(export_rate).limit_denominator(65535)
-    stream = output.add_stream(codec, rate=export_rate_frac)
+
+    output = av.open(str(filename), str('w'), format=format)
+    try:
+        # from PyAv 6.0, options can be supplied here
+        stream = output.add_stream(
+            codec, rate=export_rate_frac, options=options
+        )
+    except TypeError:  # before, we should supply it at .open
+        output = av.open(
+            str(filename), str('w'), format=format, options=options
+        )
+        stream = output.add_stream(codec, rate=export_rate_frac)
+
     stream.pix_fmt = str(pixel_format)
 
     for frame_no in itertools.count():
@@ -157,7 +168,10 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
 
     # Finish encoding the stream
     while True:
-        packet = stream.encode()
+        try:
+            packet = stream.encode()
+        except av.AVError:  # End of file raises AVError since after av 0.4
+            break
         if packet is None:
             break
         output.mux(packet)
