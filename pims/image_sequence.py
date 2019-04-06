@@ -21,8 +21,10 @@ from pims.utils.sort import natural_keys
 
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
+has_skimage = False
 try:
     from skimage.io import imread
+    has_skimage = True
 except ImportError:
     try:
         from matplotlib.pyplot import imread
@@ -69,9 +71,7 @@ class ImageSequence(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
     def __init__(self, path_spec, plugin=None):
-        try:
-            import skimage
-        except ImportError:
+        if not has_skimage:
             if plugin is not None:
                 warn("A plugin was specified but ignored. Plugins can only "
                      "be specified if scikit-image is available. Instead, "

@@ -32,6 +32,9 @@ try:
         from moviepy.editor import VideoClip
 except ImportError:
     VideoClip = None
+except RuntimeError:
+    # there is an incompatibility between moviepy 2.3.5 and imageio >= 2.5.0
+    VideoClip = None
 
 
 def export_pyav(sequence, filename, rate=30, bitrate=None,
