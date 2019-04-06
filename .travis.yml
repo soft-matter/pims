@@ -6,7 +6,7 @@ matrix:
     - python: "2.7"
       env: DEPS="numpy=1.8* slicerator tifffile" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av libtiff tifffile jpype1 moviepy imageio imageio-ffmpeg" BUILD_DOCS=false
+      env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av libtiff tifffile jpype1 moviepy imageio==2.4" BUILD_DOCS=false
     - python: "3.6"
       env: DEPS="numpy slicerator tifffile" BUILD_DOCS=false
     - python: "3.6"
