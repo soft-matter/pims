@@ -6,7 +6,7 @@ matrix:
     - python: "2.7"
       env: DEPS="numpy=1.8* slicerator tifffile" BUILD_DOCS=false
     - python: "2.7"
-      env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av libtiff tifffile jpype1 moviepy imageio==2.4" BUILD_DOCS=false
+      env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av libtiff tifffile jpype1 moviepy" DEPSPIP="imageio==2.4" BUILD_DOCS=false
     - python: "3.6"
       env: DEPS="numpy slicerator tifffile" BUILD_DOCS=false
     - python: "3.6"
@@ -20,11 +20,11 @@ install:
   - conda create -n testenv --yes $DEPS nose python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   # only install pip if there are pip dependencies
-  # - |
-  #   if [ -n "$DEPSPIP" ]; then
-  #       conda install -n testenv --yes pip
-  #       pip install $DEPSPIP
-  #   fi
+  - |
+    if [ -n "$DEPSPIP" ]; then
+        conda install -n testenv --yes pip
+        pip install $DEPSPIP
+    fi
   - python setup.py build_ext install
 
 
