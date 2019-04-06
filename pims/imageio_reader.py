@@ -35,6 +35,10 @@ class ImageIOReader(FramesSequence):
         self.filename = filename
         self._len = self.reader.get_length()
 
+        # fallback to count_frames, for newer imageio versions
+        if self._len == float("inf"):
+            self._len = self.reader.count_frames()
+
         first_frame = self.get_frame(0)
         self._shape = first_frame.shape
         self._dtype = first_frame.dtype
