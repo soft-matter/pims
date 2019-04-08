@@ -443,7 +443,7 @@ class Cine(FramesSequence):
             pass
 
         # Remove blank characters
-        setup = _remove_trailing_x00(setup)
+        setup = _convert_null_byte(setup)
 
         # Filter out 'res_' (reserved/obsolete) fields
         #k_res = [k for k in setup.keys() if k.startswith('res_')]
@@ -889,7 +889,7 @@ def _sixteen2twelve(b):
     return a
 
 
-def _remove_trailing_x00(dic):
+def _convert_null_byte(dic):
     """
     Convert binary null character b'\x00' to empty string in dictionary entries.
 
