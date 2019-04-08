@@ -890,7 +890,20 @@ def _sixteen2twelve(b):
 
 
 def _remove_trailing_x00(dic):
-    """Remove binary null character b'\x00' in dictionary dic entries."""
+    """
+    Convert binary null character b'\x00' to empty string in dictionary entries.
+
+    Parameters
+    ----------
+    dic : dict
+        Dictionary to clean. Function loops over the key-value pairs and
+        converts the null byte `b'\x00'` to empty string `''`.
+
+    Returns
+    -------
+    clean_dic : dict
+        Cleaned dictionary.
+    """
     for k, v in dic.items():
         if isinstance(v, bytes):
             try:
