@@ -907,12 +907,12 @@ def _remove_trailing_x00(dic):
     for k, v in dic.items():
         if isinstance(v, bytes):
             try:
-                dic[k] = v.decode('utf8').replace('\x00', '')
+                dic[k] = v.replace(b'\x00', '')
             except (UnicodeDecodeError):
                 pass
         elif isinstance(v, Iterable):
             try:
-                dic[k] = [el.decode('utf8').replace('\x00', '')\
+                dic[k] = [el.replace(b'\x00', '')\
                           for el in v]
             except (AttributeError, UnicodeDecodeError):
                 pass
