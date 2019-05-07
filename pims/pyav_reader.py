@@ -22,12 +22,12 @@ def available():
     return av is not None
 
 
-def _to_nd_array(frame):
-    if frame.format.name != 'rgb24':
-        frame = frame.reformat(format="rgb24")
-    frame_arr = np.frombuffer(frame.planes[0], np.uint8)
-    frame_arr.shape = (frame.height, frame.width, -1)
-    return frame_arr
+def _next_video_packet(container_iter):
+    for packet in container_iter:
+        if packet.stream.type == 'video':
+            return packet.decode()
+
+    raise ValueError("Could not find any video packets.")
 
 
 class WrapPyAvFrame(object):
@@ -45,8 +45,8 @@ class WrapPyAvFrame(object):
 
     def to_frame(self):
         if self.arr is None:
-            self.arr = Frame(self.frame.to_ndarray(), frame_no=self.frame_no,
-                             metadata=self.metadata)
+            self.arr = Frame(self.frame.to_ndarray(format='rgb24'),
+                             frame_no=self.frame_no, metadata=self.metadata)
         return self.arr
 
 
@@ -318,11 +318,12 @@ class PyAVReaderIndexed(FramesSequence):
 
         # Build a toc
         self._toc = np.cumsum([len(packet.decode())
-                               for packet in container.demux()])
+                               for packet in container.demux()
+                               if packet.stream.type == 'video'])
+        print(self._toc)
         self._len = self._toc[-1]
 
-        video_stream = [s for s in container.streams
-                        if isinstance(s, av.video.VideoStream)][0]
+        video_stream = [s for s in container.streams if s.type == 'video'][0]
         # PyAV always returns frames in color, and we make that
         # assumption in get_frame() later below, so 3 is hardcoded here:
         self._im_sz = video_stream.height, video_stream.width, 3
@@ -331,8 +332,8 @@ class PyAVReaderIndexed(FramesSequence):
         self._load_fresh_file()
 
     def _load_fresh_file(self):
-        self._demuxed_container = av.open(self.filename).demux()
-        self._current_packet = next(self._demuxed_container).decode()
+        self._container_iter = av.open(self.filename).demux()
+        self._current_packet = _next_video_packet(self._container_iter)
         self._packet_cursor = 0
         self._frame_cursor = 0
 
@@ -354,8 +355,9 @@ class PyAVReaderIndexed(FramesSequence):
             loc = j - self._toc[packet_no - 1]
         frame = self._current_packet[loc]  # av.VideoFrame
         if frame.index != j:
-            raise AssertionError("Seeking failed to obtain the correct frame.")
-        return Frame(frame.to_ndarray(), frame_no=j)
+            raise AssertionError("Seeking failed to obtain the correct frame."
+                                 f" ({frame.index} != {j})")
+        return Frame(frame.to_ndarray(format='rgb24'), frame_no=j)
 
     def _seek_packet(self, packet_no):
         """Advance through the container generator until we get the packet
@@ -368,8 +370,9 @@ class PyAVReaderIndexed(FramesSequence):
             # instance of the file object and then fast-forward.
             self._load_fresh_file()
         # Fast-forward if needed.
+
         while self._packet_cursor < packet_no:
-            self._current_packet = next(self._demuxed_container).decode()
+            self._current_packet = _next_video_packet(self._container_iter)
             self._packet_cursor += 1
 
     @property
