@@ -45,7 +45,7 @@ class WrapPyAvFrame(object):
 
     def to_frame(self):
         if self.arr is None:
-            self.arr = Frame(_to_nd_array(self.frame), frame_no=self.frame_no,
+            self.arr = Frame(self.frame.to_ndarray(), frame_no=self.frame_no,
                              metadata=self.metadata)
         return self.arr
 
@@ -355,8 +355,7 @@ class PyAVReaderIndexed(FramesSequence):
         frame = self._current_packet[loc]  # av.VideoFrame
         if frame.index != j:
             raise AssertionError("Seeking failed to obtain the correct frame.")
-        result = _to_nd_array(frame)
-        return Frame(result, frame_no=j)
+        return Frame(frame.to_ndarray(), frame_no=j)
 
     def _seek_packet(self, packet_no):
         """Advance through the container generator until we get the packet
