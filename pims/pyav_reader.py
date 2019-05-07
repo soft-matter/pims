@@ -110,13 +110,13 @@ class PyAVReaderTimed(FramesSequence):
     def class_exts(cls):
         return {'mov', 'avi', 'mp4'} | super(PyAVReaderTimed, cls).class_exts()
 
-    def __init__(self, filename, cache_size=16, fast_forward_thresh=32,
+    def __init__(self, file, cache_size=16, fast_forward_thresh=32,
                  stream_index=0):
-        self.filename = str(filename)
-        self._container = av.open(self.filename)
+        self.file = file
+        self._container = av.open(self.file)
 
         if len(self._container.streams.video) == 0:
-            raise IOError("No valid video stream found in {}".format(filename))
+            raise IOError("No valid video stream found in {}".format(file))
 
         self._stream = self._container.streams.video[stream_index]
 
@@ -127,7 +127,7 @@ class PyAVReaderTimed(FramesSequence):
 
         self._frame_rate = self._stream.average_rate
         if self.duration <= 0 or len(self) <= 0:
-            raise IOError("Video stream {} in {} has zero length.".format(stream_index, filename))
+            raise IOError("Video stream {} in {} has zero length.".format(stream_index, file))
 
         self._cache = [None] * cache_size
         self._fast_forward_thresh = fast_forward_thresh
@@ -271,7 +271,7 @@ Frame Shape: {frame_shape!r}
            duration=self.duration,
            frame_rate=self.frame_rate,
            count=len(self),
-           filename=self.filename)
+           filename=self.file)
 
 
 class PyAVReaderIndexed(FramesSequence):
@@ -308,13 +308,13 @@ class PyAVReaderIndexed(FramesSequence):
         return {'mov', 'avi',
                 'mp4'} | super(PyAVReaderIndexed, cls).class_exts()
 
-    def __init__(self, filename):
-        self.filename = str(filename)
+    def __init__(self, file):
+        self.file = file
         self._initialize()
 
     def _initialize(self):
         "Scan through and tabulate contents to enable random access."
-        container = av.open(self.filename)
+        container = av.open(self.file)
 
         # Build a toc
         self._toc = np.cumsum([len(packet.decode())
@@ -332,7 +332,7 @@ class PyAVReaderIndexed(FramesSequence):
         self._load_fresh_file()
 
     def _load_fresh_file(self):
-        self._container_iter = av.open(self.filename).demux()
+        self._container_iter = av.open(self.file).demux()
         self._current_packet = _next_video_packet(self._container_iter)
         self._packet_cursor = 0
         self._frame_cursor = 0
@@ -388,4 +388,4 @@ Length: {count} frames
 Frame Shape: {frame_shape!r}
 """.format(frame_shape=self.frame_shape,
            count=len(self),
-           filename=self.filename)
+           filename=self.file)
