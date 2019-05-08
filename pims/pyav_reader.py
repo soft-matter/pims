@@ -351,8 +351,9 @@ class PyAVReaderIndexed(FramesSequence):
             loc = j - self._toc[packet_no - 1]
         frame = self._current_packet[loc]  # av.VideoFrame
         if frame.index != j:
-            raise AssertionError("Seeking failed to obtain the correct frame."
-                                 f" ({frame.index} != {j})")
+            raise AssertionError(
+                "Seeking failed to obtain the correct frame. ({} != {})"
+                .format(frame.index, j))
         return Frame(frame.to_ndarray(format='rgb24'), frame_no=j)
 
     def _seek_packet(self, packet_no):
