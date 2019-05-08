@@ -308,10 +308,10 @@ class PyAVReaderIndexed(FramesSequence):
         return {'mov', 'avi',
                 'mp4'} | super(PyAVReaderIndexed, cls).class_exts()
 
-    def __init__(self, file, toc=None):
+    def __init__(self, file, toc=None, format=None):
         self.file = file
 
-        container = av.open(self.file)
+        container = av.open(self.file, format=format)
 
         # Build a toc
         if toc is None:
