@@ -111,9 +111,10 @@ class PyAVReaderTimed(FramesSequence):
         return {'mov', 'avi', 'mp4'} | super(PyAVReaderTimed, cls).class_exts()
 
     def __init__(self, file, cache_size=16, fast_forward_thresh=32,
-                 stream_index=0):
+                 stream_index=0, format=None):
         self.file = file
-        self._container = av.open(self.file)
+        self.format = format
+        self._container = av.open(self.file, format=self.format)
 
         if len(self._container.streams.video) == 0:
             raise IOError("No valid video stream found in {}".format(file))
@@ -310,8 +311,9 @@ class PyAVReaderIndexed(FramesSequence):
 
     def __init__(self, file, toc=None, format=None):
         self.file = file
+        self.format = format
 
-        container = av.open(self.file, format=format)
+        container = av.open(self.file, format=self.format)
 
         # Build a toc
         if toc is None:
@@ -334,7 +336,7 @@ class PyAVReaderIndexed(FramesSequence):
         self._load_fresh_file()
 
     def _load_fresh_file(self):
-        self._container_iter = av.open(self.file).demux()
+        self._container_iter = av.open(self.file, format=self.format).demux()
         self._current_packet = _next_video_packet(self._container_iter)
         self._packet_cursor = 0
         self._frame_cursor = 0
