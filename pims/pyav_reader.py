@@ -310,17 +310,13 @@ class PyAVReaderIndexed(FramesSequence):
 
     def __init__(self, file):
         self.file = file
-        self._initialize()
 
-    def _initialize(self):
-        "Scan through and tabulate contents to enable random access."
         container = av.open(self.file)
 
         # Build a toc
         self._toc = np.cumsum([len(packet.decode())
                                for packet in container.demux()
                                if packet.stream.type == 'video'])
-        print(self._toc)
         self._len = self._toc[-1]
 
         video_stream = [s for s in container.streams if s.type == 'video'][0]
