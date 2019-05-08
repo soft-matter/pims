@@ -308,15 +308,21 @@ class PyAVReaderIndexed(FramesSequence):
         return {'mov', 'avi',
                 'mp4'} | super(PyAVReaderIndexed, cls).class_exts()
 
-    def __init__(self, file):
+    def __init__(self, file, toc=None):
         self.file = file
 
         container = av.open(self.file)
 
         # Build a toc
-        self._toc = np.cumsum([len(packet.decode())
-                               for packet in container.demux()
-                               if packet.stream.type == 'video'])
+        if toc is None:
+            self._toc = np.cumsum([len(packet.decode())
+                                   for packet in container.demux()
+                                   if packet.stream.type == 'video'])
+        else:
+            if isinstance(toc, list):
+                self._toc = np.array(toc, dtype=np.int64)
+            else:
+                self._toc = toc
         self._len = self._toc[-1]
 
         video_stream = [s for s in container.streams if s.type == 'video'][0]
@@ -339,6 +345,10 @@ class PyAVReaderIndexed(FramesSequence):
     @property
     def frame_shape(self):
         return self._im_sz
+
+    @property
+    def toc(self):
+        return self._toc
 
     def get_frame(self, j):
         # Find the packet this frame is in.
