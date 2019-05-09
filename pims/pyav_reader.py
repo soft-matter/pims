@@ -317,39 +317,46 @@ class PyAVReaderIndexed(FramesSequence):
             file = str(file)
         self.file = file
         self.format = format
+        self._container = None
 
-        container = av.open(self.file, format=self.format)
-
-        # Build a toc
-        if toc is None:
-            self._toc = np.cumsum([len(packet.decode())
-                                   for packet in container.demux()
-                                   if packet.stream.type == 'video'])
-        else:
-            if isinstance(toc, list):
-                self._toc = np.array(toc, dtype=np.int64)
+        with av.open(self.file, format=self.format) as container:
+            # Build a toc
+            if toc is None:
+                self._toc = np.cumsum([len(packet.decode())
+                                       for packet in container.demux()
+                                       if packet.stream.type == 'video'])
             else:
-                self._toc = toc
-        self._len = self._toc[-1]
+                if isinstance(toc, list):
+                    self._toc = np.array(toc, dtype=np.int64)
+                else:
+                    self._toc = toc
+            self._len = self._toc[-1]
 
-        video_stream = [s for s in container.streams if s.type == 'video'][0]
-        # PyAV always returns frames in color, and we make that
-        # assumption in get_frame() later below, so 3 is hardcoded here:
-        self._im_sz = video_stream.height, video_stream.width, 3
+            video_stream = [s for s in container.streams if s.type == 'video'][0]
+            # PyAV always returns frames in color, and we make that
+            # assumption in get_frame() later below, so 3 is hardcoded here:
+            self._im_sz = video_stream.height, video_stream.width, 3
 
-        del container  # The generator is empty. Reload the file.
         self._load_fresh_file()
 
     def _load_fresh_file(self):
+        if self._container is not None:
+            self._container.close()
+
         if hasattr(self.file, 'seek'):
             self.file.seek(0)
-        self._container_iter = av.open(self.file, format=self.format).demux()
+
+        self._container = av.open(self.file, format=self.format)
+        self._container_iter = self._container.demux()
         self._current_packet = _next_video_packet(self._container_iter)
         self._packet_cursor = 0
         self._frame_cursor = 0
 
     def __len__(self):
         return self._len
+
+    def __del__(self):
+        self._container.close()
 
     @property
     def frame_shape(self):
