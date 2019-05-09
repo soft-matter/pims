@@ -113,6 +113,8 @@ class PyAVReaderTimed(FramesSequence):
 
     def __init__(self, file, cache_size=16, fast_forward_thresh=32,
                  stream_index=0, format=None):
+        if not hasattr(file, 'read'):
+            file = str(file)
         self.file = file
         self.format = format
         self._container = av.open(self.file, format=self.format)
