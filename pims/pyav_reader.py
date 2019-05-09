@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import io
 import six
 import re
 
@@ -336,6 +337,8 @@ class PyAVReaderIndexed(FramesSequence):
         self._load_fresh_file()
 
     def _load_fresh_file(self):
+        if isinstance(self.file, io.BytesIO):
+            self.file.seek(0)
         self._container_iter = av.open(self.file, format=self.format).demux()
         self._current_packet = _next_video_packet(self._container_iter)
         self._packet_cursor = 0
