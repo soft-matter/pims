@@ -311,6 +311,8 @@ class PyAVReaderIndexed(FramesSequence):
                 'mp4'} | super(PyAVReaderIndexed, cls).class_exts()
 
     def __init__(self, file, toc=None, format=None):
+        if not hasattr(file, 'read'):
+            file = str(file)
         self.file = file
         self.format = format
 
