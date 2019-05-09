@@ -337,7 +337,7 @@ class PyAVReaderIndexed(FramesSequence):
         self._load_fresh_file()
 
     def _load_fresh_file(self):
-        if isinstance(self.file, io.BytesIO):
+        if hasattr(self.file, 'seek'):
             self.file.seek(0)
         self._container_iter = av.open(self.file, format=self.format).demux()
         self._current_packet = _next_video_packet(self._container_iter)
