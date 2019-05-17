@@ -903,6 +903,11 @@ def _convert_null_byte(dic):
     -------
     clean_dic : dict
         Cleaned dictionary.
+
+    Notes
+    -----
+    The routine is intended to work on string-like bytes array (resp. Iterable
+    of such arrays), and return a string (resp. a list of strings).
     """
     for k, v in dic.items():
         if isinstance(v, bytes):
