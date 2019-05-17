@@ -60,6 +60,3 @@ class test_new_cine_sample(_common_cine_sample_tests, unittest.TestCase):
         """Tests based on the specific file in the repo."""
         c = self.cin
         pass
-
-
-

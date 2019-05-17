@@ -3,11 +3,16 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 
+from distutils.version import LooseVersion
+
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
 
 try:
     import imageio
+    # from imageio 2.5, imageio_ffmpeg is needed as well
+    if LooseVersion(imageio.__version__) >= LooseVersion("2.5.0"):
+        import imageio_ffmpeg
 except ImportError:
     imageio = None
 
@@ -30,10 +35,15 @@ class ImageIOReader(FramesSequence):
 
     def __init__(self, filename, **kwargs):
         if imageio is None:
-            raise ImportError('The ImageIOReader requires imageio to work.')
+            raise ImportError('The ImageIOReader requires imageio and '
+                              '(for imageio >= 2.5) imageio-ffmpeg to work.')
         self.reader = imageio.get_reader(filename, **kwargs)
         self.filename = filename
         self._len = self.reader.get_length()
+
+        # fallback to count_frames, for newer imageio versions
+        if self._len == float("inf"):
+            self._len = self.reader.count_frames()
 
         first_frame = self.get_frame(0)
         self._shape = first_frame.shape
