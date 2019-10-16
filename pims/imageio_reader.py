@@ -51,12 +51,12 @@ class ImageIOReader(FramesSequenceND):
         if self._len == float("inf"):
             self._len = self.reader.count_frames()
 
-        first_frame = self.get_frame(t=0)
+        first_frame = self.get_frame_2D(t=0)
         self._shape = first_frame.shape
         self._dtype = first_frame.dtype
 
         self._setup_axes()
-        self._register_get_frame(self.get_frame, 'yx')
+        self._register_get_frame(self.get_frame_2D, 'yx')
 
     def _setup_axes(self):
         """Setup the xyctz axes, iterate over t axis by default
@@ -97,7 +97,7 @@ class ImageIOReader(FramesSequenceND):
 
         return found_axes[0]
 
-    def get_frame(self, **coords):
+    def get_frame_2D(self, **coords):
         i = coords['t'] if 't' in coords else 0
         frame = self.reader.get_data(i)
         return Frame(frame, frame_no=i, metadata=frame.meta)
