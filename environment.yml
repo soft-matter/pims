@@ -1,0 +1,25 @@
+name: pims
+channels:
+- defaults
+- conda-forge
+dependencies:
+- numpy
+- slicerator
+- scipy
+- pillow
+- matplotlib
+- scikit-image
+- jinja2
+- av
+- tifffile
+- libtiff
+- jpype1
+- ipython
+- sphinx
+- sphinx_rtd_theme
+- numpydoc
+- moviepy
+- imageio
+- imageio-ffmpeg
+- nose
+- openjdk
