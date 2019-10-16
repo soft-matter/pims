@@ -51,7 +51,7 @@ class ImageIOReader(FramesSequenceND):
         if self._len == float("inf"):
             self._len = self.reader.count_frames()
 
-        first_frame = self.get_frame(0)
+        first_frame = self.get_frame(t=0)
         self._shape = first_frame.shape
         self._dtype = first_frame.dtype
 
