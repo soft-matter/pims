@@ -56,15 +56,18 @@ class ImageIOReader(FramesSequenceND):
         self._dtype = first_frame.dtype
 
         self._setup_axes()
-        self._register_get_frame(self.get_frame, 'tyx')
+        self._register_get_frame(self.get_frame, 'yx')
 
     def _setup_axes(self):
         """Setup the xyctz axes, iterate over t axis by default
 
         """
-        self._init_axis_if_exists('x', self._shape[1])
-        self._init_axis_if_exists('y', self._shape[0])
-        self._init_axis_if_exists('t', self._len)
+        if self._shape[1] > 0:
+            self._init_axis('x', self._shape[1])
+        if self._shape[0] > 0:
+            self._init_axis('y', self._shape[0])
+        if self._len > 0:
+            self._init_axis('t', self._len)
 
         if len(self.sizes) == 0:
             raise EmptyFileError("No axes were found for this file.")
@@ -72,7 +75,30 @@ class ImageIOReader(FramesSequenceND):
         # provide the default
         self.iter_axes = self._guess_default_iter_axis()
 
-    def get_frame(self, i):
+
+    def _guess_default_iter_axis(self):
+        """
+        Guesses the default axis to iterate over based on axis sizes.
+        Returns:
+            the axis to iterate over
+        """
+        priority = ['t', 'z', 'c', 'v']
+        found_axes = []
+        for axis in priority:
+            try:
+                current_size = self.sizes[axis]
+            except KeyError:
+                continue
+
+            if current_size > 1:
+                return axis
+
+            found_axes.append(axis)
+
+        return found_axes[0]
+
+    def get_frame(self, **coords):
+        i = coords['t'] if 't' in coords else 0
         frame = self.reader.get_data(i)
         return Frame(frame, frame_no=i, metadata=frame.meta)
 
