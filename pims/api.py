@@ -58,7 +58,7 @@ try:
     else:
         raise ImportError()
 except (ImportError, IOError):
-    MoviePyReader = not_available("ImageIO")
+    ImageIOReader = not_available("ImageIO")
 
 
 try:
