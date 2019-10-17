@@ -22,6 +22,9 @@ def available():
 
 
 class ImageIOReader(FramesSequence):
+    """
+    Read images from a video file via a ImageIO interface.
+    """
     class_priority = 6
     @classmethod
     def class_exts(cls):
