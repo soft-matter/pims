@@ -23,6 +23,9 @@ def available():
 
 
 class MoviePyReader(FramesSequence):
+    """
+    Read images from a video file via a MoviePy interface.
+    """
     class_priority = 4
     @classmethod
     def class_exts(cls):
