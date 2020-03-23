@@ -122,22 +122,24 @@ class TiffStack_tifffile(FramesSequence):
 
     def _read_metadata(self, tiff):
         """Read metadata for current frame and return as dict"""
+        # tags are only stored as a TiffTags object on the parent TiffPage now
+        tags = tiff.keyframe.tags
         md = {}
         for name in ('ImageDescription', 'image_description'):
-            if name in tiff.tags:
-                md["ImageDescription"] = tiff.tags[name].value
+            if name in tags:
+                md["ImageDescription"] = tags[name].value
                 break
         for name in ('DateTime', 'datetime'):
-            if name in tiff.tags:
-                md["DateTime"] = tiff.tags[name].value
+            if name in tags:
+                md["DateTime"] = tags[name].value
                 break
         for name in ('Software', 'software'):
-            if name in tiff.tags:
-                md["Software"] = tiff.tags[name].value
+            if name in tags:
+                md["Software"] = tags[name].value
                 break
         for name in ('DocumentName', 'document_name'):
-            if name in tiff.tags:
-                md["DocumentName"] = tiff.tags[name].value
+            if name in tags:
+                md["DocumentName"] = tags[name].value
                 break
         for key in md:
             try:
