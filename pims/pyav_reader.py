@@ -320,22 +320,22 @@ class PyAVReaderIndexed(FramesSequence):
 
             # Build a toc
             if toc is None:
-                self._packet_lengths = []
-                self._packet_ts = []
+                packet_lengths = []
+                packet_ts = []
                 for packet in container.demux(stream):
                     if packet.stream.type == 'video':
                         decoded = packet.decode()
                         if len(decoded) > 0:
-                            self._packet_lengths.append(len(decoded))
-                            self._packet_ts.append(decoded[0].pts)
+                            packet_lengths.append(len(decoded))
+                            packet_ts.append(decoded[0].pts)
                 self._toc = {
-                    'lengths': self._packet_lengths,
-                    'ts': self._packet_ts,
+                    'lengths': packet_lengths,
+                    'ts': packet_ts,
                 }
             else:
                 self._toc = toc
 
-            self._toc_cumsum = np.cumsum(self._toc['lengths'])
+            self._toc_cumsum = np.cumsum(self.toc['lengths'])
             self._len = self._toc_cumsum[-1]
 
             # PyAV always returns frames in color, and we make that
@@ -391,7 +391,7 @@ class PyAVReaderIndexed(FramesSequence):
     def _seek_packet(self, packet_no):
         """Advance through the container generator until we get the packet
         we want. Store that packet in selfpp._current_packet."""
-        packet_ts = self._packet_ts[packet_no]
+        packet_ts = self.toc['ts'][packet_no]
         # Only seek when needed.
         if packet_no == self._current_packet_no:
             return
