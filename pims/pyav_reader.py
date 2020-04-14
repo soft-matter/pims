@@ -1,17 +1,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import time
-
-import io
-import six
-import re
 
 import numpy as np
 
 from pims.base_frames import FramesSequence
 from pims.frame import Frame
-
-from warnings import warn
 
 
 try:
