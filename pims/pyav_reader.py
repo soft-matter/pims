@@ -400,7 +400,9 @@ class PyAVReaderIndexed(FramesSequence):
         we want. Store that packet in selfpp._current_packet."""
         packet_ts = self._packet_ts[packet_no]
         # Only seek when needed.
-        if (packet_no < self._current_packet_no
+        if packet_no == self._current_packet_no:
+            return
+        elif (packet_no < self._current_packet_no
                 or packet_no > self._current_packet_no + 1):
             self._container.seek(packet_ts, stream=self._video_stream)
 
