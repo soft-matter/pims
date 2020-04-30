@@ -93,7 +93,7 @@ def _download_jar(version='5.7.0'):
 
 def _maybe_tostring(field):
     if hasattr(field, 'toString'):
-        return field.toString()
+        return str(field)
     else:
         return field
 
@@ -155,7 +155,7 @@ class MetadataRetrieve(object):
             if not hasattr(field, 'toString'):
                 return field
             else:
-                field = field.toString()
+                field = str(field)
 
             # convert to int or float if possible
             try:
@@ -345,7 +345,7 @@ class BioformatsReader(FramesSequenceND):
             loci_path = _find_jar()
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
                            '-Djava.class.path=' + loci_path,
-                           '-Xmx' + java_memory)
+                           '-Xmx' + java_memory, convertStrings=False)
             log4j = jpype.JPackage('org.apache.log4j')
             log4j.BasicConfigurator.configure()
             log4j_logger = log4j.Logger.getRootLogger()
