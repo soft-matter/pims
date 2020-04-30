@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from distutils.version import LooseVersion
 import numpy as np
 
 from pims.base_frames import FramesSequence, FramesSequenceND
@@ -343,9 +344,15 @@ class BioformatsReader(FramesSequenceND):
         # Start java VM and initialize logger (globally)
         if not jpype.isJVMStarted():
             loci_path = _find_jar()
+            # If we can turn off string auto-conversion, do so,
+            # since this is the recommended practice.
+            if LooseVersion(jpype.__version__) >= LooseVersion('0.7.0'):
+                startJVM_kwargs = {'convertStrings': False}
+            else:
+                startJVM_kwargs = {}
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
                            '-Djava.class.path=' + loci_path,
-                           '-Xmx' + java_memory, convertStrings=False)
+                           '-Xmx' + java_memory, **startJVM_kwargs)
             log4j = jpype.JPackage('org.apache.log4j')
             log4j.BasicConfigurator.configure()
             log4j_logger = log4j.Logger.getRootLogger()
