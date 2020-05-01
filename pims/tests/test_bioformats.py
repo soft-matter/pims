@@ -539,7 +539,7 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         metadata = self.v.get_metadata_raw('dict')
         assert_equal(metadata['ChannelCount'], '2')
         assert_equal(metadata['CH2ChannelDyeName'], '5-FAM/pH 9.0')
-        assert_equal(metadata['dCalibration'], '0.16780898323268245')
+        assert_almost_equal(float(metadata['dCalibration']), 0.16780898323268245)
 
     def test_metadata_tags(self):
         self.v = self.klass(self.filename, meta=True)
