@@ -24,7 +24,7 @@ class _common_norpix_sample_tests(object):
     def test_metadata(self):
         s = self.seq
         assert isinstance(len(s), int)
-        assert np.issubdtype(s.pixel_type, np.dtype)
+        assert np.issubdtype(s.pixel_type, np.number)
         assert s.width > 0
         assert s.height > 0
         assert len(s.filename)
