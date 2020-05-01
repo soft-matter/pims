@@ -3,9 +3,23 @@ Release notes
 
 v0.5
 ----
+This is a major release recommended for all users. Your existing code to
+open files may need to be edited slightly -- see the first change listed below.
+
 - API: all readers do not support the keyword arguments ``process_func``,
   ``dtype`` and ``as_grey`` anymore. Please consult the documentation on
   Pipelines on how to convert videos. (see :doc:`pipelines`) (PR 250)
+- New built-in ``as_grey`` pipeline for convenient conversion to greyscale
+  (PR 305)
+- Enhanced support for metadata in the CINE format (PR 317)
+- Enhanced documentation for PyAV video support (PR 334)
+- Fixed compatibility with PyAV 0.4.0 and newer (PR 300)
+- Fixed compatibility and bugs in PyAV export (PR 283, PR 313)
+- Fixed opening of PyAV videos with audio (PR 322)
+- Fixed compatibility with newer versions of tifffile (PR 314, PR 339)
+- Fixed response to missing ImageIO (PR 333)
+- Added support for nd2reader as alternative reader for Nikon nd2 files (PR 272)
+
 
 v0.4
 ----
