@@ -80,3 +80,17 @@ keyword argument.
         print('\tDxyz:  {:2.2f} x {:2.2f} x {:2.2f}'.format(*dxyz))
 
 See the documentation for the `Metadata retrieve API <http://www.openmicroscopy.org/site/support/bio-formats5.1/developers/cpp/tutorial.html>`_ for more details.
+
+Updating bioformats
+-------------------
+
+To update the version of bioformats you are using in pims:
+
+1. Find the version number for the latest bioformats release at: https://downloads.openmicroscopy.org/bio-formats/
+2. Run this pims command, replacing the version number with the one you want:
+
+.. code-block:: python
+
+    pims.bioformats.download_jar(version='6.4')
+
+Now you should be able to use pims with the updated bioformats version.
