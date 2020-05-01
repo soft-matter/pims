@@ -94,3 +94,18 @@ To update the version of bioformats you are using in pims:
     pims.bioformats.download_jar(version='6.4')
 
 Now you should be able to use pims with the updated bioformats version.
+
+Note: This pims command downloads a bioformats file named `loci_tools.jar`
+to your computer. There are a few possible locations where it might be stored.
+The precedence order is (highest priority first):
+
+1. pims package location
+2. PROGRAMDATA/pims/loci_tools.jar
+3. LOCALAPPDATA/pims/loci_tools.jar
+4. APPDATA/pims/loci_tools.jar
+5. /etc/loci_tools.jar
+6. ~/.config/pims/loci_tools.jar
+
+If you encounter problems updating to the latest version of bioformats,
+you may wish to manually remove `loci_tools.jar` from each of the six locations
+and re-run the `pims.bioformats.download_jar` command again.
