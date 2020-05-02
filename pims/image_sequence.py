@@ -21,8 +21,10 @@ from pims.utils.sort import natural_keys
 
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
+has_skimage = False
 try:
     from skimage.io import imread
+    has_skimage = True
 except ImportError:
     try:
         from matplotlib.pyplot import imread
@@ -44,14 +46,6 @@ class ImageSequence(FramesSequence):
         which will ignore extraneous files or a list of files to open
         in the order they should be loaded. When a path to a zipfile is
         specified, all files in the zipfile will be loaded.
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
     plugin : string
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
@@ -77,9 +71,7 @@ class ImageSequence(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
     def __init__(self, path_spec, plugin=None):
-        try:
-            import skimage
-        except ImportError:
+        if not has_skimage:
             if plugin is not None:
                 warn("A plugin was specified but ignored. Plugins can only "
                      "be specified if scikit-image is available. Instead, "
@@ -365,13 +357,6 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         specified, all files in the zipfile will be loaded. The filenames
         should contain the indices of T, Z and C, preceded by a axis
         identifier such as: 'file_t001c05z32'.
-    process_func : function, optional
-        callable with signature `proc_img = process_func(img)`,
-        which will be applied to the data from each frame.
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Not implemented for 3D images.
     plugin : string, optional
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
