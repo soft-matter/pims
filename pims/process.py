@@ -27,6 +27,17 @@ def as_grey(frame):
 # "Gray" is the more common spelling
 as_gray = as_grey
 
+# Source of this patch: https://github.com/scikit-image/scikit-image/pull/3556
+# See also: https://github.com/numpy/numpy/pull/11966
+from distutils.version import LooseVersion
+if LooseVersion(np.__version__) < LooseVersion('1.16'):
+    from numpy.lib.arraypad import _validate_lengths as validate_lengths
+else:
+    from numpy.lib.arraypad import _as_pairs
+
+    def validate_lengths(ar, crop_width):
+        return _as_pairs(crop_width, ar.ndim, as_index=True)
+
 
 def _crop(frame, bbox):
     return frame[bbox[0]:bbox[2], bbox[1]:bbox[3]]
@@ -68,7 +79,7 @@ class crop(Pipeline):
             first_frame = reader[0]
             shape = first_frame.shape
         # Validate the crop widths on the first frame
-        crops = _validate_lengths(first_frame, crop_width)
+        crops = validate_lengths(first_frame, crop_width)
         self._crop_slices = [slice(a, shape[i] - b)
                              for i, (a, b) in enumerate(crops)]
         self._crop_shape = tuple([shape[i] - b - a
