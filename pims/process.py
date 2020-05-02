@@ -3,7 +3,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import numpy as np
 from slicerator import pipeline, Pipeline
-from numpy.lib.arraypad import _validate_lengths
 import six
 
 
@@ -80,17 +79,17 @@ class crop(Pipeline):
             shape = first_frame.shape
         # Validate the crop widths on the first frame
         crops = validate_lengths(first_frame, crop_width)
-        self._crop_slices = [slice(a, shape[i] - b)
-                             for i, (a, b) in enumerate(crops)]
+        self._crop_slices = tuple([slice(a, shape[i] - b)
+                             for i, (a, b) in enumerate(crops)])
         self._crop_shape = tuple([shape[i] - b - a
                                   for i, (a, b) in enumerate(crops)])
         self._crop_order = order
         # We could pass _crop to proc_func. However this adds an extra copy
         # operation. Therefore we define our own here.
-        Pipeline.__init__(self, reader, proc_func=None)
+        super(self.__class__, self).__init__(None, reader)
 
     def _get(self, key):
-        ar = self._ancestor[key]
+        ar = self._ancestors[key]
         return np.array(ar[self._crop_slices], order=self._crop_order,
                         copy=True)
 
