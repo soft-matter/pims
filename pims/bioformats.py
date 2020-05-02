@@ -54,7 +54,7 @@ def _find_jar():
     return download_jar()
 
 
-def download_jar(version='5.8.2'):
+def download_jar(version='6.4.0'):
     """ Downloads the bioformats distribution of given version. """
     from six.moves.urllib.request import urlopen
     import hashlib
