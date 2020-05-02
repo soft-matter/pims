@@ -32,13 +32,6 @@
 #
 # Files heavily edited by PIMS contributors
 # January 2014
-
-## Name (and locatio if needed) of the FFMPEG binary. It will be
-## "ffmpeg" on linux, certainly "ffmpeg.exe" on windows, else any path.
-## If not provided (None), the system will look for the right version
-## automatically each time you launch moviepy.
-## If you run this script file it will check that the
-## path to the ffmpeg binary (FFMPEG_BINARY)
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -73,6 +66,8 @@ def try_ffmpeg(FFMPEG_BINARY):
         return True
 
 
+# Name (and location if needed) of the FFMPEG binary. It will be
+# "ffmpeg" on linux, certainly "ffmpeg.exe" on windows, else any path.
 FFMPEG_BINARY_SUGGESTIONS = ['ffmpeg', 'ffmpeg.exe']
 
 FFMPEG_BINARY = None
@@ -99,14 +94,13 @@ class FFmpegVideoReader(FramesSequence):
     Parameters
     ----------
     filename : string
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
+    pix_fmt : string, optional
+        Expected number of color channels. Either 'rgb24' or 'rgba'.
+        Defaults to 'rgba'.
+    use_cache : boolean, optional
+        Saves time if the file was previously opened. Defaults to True.
+        Set to False if the file may have changed since it was
+        last read.
 
     Examples
     --------
@@ -128,8 +122,7 @@ class FFmpegVideoReader(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
 
     """
-    def __init__(self, filename, process_func=None, pix_fmt="rgb24",
-                 use_cache=True, as_grey=False):
+    def __init__(self, filename, pix_fmt="rgb24", use_cache=True):
 
         self.filename = filename
         self.pix_fmt = pix_fmt
@@ -140,9 +133,6 @@ class FFmpegVideoReader(FramesSequence):
             raise ValueError("invalid pixel format")
         w, h = self._size
         self._stride = self.depth*w*h
-
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
 
     def _initialize(self, use_cache):
         """ Opens the file, creates the pipe. """
@@ -228,11 +218,11 @@ class FFmpegVideoReader(FramesSequence):
         w, h = self._size
         result = np.fromstring(s,
             dtype='uint8').reshape((h, w, self.depth))
-        return Frame(self.process_func(result), frame_no=j)
+        return Frame(result, frame_no=j)
 
     @property
     def pixel_type(self):
-        raise NotImplemented()
+        raise np.uint8
 
     @classmethod
     def class_exts(cls):

@@ -1,55 +1,55 @@
 Video
 =====
 
-.. note::
+PIMS provides reading of video through :ref:`video-pyav`,
+:ref:`ImageIO <video-imageio-moviepy>`
+or :ref:`MoviePy <video-imageio-moviepy>`.
 
-   To load video files directly, you need FFmpeg or libav. These can be tricky
-   to install, especially on Windows, so we advise less sophisticated users to
-   simply work around this requirement by converting their video files to
-   folders full of images using a utility like `ImageJ <http://rsb.info.nih.gov/ij/>`_.
+.. _video-pyav:
 
-   But if either FFmpeg or libav is available, PIMS enables fast random access to video files.
+PyAV (fastest)
+--------------
 
-PyAV is installed with the PIMS conda package. You can install it via pip like so:
 
-.. code-block:: bash
-
-    pip install av
-
-The ``Video`` reader can open any file format supported by FFmepg and libav.
-
-In order to provide random access by frame number, which is not something that
-video formats natively support, PIMS scans through the entire video to build
-a table of contents. This means that opening the file can take some time, but
-once it is open, random access is fast.
-
-Dependencies
-------------
-
-* `PyAV <http://mikeboers.github.io/PyAV/>`_
-
-Troubleshooting
----------------
-
-If you use conda / Anaconda, watch out for an error like:
+`PyAV <http://mikeboers.github.io/PyAV/>`_ can be installed via Anaconda, as follows:
 
 .. code-block:: bash
 
-    version `GLIBC_2.15' not found
+    conda install av -c conda-forge
 
-This seems to be because `conda includes an old version of a library
-needed by PyAV <github.com/ContinuumIO/anaconda-issues/issues/182>`__.
-To work around this, simply delete anaconda's version of the library:
+Non-anaconda users will have to compile PyAV themselves, which is complicated,
+especially on Windows. For this we refer the
+users to the `PyAV documentation <https://mikeboers.github.io/PyAV/>`_.
 
-.. code-block:: bash
+There are two ways PIMS provides random access to video files, which is not
+something that video formats natively support:
 
-    rm ~/anaconda/lib/libm.so.6
+* :class:`PyAVReaderTimed <pims.PyAVReaderTimed>` bases the indices of the video frames on the
+  ``frame_rate`` that is reported by the video file, along with the timestamps
+  that are imprinted on the separate video frames. The readers ``PyAVVideoReader``
+  and ``Video`` are different names for this reader.
+* :class:`PyAVReaderIndexed <pims.PyAVReaderIndexed>` scans through the entire video to build a table
+  of contents. This means that opening the file can take some time, but
+  once it is open, random access is fast. In the case timestamps or `frame_rate``
+  are not available, this reader is the preferred option.
 
-and/or
+.. autoclass:: pims.PyAVReaderTimed
+   :members:
 
-.. code-block:: bash
+.. autoclass:: pims.PyAVReaderIndexed
+   :members:
 
-    rm ~/anaconda/envs/name_of_your_environment/lib/libm.so.6
+.. _video-imageio-moviepy:
 
-which will cause PyAV to use the your operating system's version of the
-library.
+ImageIO and MoviePy
+-------------------
+Both `ImageIO <https://imageio.github.io>`_ and `MoviePy <http://zulko.github.io/moviepy>`_
+implement interfaces with ffmpeg through a Pipe. These are implemented through
+:class:`ImageIOReader <pims.ImageIOReader>` and :class:`MoviePyReader <pims.MoviePyReader>`, respectively.
+
+.. autoclass:: pims.ImageIOReader
+   :members:
+
+.. The import of pims.moviepy_reader fails. MoviePy seems to use imageio in turn.
+    .. autoclass:: pims.MoviePyReader
+    :members:

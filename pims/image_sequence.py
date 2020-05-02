@@ -10,17 +10,21 @@ from warnings import warn
 import re
 import zipfile
 from io import BytesIO
+from functools import partial
 
 import numpy as np
 
+import pims
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 from pims.utils.sort import natural_keys
 
 # skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
 # If skimage is not available, go down our own hard-coded hierarchy.
+has_skimage = False
 try:
     from skimage.io import imread
+    has_skimage = True
 except ImportError:
     try:
         from matplotlib.pyplot import imread
@@ -42,14 +46,6 @@ class ImageSequence(FramesSequence):
         which will ignore extraneous files or a list of files to open
         in the order they should be loaded. When a path to a zipfile is
         specified, all files in the zipfile will be loaded.
-    process_func : function, optional
-        callable with signalture `proc_img = process_func(img)`,
-        which will be applied to the data from each frame
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Convert color images to greyscale. False by default.
-        May not be used in conjection with process_func.
     plugin : string
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
@@ -74,11 +70,8 @@ class ImageSequence(FramesSequence):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    def __init__(self, path_spec, process_func=None, dtype=None,
-                 as_grey=False, plugin=None):
-        try:
-            import skimage
-        except ImportError:
+    def __init__(self, path_spec, plugin=None):
+        if not has_skimage:
             if plugin is not None:
                 warn("A plugin was specified but ignored. Plugins can only "
                      "be specified if scikit-image is available. Instead, "
@@ -94,14 +87,7 @@ class ImageSequence(FramesSequence):
 
         tmp = self.imread(self._filepaths[0], **self.kwargs)
         self._first_frame_shape = tmp.shape
-
-        self._validate_process_func(process_func)
-        self._as_grey(as_grey, process_func)
-
-        if dtype is None:
-            self._dtype = tmp.dtype
-        else:
-            self._dtype = dtype
+        self._dtype = tmp.dtype
 
     def close(self):
         if self._is_zipfile:
@@ -126,8 +112,8 @@ class ImageSequence(FramesSequence):
         # deal with if input is _not_ a string
         if not isinstance(path_spec, six.string_types):
             # assume it is iterable and off we go!
-            self._filepaths = sorted(list(path_spec), key=natural_keys)
-            self._count = len(path_spec)
+            self._filepaths = list(path_spec)
+            self._count = len(self._filepaths)
             return
 
         if zipfile.is_zipfile(path_spec):
@@ -166,10 +152,7 @@ class ImageSequence(FramesSequence):
         if j > self._count:
             raise ValueError("File does not contain this many frames")
         res = self.imread(self._filepaths[j], **self.kwargs)
-        if res.dtype != self._dtype:
-            res = res.astype(self._dtype)
-        res = Frame(self.process_func(res), frame_no=j)
-        return res
+        return Frame(res, frame_no=j)
 
     def __len__(self):
         return self._count
@@ -230,6 +213,136 @@ def filename_to_indices(filename, identifiers='tzc'):
     return result
 
 
+class ReaderSequence(FramesSequenceND):
+    """Construct a reader from a directory of ND image files.
+
+    Parameters
+    ----------
+    path_spec : string or iterable of strings
+        a directory or, safer, a pattern like path/to/images/*.png
+        which will ignore extraneous files or a list of files to open
+        in the order they should be loaded. When a path to a zipfile is
+        specified, all files in the zipfile will be loaded. The filenames
+        should contain the indices of T, Z and C, preceded by a axis
+        identifier such as: 'file_t001c05z32'.
+    axis_name : string, optional
+        The name of the added axis. Default 't'.
+    """
+    def __init__(self, path_spec, reader_cls=None, axis_name='t', **kwargs):
+        FramesSequenceND.__init__(self)
+
+        self.kwargs = kwargs
+        if reader_cls is None:
+            self.reader_cls = pims.open
+        else:
+            self.reader_cls = reader_cls
+        self._get_files(path_spec)
+
+        with self.reader_cls(self._filepaths[0], **self.kwargs) as reader:
+            if not isinstance(reader, FramesSequenceND):
+                raise ValueError("Reader is not subclass of FramesSequenceND")
+            for ax in reader.axes:
+                self._init_axis(ax, reader.sizes[ax])
+            self._pixel_type = reader.pixel_type
+        self._imseq_axis = axis_name
+        self._init_axis(axis_name, self._count)
+        self.iter_axes = [axis_name]
+
+    @property
+    def bundle_axes(self):
+        return self._bundle_axes[:]
+
+    @bundle_axes.setter
+    def bundle_axes(self, value):
+        """Overrides the baseclass 'smart' bundle_axes, as _get_frame_wrapped
+        uses the child reader bundle axes logic."""
+        value = list(value)
+        invalid = [k for k in value if k not in self._sizes]
+        if invalid:
+            raise ValueError("axes %r do not exist" % invalid)
+
+        if self._imseq_axis in self.bundle_axes:
+            raise ValueError('The sequence axis cannot be bundled.')
+        for k in value:
+            if k in self._iter_axes:
+                del self._iter_axes[self._iter_axes.index(k)]
+        self._bundle_axes = value
+        self._get_frame_wrapped = self._get_seq_frame
+
+    def _get_seq_frame(self, **coords):
+        i = coords.pop(self._imseq_axis)
+        with self.reader_cls(self._filepaths[i], **self.kwargs) as reader:
+            # check whether the reader has the expected shape
+            for ax in self.sizes:
+                if ax == self._imseq_axis:
+                    continue
+                if ax not in reader.sizes:
+                    raise RuntimeError('{} does not have '
+                                       'axis {}'.format(self._filepaths[i], ax))
+                if reader.sizes[ax] != self.sizes[ax]:
+                    raise RuntimeError('In {}, the size of axis {} was unexpect'
+                                       'ed'.format(self._filepaths[i], ax))
+            reader.bundle_axes = self.bundle_axes
+            result = reader._get_frame_wrapped(**coords)
+        return result
+
+    @property
+    def pixel_type(self):
+        return self._pixel_type
+
+    def __repr__(self):
+        try:
+            source = self.pathname
+        except AttributeError:
+            source = '(list of images)'
+        s = "<ReaderSequence>\nSource: {0}\n".format(source)
+        s += "Axes: {0}\n".format(self.ndim)
+        for dim in self._sizes:
+            s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
+        s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
+        return s
+
+    def _get_files(self, path_spec):
+        # deal with if input is _not_ a string
+        if not isinstance(path_spec, six.string_types):
+            # assume it is iterable and off we go!
+            self._filepaths = sorted(list(path_spec), key=natural_keys)
+            self._count = len(path_spec)
+            return
+
+        if zipfile.is_zipfile(path_spec):
+            self._is_zipfile = True
+            self.pathname = os.path.abspath(path_spec)
+            self._zipfile = zipfile.ZipFile(path_spec, 'r')
+            filepaths = [fn for fn in self._zipfile.namelist()
+                         if fnmatch.fnmatch(fn, '*.*')]
+            self._filepaths = sorted(filepaths, key=natural_keys)
+            self._count = len(self._filepaths)
+            if 'plugin' in self.kwargs and self.kwargs['plugin'] is not None:
+                warn("A plugin cannot be combined with reading from an "
+                     "archive. Extract it if you want to use the plugin.")
+            return
+
+        self.pathname = os.path.abspath(path_spec)  # used by __repr__
+        if os.path.isdir(path_spec):
+            warn("Loading ALL files in this directory. To ignore extraneous "
+                 "files, use a pattern like 'path/to/images/*.png'",
+                 UserWarning)
+            directory = path_spec
+            filenames = os.listdir(directory)
+            make_full_path = lambda filename: (
+                os.path.abspath(os.path.join(directory, filename)))
+            filepaths = list(map(make_full_path, filenames))
+        else:
+            filepaths = glob.glob(path_spec)
+        self._filepaths = sorted(filepaths, key=natural_keys)
+        self._count = len(self._filepaths)
+
+        # If there were no matches, this was probably a user typo.
+        if self._count == 0:
+            raise IOError("No files were found matching that path.")
+
+
 class ImageSequenceND(FramesSequenceND, ImageSequence):
     """Read a directory of multi-indexed image files into an iterable that
     returns images as numpy arrays. By default, the extra axes are
@@ -244,13 +357,6 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         specified, all files in the zipfile will be loaded. The filenames
         should contain the indices of T, Z and C, preceded by a axis
         identifier such as: 'file_t001c05z32'.
-    process_func : function, optional
-        callable with signature `proc_img = process_func(img)`,
-        which will be applied to the data from each frame.
-    dtype : numpy datatype, optional
-        Image arrays will be converted to this datatype.
-    as_grey : boolean, optional
-        Not implemented for 3D images.
     plugin : string, optional
         Passed on to skimage.io.imread if scikit-image is available.
         If scikit-image is not available, this will be ignored and a warning
@@ -286,18 +392,14 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         Applicable to RGB images. Signifies the position of the rgb axis in
         the input image. True when color data is stored in the last dimension.
     """
-    def __init__(self, path_spec, process_func=None, dtype=None,
-                 as_grey=False, plugin=None, axes_identifiers='tzc'):
+    def __init__(self, path_spec, plugin=None, axes_identifiers='tzc'):
         FramesSequenceND.__init__(self)
-        if as_grey:
-            raise ValueError('As grey not supported for ND images')
         if 'x' in axes_identifiers:
             raise ValueError("Axis 'x' is reserved")
         if 'y' in axes_identifiers:
             raise ValueError("Axis 'y' is reserved")
         self.axes_identifiers = axes_identifiers
-        ImageSequence.__init__(self, path_spec, process_func,
-                               dtype, as_grey, plugin)
+        ImageSequence.__init__(self, path_spec, plugin)
         shape = self._first_frame_shape
         if len(shape) == 2:
             self._init_axis('y', shape[0])
@@ -344,7 +446,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
 
     def get_frame(self, i):
         frame = super(ImageSequenceND, self).get_frame(i)
-        return Frame(self.process_func(frame), frame_no=i)
+        return Frame(frame, frame_no=i)
 
     def get_frame_2D(self, **ind):
         if self.is_rgb:
@@ -353,10 +455,7 @@ class ImageSequenceND(FramesSequenceND, ImageSequence):
         else:
             row = [ind[name] for name in self.axes_identifiers]
         i = np.argwhere(np.all(self._toc == row, 1))[0, 0]
-        res = self.imread(self._filepaths[i], **self.kwargs)
-        if res.dtype != self._dtype:
-            res = res.astype(self._dtype)
-        return res
+        return self.imread(self._filepaths[i], **self.kwargs)
 
     def __repr__(self):
         try:

@@ -19,7 +19,6 @@ class FramesStream(with_metaclass(ABCMeta, object)):
 
     Does not support slicing.
     """
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def __iter__(self):
@@ -66,56 +65,6 @@ class FramesStream(with_metaclass(ABCMeta, object)):
         """
         pass
 
-    def _validate_process_func(self, process_func):
-        if process_func is None:
-            process_func = lambda x: x
-        if not callable(process_func):
-            raise ValueError("process_func must be a function, or None")
-        self.process_func = process_func
-
-    def _as_grey(self, as_grey, process_func):
-        # See skimage.color.colorconv in the scikit-image project.
-        # As noted there, the weights used in this conversion are calibrated
-        # for contemporary CRT phosphors. Any alpha channel is ignored."""
-
-        if as_grey:
-            if process_func is not None:
-                raise ValueError("The as_grey option cannot be used when "
-                                 "process_func is specified. Incorpate "
-                                 "greyscale conversion in the function "
-                                 "passed to process_func.")
-            shape = self.frame_shape
-            ndim = len(shape)
-            # Look for dimensions that look like color channels.
-            rgb_like = shape.count(3) == 1
-            rgba_like = shape.count(4) == 1
-            if ndim == 2:
-                # The image is already greyscale.
-                process_func = None
-            elif ndim == 3 and (rgb_like or rgba_like):
-                reduced_shape = list(shape)
-                if rgb_like:
-                    color_axis_size = 3
-                    calibration = [0.2125, 0.7154, 0.0721]
-                else:
-                    color_axis_size = 4
-                    calibration = [0.2125, 0.7154, 0.0721, 0]
-                reduced_shape.remove(color_axis_size)
-                self._im_sz = tuple(reduced_shape)
-                def convert_to_grey(img):
-                    color_axis = img.shape.index(color_axis_size)
-                    img = np.rollaxis(img, color_axis, 3)
-                    grey = (img * calibration).sum(2)
-                    return grey.astype(img.dtype)  # coerce to original dtype
-                self.process_func = convert_to_grey
-            else:
-                raise NotImplementedError("I don't know how to convert an "
-                                          "image of shaped {0} to greyscale. "
-                                          "Write you own function and pass "
-                                          "it using the process_func "
-                                          "keyword argument.".format(shape))
-
-    # magic functions to make all sub-classes usable as context managers
     def __enter__(self):
         return self
 
@@ -414,6 +363,24 @@ def _make_get_frame(result_axes, get_frame_dict, sizes, dtype):
     return _transpose(get_frame, after_bundle, result_axes)
 
 
+class DefaultCoordsDict(dict):
+    """Dictionary that checks whether all keys are in `axes`"""
+    def __init__(self, default_coords=None):
+        """There is no check done here"""
+        super(DefaultCoordsDict, self).__init__()
+        self.axes = []
+
+    def __setitem__(self, attr, value):
+        if attr not in self.axes:
+            raise ValueError("axes %r does not exist" % attr)
+        super(DefaultCoordsDict, self).__setitem__(attr, value)
+
+    def update(self, *args, **kwargs):
+        # So that update does the check too
+        for k, v in six.iteritems(dict(*args, **kwargs)):
+            self[k] = v
+
+
 class FramesSequenceND(FramesSequence):
     """ A base class defining a FramesSequence with an arbitrary number of
     axes. In the context of this reader base class, dimensions like 'x', 'y',
@@ -494,7 +461,7 @@ class FramesSequenceND(FramesSequence):
 
     def _clear_axes(self):
         self._sizes = {}
-        self._default_coords = {}
+        self._default_coords = DefaultCoordsDict()
         self._iter_axes = []
         self._bundle_axes = ['y', 'x']
         self._get_frame_wrapped = None
@@ -509,6 +476,7 @@ class FramesSequenceND(FramesSequence):
         if name in self._sizes:
             raise ValueError("axis '{}' already exists".format(name))
         self._sizes[name] = int(size)
+        self.default_coords.axes = self.axes
         self.default_coords[name] = int(default)
 
     def __len__(self):
@@ -540,7 +508,7 @@ class FramesSequenceND(FramesSequence):
         The ndarray that is returned by get_frame has the same axis order
         as the order of `bundle_axes`.
         """
-        return self._bundle_axes
+        return self._bundle_axes[:]  # return a copy
 
     @bundle_axes.setter
     def bundle_axes(self, value):
@@ -575,7 +543,7 @@ class FramesSequenceND(FramesSequence):
     def iter_axes(self):
         """ This determines which axes will be iterated over by the
         FramesSequence. The last element will iterate fastest. """
-        return self._iter_axes
+        return self._iter_axes[:]  # return a copy
 
     @iter_axes.setter
     def iter_axes(self, value):
@@ -594,13 +562,10 @@ class FramesSequenceND(FramesSequence):
     def default_coords(self):
         """ When a axis is not present in both iter_axes and bundle_axes, the
         coordinate contained in this dictionary will be used. """
-        return self._default_coords
+        return self._default_coords  # this is a custom dict (DefaultCoordsDict)
 
     @default_coords.setter
     def default_coords(self, value):
-        invalid = [k for k in value if k not in self._sizes]
-        if invalid:
-            raise ValueError("axes %r do not exist" % invalid)
         self._default_coords.update(**value)
 
     def get_frame(self, i):

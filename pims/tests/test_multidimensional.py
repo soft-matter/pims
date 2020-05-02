@@ -5,6 +5,7 @@ import six
 
 import unittest
 import nose
+from nose.tools import assert_raises
 from itertools import chain, permutations
 import numpy as np
 from numpy.testing import assert_equal
@@ -104,6 +105,33 @@ class TestMultidimensional(unittest.TestCase):
 
         # if a metadata field is equal for all frames, it should be a scalar
         assert_equal(md['t'], 15)
+
+    def test_mutability(self):
+        # test for issues that may arise when properties return mutable objects
+
+        # the list bundle_axes
+        self.v.bundle_axes = ['z', 'y', 'x']
+        temp = self.v.bundle_axes
+        temp = []
+        assert_equal(self.v[0].shape, (20, 1, 6))
+
+        # the list iter_axes
+        self.v.iter_axes = ['t']
+        temp = self.v.iter_axes
+        temp = []
+        assert_equal(len(self.v), 100)
+
+        # the dict default_coords
+        # changing an nonexisting item on a copy does nothing
+        a = dict(self.v.default_coords)
+        a['non_existing'] = 0
+        # but assigning it again raises
+        with assert_raises(ValueError) as cm:
+            self.v.default_coords = a
+
+        # changing an nonexisting item should raise
+        with assert_raises(ValueError) as cm:
+            self.v.default_coords['non_existing'] = 0
 
 
 class RandomReaderFlexible(FramesSequenceND):

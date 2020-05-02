@@ -14,11 +14,13 @@ import os
 from warnings import warn
 
 # has to be here for API stuff
-from pims.image_sequence import ImageSequence, ImageSequenceND  # noqa
+from pims.image_sequence import ImageSequence, ImageSequenceND, ReaderSequence  # noqa
+from pims.image_reader import ImageReader, ImageReaderND  # noqa
 from .cine import Cine  # noqa
 from .norpix_reader import NorpixSeq  # noqa
 from pims.tiff_stack import TiffStack_tifffile  # noqa
 from .spe_stack import SpeStack
+from pims.process import as_grey, as_gray
 
 
 def not_available(requirement):
@@ -33,13 +35,18 @@ if export is None:
 try:
     import pims.pyav_reader
     if pims.pyav_reader.available():
-        PyAVVideoReader = pims.pyav_reader.PyAVVideoReader
-        Video = PyAVVideoReader
+        PyAVReaderTimed = pims.pyav_reader.PyAVReaderTimed
+        PyAVReaderIndexed = pims.pyav_reader.PyAVReaderIndexed
+        Video = PyAVReaderTimed
     else:
         raise ImportError()
 except (ImportError, IOError):
-    PyAVVideoReader = not_available("PyAV and/or PIL/Pillow")
+    PyAVVideoReader = not_available("PyAV")
+    PyAVReaderTimed = not_available("PyAV")
+    PyAVReaderIndexed = not_available("PyAV")
     Video = None
+
+PyAVVideoReader = PyAVReaderTimed
 
 
 try:
@@ -51,7 +58,7 @@ try:
     else:
         raise ImportError()
 except (ImportError, IOError):
-    MoviePyReader = not_available("ImageIO")
+    ImageIOReader = not_available("ImageIO")
 
 
 try:
@@ -103,10 +110,25 @@ except (ImportError, IOError):
 
 
 try:
-    from pims_nd2 import ND2_Reader
+    from pims_nd2 import ND2_Reader as ND2Reader_SDK
+
+    class ND2_Reader(ND2Reader_SDK):
+        class_priority = 0
+
+        def __init__(self, *args, **kwargs):
+            warn("'ND2_Reader' has been renamed to 'ND2Reader_SDK' and will be"
+                 "removed in future pims versions. "
+                 "Please use the new name, or try out the pure-Python one named "
+                 "`ND2Reader`.")
+            super(ND2_Reader, self).__init__(*args, **kwargs)
 except ImportError:
+    ND2Reader_SDK = not_available("pims_nd2")
     ND2_Reader = not_available("pims_nd2")
 
+try:
+    from nd2reader import ND2Reader
+except ImportError:
+    ND2Reader = not_available("nd2reader")
 
 def open(sequence, **kwargs):
     """Read a filename, list of filenames, or directory of image files into an

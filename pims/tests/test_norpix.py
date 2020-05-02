@@ -24,7 +24,7 @@ class _common_norpix_sample_tests(object):
     def test_metadata(self):
         s = self.seq
         assert isinstance(len(s), int)
-        assert np.issubdtype(s.pixel_type, np.dtype)
+        assert np.issubdtype(s.pixel_type, np.number)
         assert s.width > 0
         assert s.height > 0
         assert len(s.filename)
@@ -115,37 +115,37 @@ class test_defaults(_norpix6_sample_tests, unittest.TestCase):
         assert self.seq[0].dtype == np.uint8
 
 
-class test_dtype(_norpix6_sample_tests, unittest.TestCase):
-    def setUp(self):
-        self.options = {}
-        self.dtype = np.float_
-        self.options['dtype'] = self.dtype
-        super(test_dtype, self).setUp()
-
-    def test_dtype(self):
-        fr = self.seq[0]
-        assert fr.dtype == self.dtype
-
-
-class test_process_func(_norpix6_sample_tests, unittest.TestCase):
-    def setUp(self):
-        self.options = {}
-        self.options['dtype'] = np.float_
-        self.options['process_func'] = lambda x: -x
-        super(test_process_func, self).setUp()
-
-    def test_process_func(self):
-        fr = self.seq[0]
-        assert np.all(fr <= 0)
+# class test_dtype(_norpix6_sample_tests, unittest.TestCase):
+#     def setUp(self):
+#         self.options = {}
+#         self.dtype = np.float_
+#         self.options['dtype'] = self.dtype
+#         super(test_dtype, self).setUp()
+#
+#     def test_dtype(self):
+#         fr = self.seq[0]
+#         assert fr.dtype == self.dtype
+#
+#
+# class test_process_func(_norpix6_sample_tests, unittest.TestCase):
+#     def setUp(self):
+#         self.options = {}
+#         self.options['dtype'] = np.float_
+#         self.options['process_func'] = lambda x: -x
+#         super(test_process_func, self).setUp()
+#
+#     def test_process_func(self):
+#         fr = self.seq[0]
+#         assert np.all(fr <= 0)
 
 
 class test_as_raw(_norpix6_sample_tests, unittest.TestCase):
     def setUp(self):
         self.options = {'as_raw': True}
         super(test_as_raw, self).setUp()
-
-    def test_post_hoc_process_func(self):
-        testbyte = self.seq[0][0,0]
-        self.seq.set_process_func(lambda x: 255 - x)
-        assert self.seq[0][0,0] == 255 - testbyte
+    #
+    # def test_post_hoc_process_func(self):
+    #     testbyte = self.seq[0][0,0]
+    #     self.seq.set_process_func(lambda x: 255 - x)
+    #     assert self.seq[0][0,0] == 255 - testbyte
 

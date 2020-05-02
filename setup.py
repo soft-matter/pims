@@ -18,6 +18,7 @@ except ImportError:
 
 setup_parameters = dict(
     name="PIMS",
+    license="BSD-3-clause",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     description="Python Image Sequence",
