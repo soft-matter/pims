@@ -21,6 +21,7 @@ open files may need to be edited slightly -- see the first change listed below.
 - Fixed opening of PyAV videos with audio (PR 322)
 - Fixed compatibility with newer versions of tifffile (PR 314, PR 339)
 - Fixed response to missing ImageIO (PR 333)
+- Based ImageIOReader on FramesSequenceND instead of FramesSequence (PR 320)
 - Added support for nd2reader as alternative reader for Nikon nd2 files (PR 272)
 
 
