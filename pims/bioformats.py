@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+from distutils.version import LooseVersion
 import numpy as np
 
 from pims.base_frames import FramesSequence, FramesSequenceND
@@ -92,13 +93,6 @@ def download_jar(version='6.5'):
     return path
 
 
-def _maybe_tostring(field):
-    if hasattr(field, 'toString'):
-        return field.toString()
-    else:
-        return field
-
-
 def _jbytearr_stringbuffer(arr, dtype):
     # see https://github.com/originell/jpype/issues/71 and
     # https://github.com/originell/jpype/pull/73
@@ -152,11 +146,8 @@ class MetadataRetrieve(object):
             except TypeError:
                 pass
 
-            # check if it is already casted to a python type by jpype
-            if not hasattr(field, 'toString'):
-                return field
-            else:
-                field = field.toString()
+            # Convert this Java value to a Python type
+            field = str(field)
 
             # convert to int or float if possible
             try:
@@ -344,9 +335,15 @@ class BioformatsReader(FramesSequenceND):
         # Start java VM and initialize logger (globally)
         if not jpype.isJVMStarted():
             loci_path = _find_jar()
+            # If we can turn off string auto-conversion, do so,
+            # since this is the recommended practice.
+            if LooseVersion(jpype.__version__) >= LooseVersion('0.7.0'):
+                startJVM_kwargs = {'convertStrings': False}
+            else:
+                startJVM_kwargs = {}  # convertStrings kwarg not supported for earlier jpype versions
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
                            '-Djava.class.path=' + loci_path,
-                           '-Xmx' + java_memory)
+                           '-Xmx' + java_memory, **startJVM_kwargs)
             log4j = jpype.JPackage('org.apache.log4j')
             log4j.BasicConfigurator.configure()
             log4j_logger = log4j.Logger.getRootLogger()
@@ -557,17 +554,17 @@ class BioformatsReader(FramesSequenceND):
             result = {}
             while keys.hasMoreElements():
                 key = keys.nextElement()
-                result[key] = _maybe_tostring(hashtable.get(key))
+                result[key] = str(hashtable.get(key))
         elif form == 'list':
             result = []
             while keys.hasMoreElements():
                 key = keys.nextElement()
-                result.append(key + ': ' + _maybe_tostring(hashtable.get(key)))
+                result.append(key + ': ' + str(hashtable.get(key)))
         elif form == 'string':
             result = u''
             while keys.hasMoreElements():
                 key = keys.nextElement()
-                result += key + ': ' + _maybe_tostring(hashtable.get(key)) + '\n'
+                result += key + ': ' + str(hashtable.get(key)) + '\n'
         return result
 
     @property
