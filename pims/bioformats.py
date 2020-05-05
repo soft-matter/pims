@@ -51,10 +51,11 @@ def _find_jar():
             return os.path.join(loc, 'loci_tools.jar')
 
     warn('loci_tools.jar not found, downloading')
-    return _download_jar()
+    return download_jar()
 
 
-def _download_jar(version='5.7.0'):
+def download_jar(version='6.5'):
+    """ Downloads the bioformats distribution of given version. """
     from six.moves.urllib.request import urlopen
     import hashlib
 
