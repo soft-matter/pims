@@ -349,7 +349,7 @@ class BioformatsReader(FramesSequenceND):
             if LooseVersion(jpype.__version__) >= LooseVersion('0.7.0'):
                 startJVM_kwargs = {'convertStrings': False}
             else:
-                startJVM_kwargs = {}
+                startJVM_kwargs = {}  # convertStrings kwarg not supported for earlier jpype versions
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
                            '-Djava.class.path=' + loci_path,
                            '-Xmx' + java_memory, **startJVM_kwargs)
