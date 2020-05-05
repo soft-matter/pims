@@ -3,9 +3,8 @@ from __future__ import (absolute_import, division, print_function,
 
 import six
 
+from pims.base_frames import FramesSequenceND
 from distutils.version import LooseVersion
-
-from pims.base_frames import FramesSequence
 from pims.frame import Frame
 
 try:
@@ -21,11 +20,12 @@ def available():
     return imageio is not None
 
 
-class ImageIOReader(FramesSequence):
-    """
-    Read images from a video file via a ImageIO interface.
-    """
+class ImageIOReader(FramesSequenceND):
     class_priority = 6
+
+    propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
+                       'get_metadata_raw', 'reader_class_name']
+
     @classmethod
     def class_exts(cls):
         return {'tiff', 'bmp', 'cut', 'dds', 'exr', 'g3', 'hdr', 'iff', 'j2k',
@@ -40,6 +40,9 @@ class ImageIOReader(FramesSequence):
         if imageio is None:
             raise ImportError('The ImageIOReader requires imageio and '
                               '(for imageio >= 2.5) imageio-ffmpeg to work.')
+
+        super(self.__class__, self).__init__()
+
         self.reader = imageio.get_reader(filename, **kwargs)
         self.filename = filename
         self._len = self.reader.get_length()
@@ -48,11 +51,54 @@ class ImageIOReader(FramesSequence):
         if self._len == float("inf"):
             self._len = self.reader.count_frames()
 
-        first_frame = self.get_frame(0)
+        first_frame = self.get_frame_2D(t=0)
         self._shape = first_frame.shape
         self._dtype = first_frame.dtype
 
-    def get_frame(self, i):
+        self._setup_axes()
+        self._register_get_frame(self.get_frame_2D, 'yx')
+
+    def _setup_axes(self):
+        """Setup the xyctz axes, iterate over t axis by default
+
+        """
+        if self._shape[1] > 0:
+            self._init_axis('x', self._shape[1])
+        if self._shape[0] > 0:
+            self._init_axis('y', self._shape[0])
+        if self._len > 0:
+            self._init_axis('t', self._len)
+
+        if len(self.sizes) == 0:
+            raise EmptyFileError("No axes were found for this file.")
+
+        # provide the default
+        self.iter_axes = self._guess_default_iter_axis()
+
+
+    def _guess_default_iter_axis(self):
+        """
+        Guesses the default axis to iterate over based on axis sizes.
+        Returns:
+            the axis to iterate over
+        """
+        priority = ['t', 'z', 'c', 'v']
+        found_axes = []
+        for axis in priority:
+            try:
+                current_size = self.sizes[axis]
+            except KeyError:
+                continue
+
+            if current_size > 1:
+                return axis
+
+            found_axes.append(axis)
+
+        return found_axes[0]
+
+    def get_frame_2D(self, **coords):
+        i = coords['t'] if 't' in coords else 0
         frame = self.reader.get_data(i)
         return Frame(frame, frame_no=i, metadata=frame.meta)
 

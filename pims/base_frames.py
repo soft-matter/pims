@@ -606,3 +606,4 @@ class FramesSequenceND(FramesSequence):
             s += "Axis '{0}' size: {1}\n".format(dim, self._sizes[dim])
         s += """Pixel Datatype: {dtype}""".format(dtype=self.pixel_type)
         return s
+
