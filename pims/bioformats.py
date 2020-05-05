@@ -92,13 +92,6 @@ def _download_jar(version='5.7.0'):
     return path
 
 
-def _maybe_tostring(field):
-    if hasattr(field, 'toString'):
-        return str(field)
-    else:
-        return field
-
-
 def _jbytearr_stringbuffer(arr, dtype):
     # see https://github.com/originell/jpype/issues/71 and
     # https://github.com/originell/jpype/pull/73
@@ -152,11 +145,8 @@ class MetadataRetrieve(object):
             except TypeError:
                 pass
 
-            # check if it is already casted to a python type by jpype
-            if not hasattr(field, 'toString'):
-                return field
-            else:
-                field = str(field)
+            # Convert this Java value to a Python type
+            field = str(field)
 
             # convert to int or float if possible
             try:
@@ -563,17 +553,17 @@ class BioformatsReader(FramesSequenceND):
             result = {}
             while keys.hasMoreElements():
                 key = keys.nextElement()
-                result[key] = _maybe_tostring(hashtable.get(key))
+                result[key] = str(hashtable.get(key))
         elif form == 'list':
             result = []
             while keys.hasMoreElements():
                 key = keys.nextElement()
-                result.append(key + ': ' + _maybe_tostring(hashtable.get(key)))
+                result.append(key + ': ' + str(hashtable.get(key)))
         elif form == 'string':
             result = u''
             while keys.hasMoreElements():
                 key = keys.nextElement()
-                result += key + ': ' + _maybe_tostring(hashtable.get(key)) + '\n'
+                result += key + ': ' + str(hashtable.get(key)) + '\n'
         return result
 
     @property
