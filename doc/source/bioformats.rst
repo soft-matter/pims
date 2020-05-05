@@ -80,3 +80,32 @@ keyword argument.
         print('\tDxyz:  {:2.2f} x {:2.2f} x {:2.2f}'.format(*dxyz))
 
 See the documentation for the `Metadata retrieve API <http://www.openmicroscopy.org/site/support/bio-formats5.1/developers/cpp/tutorial.html>`_ for more details.
+
+Updating bioformats
+-------------------
+
+To update the version of bioformats you are using in pims:
+
+1. Find the version number for the latest bioformats release at: https://downloads.openmicroscopy.org/bio-formats/
+2. Run this pims command, replacing the version number with the one you want:
+
+.. code-block:: python
+
+    pims.bioformats.download_jar(version='6.4')
+
+Now you should be able to use pims with the updated bioformats version.
+
+Note: This pims command downloads a bioformats file named `loci_tools.jar`
+to your computer. There are a few possible locations where it might be stored.
+The precedence order is (highest priority first):
+
+1. pims package location
+2. PROGRAMDATA/pims/loci_tools.jar
+3. LOCALAPPDATA/pims/loci_tools.jar
+4. APPDATA/pims/loci_tools.jar
+5. /etc/loci_tools.jar
+6. ~/.config/pims/loci_tools.jar
+
+If you encounter problems updating to the latest version of bioformats,
+you may wish to manually remove `loci_tools.jar` from each of the six locations
+and re-run the `pims.bioformats.download_jar` command again.
