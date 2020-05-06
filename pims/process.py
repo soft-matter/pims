@@ -89,7 +89,7 @@ class crop(Pipeline):
         super(self.__class__, self).__init__(None, reader)
 
     def _get(self, key):
-        ar = self._ancestors[key]
+        ar = self._ancestors[0][key]
         return np.array(ar[self._crop_slices], order=self._crop_order,
                         copy=True)
 
