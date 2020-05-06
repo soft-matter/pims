@@ -7,7 +7,7 @@ The ``Bioformats`` reader interfaces with Bio-Formats, an open-source Java
 library for reading and writing multidimensional image data, especially from
 file formats used in microscopy.
 
-See the `list of supported formats <https://www.openmicroscopy.org/site/support/bio-formats5.1/supported-formats.html>`_.
+See the `list of supported formats <https://docs.openmicroscopy.org/bio-formats/6.5.0/supported-formats.html>`_.
 
 Dependencies
 ------------
@@ -15,7 +15,7 @@ To interface with the java library, we use
 `JPype <https://github.com/originell/jpype>`_, which allows fast and easy access
 to all java functions. JRE or JDK are not required.
 
-For `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ users,
+For `Anaconda <https://docs.continuum.io/anaconda/>`_ users,
 platforms, jpype is available via the ``conda-forge`` channel:
 
 .. code-block:: bash
@@ -79,7 +79,7 @@ keyword argument.
         print('\tShape: {} x {} x {}'.format(*shape))
         print('\tDxyz:  {:2.2f} x {:2.2f} x {:2.2f}'.format(*dxyz))
 
-See the documentation for the `Metadata retrieve API <http://www.openmicroscopy.org/site/support/bio-formats5.1/developers/cpp/tutorial.html>`_ for more details.
+See the documentation for the `Metadata retrieve API <https://www-legacy.openmicroscopy.org/site/support/bio-formats5.1/developers/cpp/tutorial.html>`_ for more details.
 
 Updating bioformats
 -------------------
@@ -91,7 +91,7 @@ To update the version of bioformats you are using in pims:
 
 .. code-block:: python
 
-    pims.bioformats.download_jar(version='6.4')
+    pims.bioformats.download_jar(version='6.5')
 
 Now you should be able to use pims with the updated bioformats version.
 
