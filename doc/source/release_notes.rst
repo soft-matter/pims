@@ -11,6 +11,7 @@ open files may need to be edited slightly -- see the first change listed below.
   Pipelines on how to convert videos. (see :doc:`pipelines`) (PR 250)
 - New built-in ``as_grey`` pipeline for convenient conversion to greyscale
   (PR 305)
+- New built-in ``crop`` pipeline for making a cropped sequence (PR 247)
 - Major speedup for random access in PyAVReaderIndexed (PR 340)
 - Bumped Bioformats version to 6.5.x (PR 301)
 - Added instructions for installing/updating Bioformats (PR 346)
