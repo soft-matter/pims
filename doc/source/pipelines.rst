@@ -34,6 +34,9 @@ underlying video data is only accessed one element at a time.
 Conversion to greyscale
 -----------------------
 
+.. note:: This supersedes the ``process_func`` and ``as_grey`` reader keyword
+ arguments starting from PIMS v0.4
+
 Say we want to convert an RGB video to greyscale. A pipeline to do this is
 already provided as ``pims.as_grey``, but it is also easy to make our own.
 We define a function as follows and decorate it with ``@pipeline`` to turn
@@ -41,9 +44,7 @@ it into a pipeline:
 
 .. code-block:: python
 
-   from slicerator import pipeline  # or: from pims import pipeline
-
-   @pipeline
+   @pims.pipeline
    def as_grey(frame):
        red = frame[:, :, 0]
        green = frame[:, :, 1]
@@ -75,20 +76,40 @@ This means that the modified video can be used exactly as you would use the
 original one. In most cases, it will look as though you are accessing
 a grayscale video file, even though the file on disk is still in color.
 Please keep in mind that these simple pipelines do not change the reader
-properties, such as ``video.frame_shape``. Propagating metadata properly through
+properties, such as ``video.frame_shape``.
+
+Propagating metadata properly through
 pipelines is partly implemented, but currently still experimental.
 For a detailed description of this tricky point, please consult
 `this <https://github.com/soft-matter/slicerator/pull/5#issuecomment-143560978>`_
 discussion on GitHub.
 
 
+Cropping
+--------
+
+Along with the built-in ``pims.as_grey`` pipeline that saves you from typing out
+the previous example, there's also a ``pims.process.crop`` pipeline that _does_ change
+``frame_shape``. This example removes 300 pixels from the left side of each image.
+
+.. ipython:: python
+   cropped_video = pims.process.crop(video, ((0, 0), (300, 0)) )
+   print('Original shape:', video.frame_shape)
+   print('Cropped shape:', cropped_video.frame_shape)
+   cropped_frame = cropped_video[0]  # now the cropping happens
+   print('Cropped frame:' cropped_frame.shape)
+
+Naturally, you can also chain pipelines together, as in
+
+.. code-block:: python
+
+   grey_cropped_video = pims.as_grey(cropped_video)
+
+
 Converting existing functions to a pipeline
 -------------------------------------------
 
-.. note:: This supersedes the ``process_func`` and ``as_grey`` reader keyword
- arguments starting from PIMS v0.4
-
-We are now going to do exactly the same greyscale conversion, but using an
+We are now going to do the same greyscale conversion as above, but using an
 existing function from ``skimage``:
 
 .. ipython:: python
