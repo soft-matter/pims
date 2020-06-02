@@ -94,6 +94,7 @@ change ``frame_shape``. This example removes 300 pixels from the left side of ea
 image:
 
 .. ipython:: python
+
    cropped_video = pims.process.crop(video, ((0, 0), (300, 0)) )
 
    print('Original shape:', video.frame_shape)
@@ -106,6 +107,7 @@ image:
 Naturally, you can also chain pipelines together, as in
 
 .. ipython:: python
+
    grey_cropped_video = pims.as_grey(cropped_video)
 
 
