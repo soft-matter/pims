@@ -7,8 +7,8 @@ Pipelines
    from pims.tests.test_common import save_dummy_png, clean_dummy_png
    filenames = ['img-{0}.png'.format(i) for i in range(9)]
    save_dummy_png('.', filenames, (256, 256, 3))
-   from pims import ImageSequence
-   video = ImageSequence('img-*.png')
+   import pims
+   video = pims.ImageSequence('img-*.png')
 
    def _as_grey(frame):
        red = frame[:, :, 0]
@@ -16,8 +16,7 @@ Pipelines
        blue = frame[:, :, 2]
        return 0.2125 * red + 0.7154 * green + 0.0721 * blue
 
-   from slicerator import pipeline
-   as_grey = pipeline(_as_grey)
+   as_grey = pims.pipeline(_as_grey)
 
 Videos loaded by pims (``FramesSequence`` objects) are like lists of numpy
 arrays. Unlike Python lists of arrays they are "lazy", they only load the data
@@ -31,11 +30,11 @@ so-called pipeline decorators from a sister project called ``slicerator``.
 A pipeline-decorated function is only evaluated when needed, so that the
 underlying video data is only accessed one element at a time.
 
-Conversion to greyscale
------------------------
-
 .. note:: This supersedes the ``process_func`` and ``as_grey`` reader keyword
  arguments starting from PIMS v0.4
+
+Conversion to greyscale
+-----------------------
 
 Say we want to convert an RGB video to greyscale. A pipeline to do this is
 already provided as :py:obj:`pims.as_grey`, but it is also easy to make our own.
@@ -90,25 +89,21 @@ Cropping
 
 Along with the built-in ``pims.as_grey`` pipeline that saves you from typing out
 the previous example, there's also a :py:obj:`pims.process.crop` pipeline that _does_
-change ``frame_shape``. This example removes 300 pixels from the left side of each
+change ``frame_shape``. This example takes the video we had converted to
+grayscale in the previous example, and removes 15 pixels from the left side of each
 image:
 
 .. ipython:: python
 
-   cropped_video = pims.process.crop(video, ((0, 0), (300, 0)) )
+   print(video.frame_shape)
 
-   print('Original shape:', video.frame_shape)
-   print('Cropped shape:', cropped_video.frame_shape)
+   # Because this is a color video, we need 3 pairs of cropping parameters
+   cropped_video = pims.process.crop(video, ((0, 0), (15, 0), (0, 0)) )
+   print(cropped_video.frame_shape)
 
    cropped_frame = cropped_video[0]  # now the cropping happens
+   print(cropped_frame.shape)
 
-   print('Cropped frame:' cropped_frame.shape)
-
-Naturally, you can also chain pipelines together, as in
-
-.. ipython:: python
-
-   grey_cropped_video = pims.as_grey(cropped_video)
 
 
 Converting existing functions to a pipeline
@@ -120,7 +115,7 @@ existing function from ``skimage``:
 .. ipython:: python
 
    from skimage.color import rgb2gray
-   rgb2gray_pipeline = pipeline(rgb2gray)
+   rgb2gray_pipeline = pims.pipeline(rgb2gray)
    processed_video = rgb2gray_pipeline(video)
    processed_frame = processed_video[0]
    print(processed_frame.shape)
@@ -140,7 +135,7 @@ unnamed lambda function in a single line:
 
 .. ipython:: python
 
-   processed_video = pipeline(lambda x: x.astype(np.float))(video)
+   processed_video = pims.pipeline(lambda x: x.astype(np.float))(video)
    processed_frame = processed_video[0]
    print(processed_frame.shape)
 
