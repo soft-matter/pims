@@ -38,7 +38,7 @@ Conversion to greyscale
  arguments starting from PIMS v0.4
 
 Say we want to convert an RGB video to greyscale. A pipeline to do this is
-already provided as ``pims.as_grey``, but it is also easy to make our own.
+already provided as :py:obj:`pims.as_grey`, but it is also easy to make our own.
 We define a function as follows and decorate it with ``@pipeline`` to turn
 it into a pipeline:
 
@@ -89,20 +89,23 @@ Cropping
 --------
 
 Along with the built-in ``pims.as_grey`` pipeline that saves you from typing out
-the previous example, there's also a ``pims.process.crop`` pipeline that _does_ change
-``frame_shape``. This example removes 300 pixels from the left side of each image.
+the previous example, there's also a :py:obj:`pims.process.crop` pipeline that _does_
+change ``frame_shape``. This example removes 300 pixels from the left side of each
+image:
 
 .. ipython:: python
    cropped_video = pims.process.crop(video, ((0, 0), (300, 0)) )
+
    print('Original shape:', video.frame_shape)
    print('Cropped shape:', cropped_video.frame_shape)
+
    cropped_frame = cropped_video[0]  # now the cropping happens
+
    print('Cropped frame:' cropped_frame.shape)
 
 Naturally, you can also chain pipelines together, as in
 
-.. code-block:: python
-
+.. ipython:: python
    grey_cropped_video = pims.as_grey(cropped_video)
 
 
