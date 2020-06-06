@@ -75,3 +75,11 @@ create more sliceable, iterable objects.
    :suppress:
 
    clean_dummy_png('.', filenames)
+
+Slicing in Space
+----------------
+
+It's easy to make a sequence with all images cropped using the
+:py:class:`pims.process.crop` pipeline, or to make a sequence with any sort of
+slicing by creating a new pipeline. See the `doc:pipelines` documentation
+for details.

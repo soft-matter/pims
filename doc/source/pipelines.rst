@@ -7,8 +7,8 @@ Pipelines
    from pims.tests.test_common import save_dummy_png, clean_dummy_png
    filenames = ['img-{0}.png'.format(i) for i in range(9)]
    save_dummy_png('.', filenames, (256, 256, 3))
-   from pims import ImageSequence
-   video = ImageSequence('img-*.png')
+   import pims
+   video = pims.ImageSequence('img-*.png')
 
    def _as_grey(frame):
        red = frame[:, :, 0]
@@ -16,8 +16,7 @@ Pipelines
        blue = frame[:, :, 2]
        return 0.2125 * red + 0.7154 * green + 0.0721 * blue
 
-   from slicerator import pipeline
-   as_grey = pipeline(_as_grey)
+   as_grey = pims.pipeline(_as_grey)
 
 Videos loaded by pims (``FramesSequence`` objects) are like lists of numpy
 arrays. Unlike Python lists of arrays they are "lazy", they only load the data
@@ -31,19 +30,20 @@ so-called pipeline decorators from a sister project called ``slicerator``.
 A pipeline-decorated function is only evaluated when needed, so that the
 underlying video data is only accessed one element at a time.
 
+.. note:: This supersedes the ``process_func`` and ``as_grey`` reader keyword
+ arguments starting from PIMS v0.4
+
 Conversion to greyscale
 -----------------------
 
 Say we want to convert an RGB video to greyscale. A pipeline to do this is
-already provided as ``pims.as_grey``, but it is also easy to make our own.
+already provided as :py:obj:`pims.as_grey`, but it is also easy to make our own.
 We define a function as follows and decorate it with ``@pipeline`` to turn
 it into a pipeline:
 
 .. code-block:: python
 
-   from slicerator import pipeline  # or: from pims import pipeline
-
-   @pipeline
+   @pims.pipeline
    def as_grey(frame):
        red = frame[:, :, 0]
        green = frame[:, :, 1]
@@ -75,26 +75,47 @@ This means that the modified video can be used exactly as you would use the
 original one. In most cases, it will look as though you are accessing
 a grayscale video file, even though the file on disk is still in color.
 Please keep in mind that these simple pipelines do not change the reader
-properties, such as ``video.frame_shape``. Propagating metadata properly through
+properties, such as ``video.frame_shape``.
+
+Propagating metadata properly through
 pipelines is partly implemented, but currently still experimental.
 For a detailed description of this tricky point, please consult
 `this <https://github.com/soft-matter/slicerator/pull/5#issuecomment-143560978>`_
 discussion on GitHub.
 
 
+Cropping
+--------
+
+Along with the built-in ``pims.as_grey`` pipeline that saves you from typing out
+the previous example, there's also a :py:obj:`pims.process.crop` pipeline that _does_
+change ``frame_shape``. This example takes the video we had converted to
+grayscale in the previous example, and removes 15 pixels from the left side of each
+image:
+
+.. ipython:: python
+
+   print(video.frame_shape)
+
+   # Because this is a color video, we need 3 pairs of cropping parameters
+   cropped_video = pims.process.crop(video, ((0, 0), (15, 0), (0, 0)) )
+   print(cropped_video.frame_shape)
+
+   cropped_frame = cropped_video[0]  # now the cropping happens
+   print(cropped_frame.shape)
+
+
+
 Converting existing functions to a pipeline
 -------------------------------------------
 
-.. note:: This supersedes the ``process_func`` and ``as_grey`` reader keyword
- arguments starting from PIMS v0.4
-
-We are now going to do exactly the same greyscale conversion, but using an
+We are now going to do the same greyscale conversion as above, but using an
 existing function from ``skimage``:
 
 .. ipython:: python
 
    from skimage.color import rgb2gray
-   rgb2gray_pipeline = pipeline(rgb2gray)
+   rgb2gray_pipeline = pims.pipeline(rgb2gray)
    processed_video = rgb2gray_pipeline(video)
    processed_frame = processed_video[0]
    print(processed_frame.shape)
@@ -114,7 +135,7 @@ unnamed lambda function in a single line:
 
 .. ipython:: python
 
-   processed_video = pipeline(lambda x: x.astype(np.float))(video)
+   processed_video = pims.pipeline(lambda x: x.astype(np.float))(video)
    processed_frame = processed_video[0]
    print(processed_frame.shape)
 
