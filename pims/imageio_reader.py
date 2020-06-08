@@ -11,7 +11,10 @@ try:
     import imageio
     # from imageio 2.5, imageio_ffmpeg is needed as well
     if LooseVersion(imageio.__version__) >= LooseVersion("2.5.0"):
-        import imageio_ffmpeg
+        try:
+            import imageio_ffmpeg
+        except ImportError:
+            imageioffmpeg = None
 except ImportError:
     imageio = None
 
@@ -28,13 +31,24 @@ class ImageIOReader(FramesSequenceND):
 
     @classmethod
     def class_exts(cls):
-        return {'tiff', 'bmp', 'cut', 'dds', 'exr', 'g3', 'hdr', 'iff', 'j2k',
+        exts = {'tiff', 'bmp', 'cut', 'dds', 'exr', 'g3', 'hdr', 'iff', 'j2k',
                 'jng', 'jp2', 'jpeg', 'jpg', 'koala', 'pbm', 'pbmraw', 'pcd',
                 'pcx', 'pfm', 'pgm', 'pgmraw', 'pict', 'png', 'ppm', 'ppmraw',
                 'psd', 'ras', 'raw', 'sgi', 'targa', 'fi_tiff', 'wbmp', 'webp',
                 'xbm', 'xpm', 'ico', 'gif', 'dicom', 'npz', 'fits', 'itk',
                 'gdal', 'dummy', 'gif', 'ffmpeg', 'avbin', 'swf', 'fits',
-                'gdal', 'mov', 'mp4', 'avi', 'mpeg', 'wmv', 'mkv', 'ts', 'tif'}
+                'gdal', 'ts', 'tif'}
+        return exts.union(cls.additional_class_exts())
+
+    @classmethod
+    def additional_class_exts(cls):
+        """If imageio-ffmpeg is available, more filetypes are supported."""
+        movie_exts = {}
+        if imageioffmpeg is not None:
+            movie_exts = movie_exts.union(
+                {'mov', 'avi', 'mpg', 'mpeg', 'mp4', 'mkv', 'wmv'}
+            )
+        return movie_exts
 
     def __init__(self, filename, **kwargs):
         if imageio is None:
