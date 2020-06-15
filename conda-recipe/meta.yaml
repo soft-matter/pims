@@ -15,7 +15,7 @@ requirements:
     - setuptools
     - six
     - numpy
-    - scikit-image  # one of { scikit-image | matplotlib | scipy }
+    - scikit-image  # one of { scikit-image | matplotlib }
     - tifffile
 
   run:
@@ -23,7 +23,7 @@ requirements:
     - slicerator >=0.9.3
     - six >=1.8
     - numpy >=1.7
-    - scikit-image  # one of { scikit-image | matplotlib | scipy }
+    - scikit-image  # one of { scikit-image | matplotlib }
     - tifffile >=0.3.1
     - pillow  # optional, but necessary for ipython rich display
     - pyav # [unix]

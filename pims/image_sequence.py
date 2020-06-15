@@ -29,10 +29,7 @@ except ImportError:
     try:
         from matplotlib.pyplot import imread
     except ImportError:
-        try:
-            from scipy.ndimage import imread
-        except:
-            imread = None
+        imread = None
 
 
 class ImageSequence(FramesSequence):
@@ -75,8 +72,7 @@ class ImageSequence(FramesSequence):
             if plugin is not None:
                 warn("A plugin was specified but ignored. Plugins can only "
                      "be specified if scikit-image is available. Instead, "
-                     "ImageSequence will try using matplotlib and scipy "
-                     "in that order.")
+                     "ImageSequence will try using matplotlib")
             self.kwargs = dict()
         else:
             self.kwargs = dict(plugin=plugin)
@@ -101,7 +97,7 @@ class ImageSequence(FramesSequence):
         if imread is None:
             raise ImportError("One of the following packages are required for "
                               "using the ImageSequence reader: "
-                              "scipy, matplotlib or scikit-image.")
+                              "scikit-image or matplotlib.")
         if self._is_zipfile:
             file_handle = BytesIO(self._zipfile.read(filename))
             return imread(file_handle, **kwargs)

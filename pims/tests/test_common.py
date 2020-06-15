@@ -51,7 +51,7 @@ def _skip_if_no_tifffile():
 
 def _skip_if_no_imread():
     if pims.image_sequence.imread is None:
-        raise nose.SkipTest('ImageSequence requires either scipy, matplotlib or'
+        raise nose.SkipTest('ImageSequence requires either matplotlib or'
                             ' scikit-image. Skipping.')
 
 
