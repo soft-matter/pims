@@ -20,6 +20,7 @@ open files may need to be edited slightly -- see the first change listed below.
 - Added multidimensional capabilities to ImageIOReader
   (see :doc:`multidimensional`) (PR 320)
 - Added support for nd2reader as alternative reader for Nikon nd2 files (PR 272)
+- Removed fallback to scipy.misc.imread, which was removed from scipy (PR 359)
 - Fixed compatibility with PyAV 0.4.0 and newer (PR 300)
 - Fixed compatibility and bugs in PyAV export (PR 283, PR 313)
 - Fixed opening of PyAV videos with audio (PR 322)
