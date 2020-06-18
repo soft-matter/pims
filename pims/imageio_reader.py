@@ -41,7 +41,7 @@ class ImageIOReader(FramesSequenceND):
     @classmethod
     def additional_class_exts(cls):
         """If imageio-ffmpeg is available, more filetypes are supported."""
-        movie_exts = {}
+        movie_exts = set()
         if imageio_ffmpeg is not None:
             movie_exts = movie_exts.union(
                 {'mov', 'avi', 'mpg', 'mpeg', 'mp4', 'mkv', 'wmv'}
