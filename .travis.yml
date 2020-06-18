@@ -10,6 +10,8 @@ matrix:
     - python: "3.6"
       env: DEPS="numpy slicerator tifffile" BUILD_DOCS=false
     - python: "3.6"
+      env: DEPS="numpy slicerator tifffile imageio" BUILD_DOCS=false
+    - python: "3.6"
       env: DEPS="numpy slicerator scipy pillow matplotlib scikit-image jinja2 av tifffile libtiff jpype1 ipython sphinx sphinx_rtd_theme numpydoc moviepy imageio imageio-ffmpeg" BUILD_DOCS=true
 
 install:
