@@ -10,8 +10,8 @@ except IOError:
     descr = ''
 
 try:
-    from pypandoc import convert
-    descr = convert(descr, 'rst', format='md')
+    from pypandoc import convert_text
+    descr = convert_text(descr, 'rst', format='md')
 except ImportError:
     pass
 
