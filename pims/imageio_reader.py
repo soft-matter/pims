@@ -13,8 +13,9 @@ try:
     if LooseVersion(imageio.__version__) >= LooseVersion("2.5.0"):
         try:
             import imageio_ffmpeg
+            imageio_ffmpeg_installed = True
         except ImportError:
-            imageioffmpeg = None
+            imageio_ffmpeg_installed = False
 except ImportError:
     imageio = None
 
@@ -44,7 +45,7 @@ class ImageIOReader(FramesSequenceND):
     def additional_class_exts(cls):
         """If imageio-ffmpeg is available, more filetypes are supported."""
         movie_exts = {}
-        if imageioffmpeg is not None:
+        if imageio_ffmpeg_installed:
             movie_exts = movie_exts.union(
                 {'mov', 'avi', 'mpg', 'mpeg', 'mp4', 'mkv', 'wmv'}
             )
