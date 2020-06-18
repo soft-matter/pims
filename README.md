@@ -24,12 +24,11 @@ Formats readable by pims include:
 PIMS is based on readers by:
 * [scikit-image](http://scikit-image.org/)
 * [matplotlib](http://matplotlib.org/)
-* [scipy](http://www.scipy.org/)
 * [ffmpeg](https://www.ffmpeg.org/) and [PyAV](http://mikeboers.github.io/PyAV/) (video formats such as AVI, MOV)
 * [jpype](http://jpype.readthedocs.org/en/latest/) (interface with Bio-formats)
 * [Pillow](http://pillow.readthedocs.org/en/latest/) (improved TIFF support)
 * [libtiff](https://code.google.com/p/pylibtiff/) (alternative TIFF support)
-* [tifffile](http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html) (alterative TIFF support)
+* [tifffile](https://pypi.org/project/tifffile/) (alterative TIFF support)
 * [pims_nd2](https://github.com/soft-matter/pims_nd2) (improved Nikon .nd2 support)
 * [imageio](https://imageio.github.io) (a multi-purpose reader package that
    reads and writes many formats)

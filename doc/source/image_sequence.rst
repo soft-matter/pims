@@ -42,6 +42,5 @@ the following** packages, in order of decreasing preference.
 
 * `scikit-image <http://scikit-image.org/>`_
 * `matplotlib <http://matplotlib.org/>`_
-* `scipy <http://www.scipy.org/>`_
 
 Scikit-image is installed with the PIMS conda package.
