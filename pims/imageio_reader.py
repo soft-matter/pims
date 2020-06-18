@@ -9,15 +9,12 @@ from pims.frame import Frame
 
 try:
     import imageio
-    # from imageio 2.5, imageio_ffmpeg is needed as well
-    if LooseVersion(imageio.__version__) >= LooseVersion("2.5.0"):
-        try:
-            import imageio_ffmpeg
-            imageio_ffmpeg_installed = True
-        except ImportError:
-            imageio_ffmpeg_installed = False
 except ImportError:
     imageio = None
+try:
+    import imageio_ffmpeg
+except ImportError:
+    imageio_ffmpeg = None
 
 
 def available():
@@ -45,7 +42,7 @@ class ImageIOReader(FramesSequenceND):
     def additional_class_exts(cls):
         """If imageio-ffmpeg is available, more filetypes are supported."""
         movie_exts = {}
-        if imageio_ffmpeg_installed:
+        if imageio_ffmpeg is not None:
             movie_exts = movie_exts.union(
                 {'mov', 'avi', 'mpg', 'mpeg', 'mp4', 'mkv', 'wmv'}
             )
