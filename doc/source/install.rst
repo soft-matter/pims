@@ -12,7 +12,6 @@ For basic image reading one of the following is required:
 
 * `scikit-image <http://scikit-image.org/>`_
 * `matplotlib <http://matplotlib.org/>`_
-* `scipy <http://www.scipy.org/>`_
 
 For ipython display of images the following are required:
 
