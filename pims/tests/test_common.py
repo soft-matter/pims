@@ -585,6 +585,7 @@ class TestOpenFiles(unittest.TestCase):
         clean_dummy_png(path, self.filenames)
 
     def test_open_pngs(self):
+        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
