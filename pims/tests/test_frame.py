@@ -15,6 +15,13 @@ def _skip_if_no_PIL():
         raise nose.SkipTest('PIL/Pillow not installed. Skipping.')
 
 
+def _skip_if_no_jinja2():
+    try:
+        import jinja2
+    except ImportError:
+        raise nose.SkipTest('Jinja2 not installed. Skipping.')
+
+
 def test_scalar_casting():
     tt = Frame(np.ones((5, 3)), frame_no=42)
     sum1 = tt.sum()
@@ -34,6 +41,7 @@ def test_creation_md():
 
 def test_repr_html_():
     _skip_if_no_PIL()
+    _skip_if_no_jinja2()
     # This confims a bugfix, where 16-bit images would raise
     # an error.
     Frame(10000*np.ones((50, 50), dtype=np.uint16))._repr_html_()
