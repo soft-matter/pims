@@ -31,10 +31,10 @@ def _skip_if_no_MoviePy():
         raise nose.SkipTest('MoviePy not found. Skipping.')
 
 
-def _skip_if_no_ImageIO():
+def _skip_if_no_ImageIO_ffmpeg():
     import pims.imageio_reader
-    if not pims.imageio_reader.available():
-        raise nose.SkipTest('ImageIO not found. Skipping.')
+    if not pims.imageio_reader.ffmpeg_available():
+        raise nose.SkipTest('ImageIO and ffmpeg not found. Skipping.')
 
 
 def _skip_if_no_libtiff():
@@ -449,10 +449,10 @@ class TestVideo_PyAV_indexed(_image_series, unittest.TestCase):
 
 class TestVideo_ImageIO(_image_series, unittest.TestCase):
     def check_skip(self):
-        _skip_if_no_ImageIO()
+        _skip_if_no_ImageIO_ffmpeg()
 
     def setUp(self):
-        _skip_if_no_ImageIO()
+        _skip_if_no_ImageIO_ffmpeg()
         self.filename = os.path.join(path, 'bulk-water.mov')
         self.frame0 = np.load(os.path.join(path, 'bulk-water_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'bulk-water_frame1.npy'))

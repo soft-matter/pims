@@ -21,6 +21,10 @@ def available():
     return imageio is not None
 
 
+def ffmpeg_available():
+    return (imageio is not None) and (imageio_ffmpeg is not None)
+
+
 class ImageIOReader(FramesSequenceND):
     class_priority = 6
 
