@@ -54,7 +54,8 @@ try:
     if pims.imageio_reader.available():
         ImageIOReader = pims.imageio_reader.ImageIOReader
         if Video is None:
-            Video = ImageIOReader
+            if pims.imageio_reader.ffmpeg_available():
+                Video = ImageIOReader
     else:
         raise ImportError()
 except (ImportError, IOError):
