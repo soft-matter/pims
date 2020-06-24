@@ -22,10 +22,7 @@ except ImportError:
 try:
     import tifffile
 except ImportError:
-    try:
-        from skimage.external import tifffile
-    except ImportError:
-        tifffile = None
+    tifffile = None
 
 
 def libtiff_available():
