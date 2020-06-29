@@ -29,7 +29,10 @@ except ImportError:
     try:
         from matplotlib.pyplot import imread
     except ImportError:
-        imread = None
+        try:
+            from imageio import imread
+        except ImportError:
+            imread = None
 
 
 class ImageSequence(FramesSequence):
