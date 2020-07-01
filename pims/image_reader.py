@@ -25,7 +25,10 @@ except ImportError:
                  "in your script.)")
         warnings.warn(RuntimeWarning(ski_preferred))
     except ImportError:
-        imread = None
+        try:
+            from imageio import imread
+        except ImportError:
+            imread = None
 
 
 class ImageReader(FramesSequence):
