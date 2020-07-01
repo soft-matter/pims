@@ -62,6 +62,17 @@ def _skip_if_no_skimage():
         raise nose.SkipTest('skimage not installed. Skipping.')
 
 
+def _skip_if_no_skimage_or_matplotlib():
+    try:
+        import skimage
+    except ImportError:
+        try:
+            import matplotlib
+        except ImportError:
+            raise nose.SkipTest('Test requires either matplotlib or'
+                                ' scikit-image. Skipping.')
+
+
 def _skip_if_no_PIL():
     import pims.tiff_stack
     if not pims.tiff_stack.PIL_available():
