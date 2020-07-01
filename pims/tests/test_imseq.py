@@ -13,7 +13,8 @@ import pims
 
 from pims.tests.test_common import (_image_series,
                                     clean_dummy_png, save_dummy_png,
-                                    _skip_if_no_skimage, _skip_if_no_imread)
+                                    _skip_if_no_skimage, _skip_if_no_imread,
+                                    _skip_if_no_skimage_or_matplotlib)
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -107,7 +108,7 @@ class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
 
 class TestImageSequenceNaturalSorting(_image_series, unittest.TestCase):
     def setUp(self):
-        _skip_if_no_imread()
+        _skip_if_no_skimage_or_matplotlib()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F1.png', 'T76S3F20.png',
                           'T76S3F3.png', 'T76S3F4.png',
