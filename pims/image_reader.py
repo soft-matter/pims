@@ -12,21 +12,22 @@ try:
     from skimage.io import imread
 except ImportError:
     try:
-        from matplotlib.pyplot import imread
-        # imread() works differently between scikit-image and matplotlib.
-        # We don't require users to have scikit-image, 
-        # but if we fall back to matplotlib, make sure the user 
-        # is aware of the consequences.
-        ski_preferred = ("PIMS image_reader.py could not find scikit-image. "
-                 "Falling back to matplotlib's imread(), which uses floats "
-                 "instead of integers. This may break your scripts. \n"
-                 "(To ignore this warning, include the line "
-                 '"warnings.simplefilter("ignore", RuntimeWarning)" '
-                 "in your script.)")
-        warnings.warn(RuntimeWarning(ski_preferred))
+        from imageio import imread
     except ImportError:
         try:
-            from imageio import imread
+            from matplotlib.pyplot import imread
+            # imread() works differently between scikit-image and matplotlib.
+            # We don't require users to have scikit-image,
+            # but if we fall back to matplotlib, make sure the user
+            # is aware of the consequences.
+            ski_preferred = ("PIMS image_reader.py could not find either "
+                    "scikit-image or imageio installed. "
+                    "Falling back to matplotlib's imread(), which uses floats "
+                    "instead of integers. This may break your scripts. \n"
+                    "(To ignore this warning, include the line "
+                    '"warnings.simplefilter("ignore", RuntimeWarning)" '
+                    "in your script.)")
+            warnings.warn(RuntimeWarning(ski_preferred))
         except ImportError:
             imread = None
 

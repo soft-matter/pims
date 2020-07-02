@@ -27,10 +27,10 @@ try:
     has_skimage = True
 except ImportError:
     try:
-        from matplotlib.pyplot import imread
+        from imageio import imread
     except ImportError:
         try:
-            from imageio import imread
+            from matplotlib.pyplot import imread
         except ImportError:
             imread = None
 
