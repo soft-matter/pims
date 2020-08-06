@@ -90,7 +90,7 @@ class FramesSequence(FramesStream):
     Must be finite length.
 
     """
-    propagate_attrs = ['frame_shape', 'pixel_type']
+    propagate_attrs = ['frame_shape', 'pixel_type', 'frame_no']
 
     def __getitem__(self, key):
         """__getitem__ is handled by Slicerator. In all pims readers, the data
