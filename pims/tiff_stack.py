@@ -1,7 +1,10 @@
 import os
 from datetime import datetime
 import itertools
+import warnings
+
 import numpy as np
+
 from pims.frame import Frame
 
 try:
@@ -143,8 +146,10 @@ class TiffStack_tifffile(FramesSequence):
             if key == 'DateTime':
                 try:
                     md[key] = _tiff_datetime(md[key])
-                except Exception:
-                    pass
+                except ValueError:
+                    warnings.warn(
+                        "DateTime tiff tag could not be parsed correctly:" + \
+                        str(md[key]))
         return md
 
     @property
