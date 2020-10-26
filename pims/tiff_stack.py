@@ -141,7 +141,10 @@ class TiffStack_tifffile(FramesSequence):
             except UnicodeDecodeError:
                 md[key] = ''
             if key == 'DateTime':
-                md[key] = _tiff_datetime(md[key])
+                try:
+                    md[key] = _tiff_datetime(md[key])
+                except Exception:
+                    pass
         return md
 
     @property
