@@ -11,7 +11,7 @@ PyAV (fastest)
 --------------
 
 
-`PyAV <http://mikeboers.github.io/PyAV/>`_ can be installed via Anaconda, as follows:
+`PyAV <https://github.com/PyAV-Org/PyAV>`_ can be installed via Anaconda, as follows:
 
 .. code-block:: bash
 
@@ -19,7 +19,7 @@ PyAV (fastest)
 
 Non-anaconda users will have to compile PyAV themselves, which is complicated,
 especially on Windows. For this we refer the
-users to the `PyAV documentation <https://mikeboers.github.io/PyAV/>`_.
+users to the `PyAV documentation <https://pyav.org/docs/>`_.
 
 There are two ways PIMS provides random access to video files, which is not
 something that video formats natively support:
