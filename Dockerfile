@@ -15,6 +15,8 @@ USER pims
 # Set up the initial conda environment
 COPY --chown=pims:pims environment.yml /src/environment.yml
 WORKDIR /src
+RUN conda config --prepend envs_dirs $HOME/.conda/envs
+RUN conda config --prepend pkgs_dirs $HOME/.conda/pkgs
 RUN conda env create -f environment.yml \
     && conda clean -tipsy
 
