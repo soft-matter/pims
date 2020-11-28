@@ -361,7 +361,7 @@ class BioformatsReader(FramesSequenceND):
         # patch for issue with ND2 files and the Chunkmap implemented in 5.4.0
         # See https://github.com/openmicroscopy/bioformats/issues/2955
         # circumventing the reserved keyword 'in'
-        mo = getattr(loci.formats, 'in').DynamicMetadataOptions()
+        mo = getattr(loci.formats, 'in_').DynamicMetadataOptions()
         mo.set('nativend2.chunkmap', 'False')  # Format Bool as String
         self.rdr.setMetadataOptions(mo)
 
