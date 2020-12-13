@@ -13,6 +13,10 @@ except ImportError:
     imageio = None
 try:
     import imageio_ffmpeg
+    try:
+        imageio_ffmpeg.get_ffmpeg_exe()
+    except RuntimeError:
+        imageio_ffmpeg = None
 except ImportError:
     imageio_ffmpeg = None
 
