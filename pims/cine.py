@@ -26,7 +26,7 @@ import datetime
 import hashlib
 import sys
 import warnings
-from collections import Iterable
+from collections.abc import Iterable
 
 __all__ = ('Cine', )
 
