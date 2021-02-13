@@ -216,7 +216,7 @@ class FFmpegVideoReader(FramesSequence):
         self.data_buffer.seek(self._stride*j)
         s = self.data_buffer.read(self._stride)
         w, h = self._size
-        result = np.fromstring(s,
+        result = np.frombuffer(s,
             dtype='uint8').reshape((h, w, self.depth))
         return Frame(result, frame_no=j)
 

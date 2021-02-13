@@ -73,7 +73,7 @@ class crop(Pipeline):
         # We have to know the frame shape that is returned by the reader.
         try:  # In case the reader is a FramesSequence, there is an attribute
             shape = reader.frame_shape
-            first_frame = np.empty(shape, dtype=np.bool)
+            first_frame = np.empty(shape, dtype=bool)
         except AttributeError:
             first_frame = reader[0]
             shape = first_frame.shape

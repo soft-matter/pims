@@ -17,7 +17,7 @@ class RandomReader(FramesSequence):
         self._dtype = dtype
         self._shape = shape
         data_shape = (length,) + shape
-        if np.issubdtype(self._dtype, np.float):
+        if np.issubdtype(self._dtype, float):
             self._data = np.random.random(data_shape).astype(self._dtype)
         else:
             self._data = np.random.randint(0, np.iinfo(self._dtype).max,

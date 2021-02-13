@@ -135,7 +135,7 @@ unnamed lambda function in a single line:
 
 .. ipython:: python
 
-   processed_video = pims.pipeline(lambda x: x.astype(np.float))(video)
+   processed_video = pims.pipeline(lambda x: x.astype(float))(video)
    processed_frame = processed_video[0]
    print(processed_frame.shape)
 

@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-from numpy.testing.utils import assert_array_equal
+from numpy.testing import assert_array_equal
 from pims.image_sequence import customize_image_sequence
 
 

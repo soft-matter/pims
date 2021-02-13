@@ -38,7 +38,7 @@ class _common_norpix_sample_tests(object):
         hashes = set()  # Check that each frame is unique
         for i in range(len(s)):
             fr = s[i]
-            fhash = hash(np.array(fr).tostring())
+            fhash = hash(np.array(fr).tobytes())
             assert fhash not in hashes
             hashes.add(fhash)
 

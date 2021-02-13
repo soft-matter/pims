@@ -716,7 +716,7 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
             fig.savefig(buf, format='rgba', dpi=dpi)
             buf.seek(0)
             buf_shape = (int(height_in * dpi), int(width_in * dpi), 4)
-            image = np.fromstring(buf.read(),
+            image = np.frombuffer(buf.read(),
                                   dtype='uint8').reshape(*buf_shape)
 
     if close_fig:
