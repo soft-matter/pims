@@ -9,10 +9,8 @@ import random
 import types
 import unittest
 import pickle
-import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
-from nose.tools import assert_true
 import pims
 
 path, _ = os.path.split(os.path.abspath(__file__))
@@ -22,50 +20,50 @@ path = os.path.join(path, 'data')
 def _skip_if_no_PyAV():
     import pims.pyav_reader
     if not pims.pyav_reader.available():
-        raise nose.SkipTest('PyAV not found. Skipping.')
+        raise unittest.SkipTest('PyAV not found. Skipping.')
 
 
 def _skip_if_no_MoviePy():
     import pims.moviepy_reader
     if not pims.moviepy_reader.available():
-        raise nose.SkipTest('MoviePy not found. Skipping.')
+        raise unittest.SkipTest('MoviePy not found. Skipping.')
 
 
 def _skip_if_no_ImageIO_ffmpeg():
     import pims.imageio_reader
     if not pims.imageio_reader.ffmpeg_available():
-        raise nose.SkipTest('ImageIO and ffmpeg not found. Skipping.')
+        raise unittest.SkipTest('ImageIO and ffmpeg not found. Skipping.')
 
 
 def _skip_if_no_libtiff():
     import pims.tiff_stack
     if not pims.tiff_stack.libtiff_available():
-        raise nose.SkipTest('libtiff not installed. Skipping.')
+        raise unittest.SkipTest('libtiff not installed. Skipping.')
 
 
 def _skip_if_no_tifffile():
     import pims.tiff_stack
     if not pims.tiff_stack.tifffile_available():
-        raise nose.SkipTest('tifffile not installed. Skipping.')
+        raise unittest.SkipTest('tifffile not installed. Skipping.')
 
 
 def _skip_if_no_imread():
     if pims.image_sequence.imread is None:
-        raise nose.SkipTest('ImageSequence requires either matplotlib or'
-                            ' scikit-image. Skipping.')
+        raise unittest.SkipTest('ImageSequence requires either matplotlib or'
+                                ' scikit-image. Skipping.')
 
 
 def _skip_if_no_skimage():
     try:
         import skimage
     except ImportError:
-        raise nose.SkipTest('skimage not installed. Skipping.')
+        raise unittest.SkipTest('skimage not installed. Skipping.')
 
 
 def _skip_if_no_PIL():
     import pims.tiff_stack
     if not pims.tiff_stack.PIL_available():
-        raise nose.SkipTest('PIL/Pillow not installed. Skipping.')
+        raise unittest.SkipTest('PIL/Pillow not installed. Skipping.')
 
 
 def assert_image_equal(actual, expected):
@@ -254,7 +252,7 @@ class TestRecursiveSlicing(unittest.TestCase):
         compare_slice_to_list(slice1, list('bcdefghij'))
         slice2 = slice1[(i for i in range(2,5))]
         assert_letters_equal(slice2, list('def'))
-        assert_true(isinstance(slice2, types.GeneratorType))
+        self.assertTrue(isinstance(slice2, types.GeneratorType))
 
 def _rescale(img):
     return (img - img.min()) / img.ptp()
@@ -604,5 +602,4 @@ class TestOpenFiles(unittest.TestCase):
         pims.open(os.path.join(path, 'stuck.tif'))
 
 if __name__ == '__main__':
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    unittest.main()

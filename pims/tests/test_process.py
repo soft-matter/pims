@@ -5,7 +5,6 @@ import six
 
 import os
 import unittest
-import nose
 import numpy as np
 from numpy.testing import assert_equal
 from pims import FramesSequence, Frame

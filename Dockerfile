@@ -5,7 +5,7 @@
 ##
 ##    docker build -t pims .
 ##    docker run -ti --rm pims
-##    nosetests --nologcapture
+##    python -munittest
 ##
 
 FROM continuumio/miniconda3
