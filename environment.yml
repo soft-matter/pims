@@ -20,5 +20,4 @@ dependencies:
 - moviepy
 - imageio
 - imageio-ffmpeg
-- nose
 - openjdk

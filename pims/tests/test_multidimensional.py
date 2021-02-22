@@ -4,8 +4,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 import unittest
-import nose
-from nose.tools import assert_raises
 from itertools import chain, permutations
 import numpy as np
 from numpy.testing import assert_equal
@@ -126,11 +124,11 @@ class TestMultidimensional(unittest.TestCase):
         a = dict(self.v.default_coords)
         a['non_existing'] = 0
         # but assigning it again raises
-        with assert_raises(ValueError) as cm:
+        with self.assertRaises(ValueError) as cm:
             self.v.default_coords = a
 
         # changing an nonexisting item should raise
-        with assert_raises(ValueError) as cm:
+        with self.assertRaises(ValueError) as cm:
             self.v.default_coords['non_existing'] = 0
 
 
@@ -184,5 +182,4 @@ class TestFramesSequenceND(unittest.TestCase):
             assert_equal(reader[0].shape, [sizes[k] for k in bundle])
 
 if __name__ == '__main__':
-    nose.runmodule(argv=[__file__, '-vvs', '-x', '--pdb', '--pdb-failure'],
-                   exit=False)
+    unittest.main()

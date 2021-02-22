@@ -3,7 +3,6 @@
 import os
 from datetime import datetime
 import unittest
-import nose
 import numpy as np
 import pims
 import pims.cine
@@ -33,8 +32,8 @@ class test_legacy_cine_sample(_common_cine_sample_tests, unittest.TestCase):
         self.sample_filename = os.path.join(tests_path, 'data',
                                             'cine_legacy.cine')
         if not os.path.exists(self.sample_filename):
-            raise nose.SkipTest('Legacy sample cine file not found. '
-                                'Skipping.')
+            raise unittest.SkipTest('Legacy sample cine file not found. '
+                                    'Skipping.')
 
         self.options = {}
         super(test_legacy_cine_sample, self).setUp()
@@ -51,8 +50,8 @@ class test_new_cine_sample(_common_cine_sample_tests, unittest.TestCase):
         self.sample_filename = os.path.join(tests_path, 'data',
                                             'cine_781.cine')
         if not os.path.exists(self.sample_filename):
-            raise nose.SkipTest('Newer sample cine file not found. '
-                                'Skipping.')
+            raise unittest.SkipTest('Newer sample cine file not found. '
+                                    'Skipping.')
         self.options = {}
         super(test_new_cine_sample, self).setUp()
 

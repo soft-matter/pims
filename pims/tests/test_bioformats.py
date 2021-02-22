@@ -8,7 +8,6 @@ import six
 
 import os
 import unittest
-import nose
 import numpy as np
 from numpy.testing import (assert_equal, assert_almost_equal, assert_allclose)
 
@@ -20,7 +19,7 @@ path = os.path.join(path, 'data')
 
 def _skip_if_no_bioformats():
     if not pims.bioformats.available():
-        raise nose.SkipTest('JPype is not installed. Skipping.')
+        raise unittest.SkipTest('JPype is not installed. Skipping.')
 
 
 def assert_image_equal(actual, expected):
@@ -187,7 +186,7 @@ class TestBioformatsMOV(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'wtembryo.mov')
@@ -212,7 +211,7 @@ class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel,
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'mitosis-test.ipw')
@@ -236,7 +235,7 @@ class TestBioformatsDM3(_image_single, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'dnasample1.dm3')
@@ -259,7 +258,7 @@ class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel,
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', '2chZT.lsm')
@@ -284,7 +283,7 @@ class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel,
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'MF-2CH-Z-T.tif')
@@ -309,7 +308,7 @@ class TestBioformatsOlympusTiff(_image_series, _image_stack, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', '10-31 E1.tif')
@@ -337,7 +336,7 @@ class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'mouse-kidney.lif')
@@ -367,7 +366,7 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'mouse-kidney.lif')
@@ -390,7 +389,7 @@ class TestBioformatsIPL(_image_single, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'Blend_Final.IPL')
@@ -411,7 +410,7 @@ class TestBioformatsSEQ(_image_single, _image_stack, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'HEART.SEQ')
@@ -435,7 +434,7 @@ class TestBioformatsLEI(_image_single, _image_stack, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'leica_stack.lei')
@@ -460,7 +459,7 @@ class TestBioformatsICS(_image_single, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'qdna1.ics')
@@ -483,7 +482,7 @@ class TestBioformatsZPO(_image_stack, _image_multichannel, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_bioformats()
         if not os.path.isfile(self.filename):
-            raise nose.SkipTest('File missing. Skipping.')
+            raise unittest.SkipTest('File missing. Skipping.')
 
     def setUp(self):
         self.filename = os.path.join(path, 'bioformats', 'KEVIN2-3.zpo')
@@ -547,5 +546,5 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         assert 'PixelsPhysicalSizeX' in fields
 
 if __name__ == '__main__':
-    nose.runmodule(argv=[__file__, '-vvs'],
+    unittest.runmodule(argv=[__file__, '-vvs'],
                    exit=False)

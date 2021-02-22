@@ -19,7 +19,7 @@ install:
   # Append the conda-forge channel, instead of adding it. See:
   # https://github.com/conda-forge/conda-forge.github.io/issues/232)
   - conda config --append channels conda-forge
-  - conda create -n testenv --yes $DEPS nose python=$TRAVIS_PYTHON_VERSION
+  - conda create -n testenv --yes $DEPS python=$TRAVIS_PYTHON_VERSION
   - source activate testenv
   # only install pip if there are pip dependencies
   # - |
@@ -42,7 +42,7 @@ before_install:
   - export PATH=/home/travis/mc/bin:$PATH
 
 script:
-    - nosetests --nologcapture
+    - python -munittest
     # Doc Build needs: pillow matplotlib ipython sphinx sphinx_rtd_theme numpydoc
     - if [ $BUILD_DOCS == true ]; then make html --directory=./doc; fi
 

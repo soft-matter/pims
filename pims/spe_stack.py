@@ -174,7 +174,7 @@ class SpeStack(FramesSequence):
             if cnt == 1:
                 #for convenience, if the array contains only one single entry,
                 #return this entry itself.
-                v = np.asscalar(v)
+                v = v.item()
             self.metadata[name] = v
 
         ### Some metadata is "special", deal with it

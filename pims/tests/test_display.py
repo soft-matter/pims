@@ -2,7 +2,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import six
-import nose
+import unittest
 import os
 import functools
 import numpy as np
@@ -10,7 +10,6 @@ import pims
 from numpy.testing import assert_array_equal
 from pims import plot_to_frame, plots_to_frame
 from pims.display import export_moviepy, export_pyav
-from nose.tools import assert_true, assert_equal, assert_less
 from .test_common import _skip_if_no_MoviePy, _skip_if_no_PyAV, path
 
 import unittest
@@ -25,7 +24,7 @@ except ImportError:
 
 def _skip_if_no_mpl():
     if plt is None:
-        raise nose.SkipTest('Matplotlib not installed. Skipping.')
+        raise unittest.SkipTest('Matplotlib not installed. Skipping.')
 
 
 class TestPlotToFrame(unittest.TestCase):
@@ -55,58 +54,59 @@ class TestPlotToFrame(unittest.TestCase):
 
     def test_ax_to_frame(self):
         frame = plot_to_frame(self.axes[0])
-        assert_equal(frame.shape, (384, 512, 4))
+        self.assertEqual(frame.shape, (384, 512, 4))
 
     def test_plot_to_frame(self):
         frame = plot_to_frame(self.figures[0])
-        assert_equal(frame.shape, (384, 512, 4))
+        self.assertEqual(frame.shape, (384, 512, 4))
 
     def test_axes_to_frame(self):
         frame = plots_to_frame(self.axes)
-        assert_equal(frame.shape, (10, 384, 512, 4))
+        self.assertEqual(frame.shape, (10, 384, 512, 4))
 
     def test_plots_to_frame(self):
         frame = plots_to_frame(self.figures)
-        assert_equal(frame.shape, (10, 384, 512, 4))
+        self.assertEqual(frame.shape, (10, 384, 512, 4))
 
     def test_plot_width(self):
         width = np.random.randint(100, 1000)
         frame = plot_to_frame(self.figures[0], width)
-        assert_equal(frame.shape[1], width)
+        self.assertEqual(frame.shape[1], width)
 
     def test_plot_tight(self):
         fig = self.figures[0]
         fig.set_tight_layout(False)  # default to standard
-        assert_equal(plot_to_frame(fig).shape[:2], (384, 512))
-        assert_less(plot_to_frame(fig, bbox_inches='tight').shape[:2], (384, 512))
-        assert_equal(plot_to_frame(fig).shape[:2], (384, 512))
+        self.assertEqual(plot_to_frame(fig).shape[:2], (384, 512))
+        self.assertLess(
+            plot_to_frame(fig, bbox_inches='tight').shape[:2], (384, 512))
+        self.assertEqual(plot_to_frame(fig).shape[:2], (384, 512))
 
         fig.set_tight_layout(True)  # default to tight
-        assert_less(plot_to_frame(fig).shape[:2], (384, 512))
-        assert_equal(plot_to_frame(fig, bbox_inches='standard').shape[:2],
-                     (384, 512))
-        assert_less(plot_to_frame(fig).shape[:2], (384, 512))
+        self.assertLess(plot_to_frame(fig).shape[:2], (384, 512))
+        self.assertEqual(
+            plot_to_frame(fig, bbox_inches='standard').shape[:2], (384, 512))
+        self.assertLess(plot_to_frame(fig).shape[:2], (384, 512))
 
     def test_plots_tight(self):
         frame = plots_to_frame(self.figures, bbox_inches='tight')
-        assert_less(frame.shape[1:3], (384, 512))
+        self.assertLess(frame.shape[1:3], (384, 512))
 
     def test_plot_resize(self):
         frame = plot_to_frame(self.figures[0], fig_size_inches=(4, 4))
-        assert_equal(frame.shape, (512, 512, 4))
+        self.assertEqual(frame.shape, (512, 512, 4))
 
     def test_plots_resize(self):
         frame = plots_to_frame(self.figures, fig_size_inches=(4, 4))
-        assert_equal(frame.shape, (10, 512, 512, 4))
+        self.assertEqual(frame.shape, (10, 512, 512, 4))
 
     def test_plots_width(self):
         width = np.random.randint(100, 1000)
         frame = plots_to_frame(self.figures, width)
-        assert_equal(frame.shape[2], width)
+        self.assertEqual(frame.shape[2], width)
 
     def test_plots_from_generator(self):
         frame = plots_to_frame(iter(self.figures))
-        assert_equal(frame.shape, (10, 384, 512, 4))
+        self.assertEqual(frame.shape, (10, 384, 512, 4))
 
 
 class ExportCommon(object):
@@ -141,7 +141,7 @@ class ExportCommon(object):
                          quality=0.01)
         compressed_size = int(os.path.getsize(self.tempfile))
 
-        assert_less(compressed_size, lossless_size)
+        self.assertLess(compressed_size, lossless_size)
 
     def test_quality_mpeg4(self):
         self.export_func(self.sequence, self.tempfile, codec='mpeg4',
@@ -152,7 +152,7 @@ class ExportCommon(object):
                          quality=5)
         compressed_size = int(os.path.getsize(self.tempfile))
 
-        assert_less(compressed_size, lossless_size)
+        self.assertLess(compressed_size, lossless_size)
 
     def test_quality_h264(self):
         self.export_func(self.sequence, self.tempfile, codec='libx264',
@@ -163,7 +163,7 @@ class ExportCommon(object):
                          quality=23)
         compressed_size = int(os.path.getsize(self.tempfile))
 
-        assert_less(compressed_size, lossless_size)
+        self.assertLess(compressed_size, lossless_size)
 
     def test_rgba_h264(self):
         """Remove alpha channel."""
@@ -174,8 +174,8 @@ class ExportCommon(object):
                          pixel_format='bgr24')
         sequence_rgba_stripped = self.sequence_rgba[:, :, :, :3]
         with pims.open(self.tempfile) as reader:
-            assert_equal(len(reader), self.expected_len)
-            assert_equal(reader.frame_shape, self.expected_shape)
+            self.assertEqual(len(reader), self.expected_len)
+            self.assertEqual(reader.frame_shape, self.expected_shape)
             for a, b in zip(sequence_rgba_stripped, reader):
                 assert_array_equal(a, b)
 
@@ -184,8 +184,8 @@ class ExportCommon(object):
         self.export_func(self.sequence, self.tempfile, codec='rawvideo',
                          pixel_format='bgr24')
         with pims.open(self.tempfile) as reader:
-            assert_equal(len(reader), self.expected_len)
-            assert_equal(reader.frame_shape, self.expected_shape)
+            self.assertEqual(len(reader), self.expected_len)
+            self.assertEqual(reader.frame_shape, self.expected_shape)
             for a, b in zip(self.sequence, reader):
                 assert_array_equal(a, b)
 
@@ -196,8 +196,8 @@ class ExportCommon(object):
                          self.tempfile, codec='rawvideo',
                          pixel_format='bgr24')
         with pims.open(self.tempfile) as reader:
-            assert_equal(len(reader), self.expected_len)
-            assert_equal(reader.frame_shape, self.expected_shape)
+            self.assertEqual(len(reader), self.expected_len)
+            self.assertEqual(reader.frame_shape, self.expected_shape)
             for a, b in zip(self.sequence, reader):
                 assert_array_equal(a, b)
 

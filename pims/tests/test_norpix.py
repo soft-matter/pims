@@ -3,7 +3,6 @@
 import os
 from datetime import datetime
 import unittest
-import nose
 import numpy as np
 import pims
 import pims.norpix_reader
@@ -39,7 +38,7 @@ class _common_norpix_sample_tests(object):
         hashes = set()  # Check that each frame is unique
         for i in range(len(s)):
             fr = s[i]
-            fhash = hash(np.array(fr).tostring())
+            fhash = hash(np.array(fr).tobytes())
             assert fhash not in hashes
             hashes.add(fhash)
 
@@ -84,8 +83,8 @@ class test_norpix5_sample(_common_norpix_sample_tests, unittest.TestCase):
         self.sample_filename = os.path.join(tests_path, 'data',
                                             'sample_norpix5.seq')
         if not os.path.exists(self.sample_filename):
-            raise nose.SkipTest('(Large) Norpix v5 sample file not found. '
-                                'Skipping.')
+            raise unittest.SkipTest('(Large) Norpix v5 sample file not found. '
+                                    'Skipping.')
 
         self.options = {}
         super(test_norpix5_sample, self).setUp()
