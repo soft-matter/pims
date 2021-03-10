@@ -59,7 +59,7 @@ def _gen_frames(demuxer, time_base, frame_rate=1., first_pts=0):
                     "Unable to read video: frames contain no timestamps. "
                     "Please use PyAVReaderIndexed.")
             t = (timestamp - first_pts) * time_base
-            i = int(t * frame_rate)
+            i = int(round(t * frame_rate))
             yield WrapPyAvFrame(frame, frame_no=i,
                                 metadata=dict(timestamp=timestamp, t=float(t)))
 
