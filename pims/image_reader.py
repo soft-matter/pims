@@ -6,26 +6,13 @@ import numpy as np
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
 
-# If scikit-image is not available, use matplotlib (with a warning) instead.
-import warnings
 try:
     from skimage.io import imread
 except ImportError:
-    try:
-        from matplotlib.pyplot import imread
-        # imread() works differently between scikit-image and matplotlib.
-        # We don't require users to have scikit-image, 
-        # but if we fall back to matplotlib, make sure the user 
-        # is aware of the consequences.
-        ski_preferred = ("PIMS image_reader.py could not find scikit-image. "
-                 "Falling back to matplotlib's imread(), which uses floats "
-                 "instead of integers. This may break your scripts. \n"
-                 "(To ignore this warning, include the line "
-                 '"warnings.simplefilter("ignore", RuntimeWarning)" '
-                 "in your script.)")
-        warnings.warn(RuntimeWarning(ski_preferred))
-    except ImportError:
-        imread = None
+    import imageio
+
+    def imread(*args, **kwargs):  # Strip metadata for consistency.
+        return np.asarray(imageio.imread(*args, **kwargs))
 
 
 class ImageReader(FramesSequence):
@@ -40,11 +27,6 @@ class ImageReader(FramesSequence):
     class_priority = 12
 
     def __init__(self, filename, **kwargs):
-        if imread is None:
-            raise ImportError("One of the following packages are required for "
-                              "using the ImageReader: "
-                              "matplotlib or scikit-image.")
-
         self._data = imread(filename, **kwargs)
 
     def get_frame(self, i):
@@ -74,10 +56,6 @@ class ImageReaderND(FramesSequenceND):
     class_priority = 11
 
     def __init__(self, filename, **kwargs):
-        if imread is None:
-            raise ImportError("One of the following packages are required for "
-                              "using the ImageReaderND: "
-                              "matplotlib or scikit-image.")
         super(ImageReaderND, self).__init__()
 
         self._data = Frame(imread(filename, **kwargs), frame_no=0)

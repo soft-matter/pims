@@ -7,13 +7,6 @@ import numpy as np
 from pims.frame import Frame
 
 
-def _skip_if_no_PIL():
-    try:
-        from PIL import Image
-    except ImportError:
-        raise unittest.SkipTest('PIL/Pillow not installed. Skipping.')
-
-
 def _skip_if_no_jinja2():
     try:
         import jinja2
@@ -39,7 +32,6 @@ def test_creation_md():
 
 
 def test_repr_html_():
-    _skip_if_no_PIL()
     _skip_if_no_jinja2()
     # This confims a bugfix, where 16-bit images would raise
     # an error.
