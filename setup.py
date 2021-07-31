@@ -9,13 +9,6 @@ try:
 except IOError:
     descr = ''
 
-try:
-    from pypandoc import convert
-    descr = convert(descr, 'rst', format='md')
-except ImportError:
-    pass
-
-
 setup_parameters = dict(
     name="PIMS",
     license="BSD-3-clause",
@@ -29,6 +22,8 @@ setup_parameters = dict(
     packages=['pims',
               'pims.utils',
               'pims.tests'],
-    long_description=descr)
+    long_description=descr,
+    long_description_content_type='text/markdown',
+)
 
 setup(**setup_parameters)
