@@ -1,0 +1,8 @@
+# List required packages in this file, one per line.
+ipython
+jinja2>3
+matplotlib
+mpl-sphinx-theme
+numpydoc
+sphinx
+sphinx-copybutton

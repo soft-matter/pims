@@ -1,0 +1,44 @@
+name: Unit Tests
+
+on:
+  push:
+  pull_request:
+  schedule:
+      - cron: '00 4 * * *'  # daily at 4AM
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.7', '3.8', '3.9', '3.10']
+      fail-fast: false
+    steps:
+
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install test requirements
+      shell: bash -l {0}
+      run: |
+        set -vxeuo pipefail
+        python -m pip install -r requirements-dev.txt
+        python -m pip install -v .
+        python -m pip list
+
+    - name: Test with pytest
+      shell: bash -l {0}
+      run: |
+        set -vxeuo pipefail
+        coverage run -m pytest -v
+        coverage report
+
+    - name: Upload code coverage
+      uses: codecov/codecov-action@v1
