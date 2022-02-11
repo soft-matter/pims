@@ -38,3 +38,4 @@ MANIFEST
 # docs
 doc/build
 sample_norpix5.seq
+PIMS.egg-info/
