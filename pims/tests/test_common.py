@@ -12,6 +12,7 @@ import pickle
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 import pims
+import pytest
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -445,6 +446,7 @@ class TestVideo_PyAV_indexed(_image_series, unittest.TestCase):
         self.expected_len = 480
 
 
+@pytest.mark.xfail
 class TestVideo_ImageIO(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_ImageIO_ffmpeg()
