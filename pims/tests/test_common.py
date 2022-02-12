@@ -126,6 +126,10 @@ class _image_single(object):
         # simple smoke test, values not checked
         repr(self.v)
 
+    def tearDown(self):
+        if hasattr(self, 'v'):
+            self.v.close()
+
 
 def box(letter):
     return pims.Frame(np.array(letter))
@@ -463,10 +467,6 @@ class TestVideo_ImageIO(_image_series, unittest.TestCase):
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
 
-    def tearDown(self):
-        self.v.close()
-
-
 class TestVideo_MoviePy(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_MoviePy()
@@ -481,9 +481,6 @@ class TestVideo_MoviePy(_image_series, unittest.TestCase):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
-
-    def tearDown(self):
-        self.v.close()
 
 
 class _tiff_image_series(_image_series):

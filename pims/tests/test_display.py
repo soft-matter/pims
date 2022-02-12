@@ -129,7 +129,7 @@ class ExportCommon(object):
         self.tempfile = 'tempvideo.avi'  # avi containers support most codecs
 
     def tearDown(self):
-        if os.path.isfile(self.tempfile):
+        if hasattr(self, 'tempfile') and os.path.isfile(self.tempfile):
             os.remove(self.tempfile)
 
     def test_quality_wmv2(self):
