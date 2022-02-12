@@ -28,15 +28,11 @@ as_gray = as_grey
 
 # Source of this patch: https://github.com/scikit-image/scikit-image/pull/3556
 # See also: https://github.com/numpy/numpy/pull/11966
-from distutils.version import LooseVersion
-if LooseVersion(np.__version__) < LooseVersion('1.16'):
-    from numpy.lib.arraypad import _validate_lengths as validate_lengths
-else:
-    from numpy.lib.arraypad import _as_pairs
 
-    def validate_lengths(ar, crop_width):
-        return _as_pairs(crop_width, ar.ndim, as_index=True)
+from numpy.lib.arraypad import _as_pairs
 
+def validate_lengths(ar, crop_width):
+    return _as_pairs(crop_width, ar.ndim, as_index=True)
 
 def _crop(frame, bbox):
     return frame[bbox[0]:bbox[2], bbox[1]:bbox[3]]
