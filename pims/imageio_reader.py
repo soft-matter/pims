@@ -68,6 +68,7 @@ class ImageIOReader(FramesSequenceND):
         try:
             int(self._len)
         except OverflowError:
+            self.reader.close()
             raise NotImplementedError(
                 "Do not know how to deal with infinite readers"
                 )
@@ -153,3 +154,4 @@ class ImageIOReader(FramesSequenceND):
 
     def close(self):
         self.reader.close()
+        super().close()

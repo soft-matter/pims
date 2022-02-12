@@ -86,6 +86,7 @@ def save_dummy_png(filepath, filenames, shape):
         im = Image.fromarray(dummy)
         im.save(os.path.join(filepath, f), 'png')
         frames.append(dummy)
+        im.close()
     return frames
 
 
@@ -581,7 +582,7 @@ class TestOpenFiles(unittest.TestCase):
         self.filenames = ['dummy_png.png']
         shape = (10, 11)
         save_dummy_png(path, self.filenames, shape)
-        pims.open(os.path.join(path, 'dummy_png.png'))
+        pims.open(os.path.join(path, 'dummy_png.png')).close()
         clean_dummy_png(path, self.filenames)
 
     def test_open_pngs(self):
@@ -592,16 +593,16 @@ class TestOpenFiles(unittest.TestCase):
                           'T76S3F00005.png']
         shape = (10, 11)
         save_dummy_png(self.filepath, self.filenames, shape)
-        pims.open(os.path.join(path, 'image_sequence', '*.png'))
+        pims.open(os.path.join(path, 'image_sequence', '*.png')).close()
         clean_dummy_png(self.filepath, self.filenames)
 
     def test_open_mov(self):
         _skip_if_no_PyAV()
-        pims.open(os.path.join(path, 'bulk-water.mov'))
+        pims.open(os.path.join(path, 'bulk-water.mov')).close()
 
     def test_open_tiff(self):
         _skip_if_no_tifffile()
-        pims.open(os.path.join(path, 'stuck.tif'))
+        pims.open(os.path.join(path, 'stuck.tif')).close()
 
 if __name__ == '__main__':
     unittest.main()
