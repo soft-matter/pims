@@ -5,6 +5,7 @@ coverage
 flake8
 pytest
 sphinx
+scikit-image
 twine
 black
 # These are dependencies of various sphinx extensions for documentation.
