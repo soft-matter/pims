@@ -23,4 +23,4 @@ def natural_keys(text):
     >>> print(alist)
     ['something1', 'something2', 'something12', 'something17']
     """
-    return [_atoi(c) for c in re.split('(\d+)', text)]
+    return [_atoi(c) for c in re.split(r'(\d+)', text)]
