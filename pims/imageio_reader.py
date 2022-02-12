@@ -4,7 +4,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from pims.base_frames import FramesSequenceND
-from distutils.version import LooseVersion
 from pims.frame import Frame
 
 try:
