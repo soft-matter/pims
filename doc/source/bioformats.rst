@@ -44,7 +44,7 @@ switches between them:
 .. code-block:: python
 
    # open a multi-experiment file and read the first experiment
-   reader = pims.BioformatsReader('path/to/file', series=0)
+   reader = pims.bioformats.BioformatsReader('path/to/file', series=0)
    # switch to the third experiment
    reader.series = 2
 
@@ -53,7 +53,7 @@ open a file with for instance 1 GB of java memory:
 
 .. code-block:: python
 
-   reader = BioformatsReader('path/to/file', java_memory='1024m')
+   reader = pims.bioformats.BioformatsReader('path/to/file', java_memory='1024m')
 
 Metadata
 --------
