@@ -51,7 +51,7 @@ def _find_jar():
     return download_jar()
 
 
-def download_jar(version='6'):
+def download_jar(version='latest'):
     """ Downloads the bioformats distribution of given version. """
     from urllib.request import urlopen
     import hashlib
