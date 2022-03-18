@@ -342,10 +342,6 @@ class BioformatsReader(FramesSequenceND):
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
                            '-Djava.class.path=' + bioformats_package_path,
                            '-Xmx' + java_memory, **startJVM_kwargs)
-            logback = jpype.JPackage('org.apache.logback')
-            logback.BasicConfigurator.configure()
-            logback_logger = logback.Logger.getRootLogger()
-            logback_logger.setLevel(logback.Level.ERROR)
 
         if not jpype.isThreadAttachedToJVM():
             jpype.attachThreadToJVM()
