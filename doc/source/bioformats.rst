@@ -33,7 +33,7 @@ Or, for windows users,
 download the binary from `Christoph Gohlke's website <http://www.lfd.uci.edu/~gohlke/pythonlibs/#jpype>`_.
 
 On first use of pims.Bioformats(filename), the required java library
-:file:`loci_tools.jar` will be automatically downloaded from
+:file:`bioformats_package.jar` will be automatically downloaded from
 `openmicroscopy.org <http://downloads.openmicroscopy.org/bio-formats/>`__.
 
 Special functions
@@ -95,17 +95,17 @@ To update the version of bioformats you are using in pims:
 
 Now you should be able to use pims with the updated bioformats version.
 
-Note: This pims command downloads a bioformats file named `loci_tools.jar`
+Note: This pims command downloads a bioformats file named `bioformats_package.jar`
 to your computer. There are a few possible locations where it might be stored.
 The precedence order is (highest priority first):
 
 1. pims package location
-2. PROGRAMDATA/pims/loci_tools.jar
-3. LOCALAPPDATA/pims/loci_tools.jar
-4. APPDATA/pims/loci_tools.jar
-5. /etc/loci_tools.jar
-6. ~/.config/pims/loci_tools.jar
+2. PROGRAMDATA/pims/bioformats_package.jar
+3. LOCALAPPDATA/pims/bioformats_package.jar
+4. APPDATA/pims/bioformats_package.jar
+5. /etc/bioformats_package.jar
+6. ~/.config/pims/bioformats_package.jar
 
 If you encounter problems updating to the latest version of bioformats,
-you may wish to manually remove `loci_tools.jar` from each of the six locations
+you may wish to manually remove `bioformats_package.jar` from each of the six locations
 and re-run the `pims.bioformats.download_jar` command again.
