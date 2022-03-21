@@ -1,3 +1,4 @@
+from turtle import pd
 import numpy as np
 
 from pims.base_frames import FramesSequence, FramesSequenceND
@@ -342,6 +343,10 @@ class BioformatsReader(FramesSequenceND):
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
                            '-Djava.class.path=' + bioformats_package_path,
                            '-Xmx' + java_memory, **startJVM_kwargs)
+            logback = jpype.JPackage('ch.qos.logback.classic')
+            logger_context = logback.LoggerContext()
+            logback.BasicConfigurator().setContext(logger_context)
+            logback.BasicConfigurator().configure(logger_context)
 
         if not jpype.isThreadAttachedToJVM():
             jpype.attachThreadToJVM()
