@@ -160,6 +160,10 @@ class TiffStack_tifffile(FramesSequence):
     def __len__(self):
         return len(self._tiff)
 
+    def close(self):
+        self._tiff.parent.close()
+        super().close()
+
     def __repr__(self):
         # May be overwritten by subclasses
         return """<Frames>
@@ -287,6 +291,10 @@ Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
                                   filename=self._filename,
                                   dtype=self.pixel_type)
 
+    def close(self):
+        self._tiff.close()
+        super().close()
+
 
 class TiffStack_pil(FramesSequence):
     """Read TIFF stacks (single files containing many images) into an
@@ -362,6 +370,7 @@ class TiffStack_pil(FramesSequence):
         # PIL does not support random access. If we need to rewind, re-open
         # the file.
         if j < self.cur:
+            self.im.close()
             self.im = Image.open(self._filename)
             self.im.seek(j)
         elif j > self.cur:
@@ -410,7 +419,8 @@ class TiffStack_pil(FramesSequence):
         return self._count
 
     def close(self):
-        self._tiff.close()
+        self.im.close()
+        super().close()
 
     def __repr__(self):
         # May be overwritten by subclasses

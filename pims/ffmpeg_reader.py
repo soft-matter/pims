@@ -228,6 +228,11 @@ class FFmpegVideoReader(FramesSequence):
     def class_exts(cls):
         return set(['mov', 'avi', 'webm'])
 
+    def close(self):
+        self.metafile.close()
+        self.data_buffer.close()
+        super().close()
+
     def __repr__(self):
         # May be overwritten by subclasses
         return """<Frames>

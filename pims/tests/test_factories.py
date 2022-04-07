@@ -4,7 +4,6 @@ from numpy.testing import assert_array_equal
 from pims.image_sequence import customize_image_sequence
 
 
-@unittest.FunctionTestCase
 def test_customize_image_sequence():
     dummy = lambda filename, **kwargs: np.zeros((1, 1))
     reader = customize_image_sequence(dummy)

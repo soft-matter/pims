@@ -12,6 +12,7 @@ import pickle
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose)
 import pims
+import pytest
 
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
@@ -85,6 +86,7 @@ def save_dummy_png(filepath, filenames, shape):
         im = Image.fromarray(dummy)
         im.save(os.path.join(filepath, f), 'png')
         frames.append(dummy)
+        im.close()
     return frames
 
 
@@ -123,6 +125,10 @@ class _image_single(object):
         self.check_skip()
         # simple smoke test, values not checked
         repr(self.v)
+
+    def tearDown(self):
+        if hasattr(self, 'v'):
+            self.v.close()
 
 
 def box(letter):
@@ -445,6 +451,7 @@ class TestVideo_PyAV_indexed(_image_series, unittest.TestCase):
         self.expected_len = 480
 
 
+@pytest.mark.xfail
 class TestVideo_ImageIO(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_ImageIO_ffmpeg()
@@ -460,10 +467,6 @@ class TestVideo_ImageIO(_image_series, unittest.TestCase):
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
 
-    def tearDown(self):
-        self.v.close()
-
-
 class TestVideo_MoviePy(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_MoviePy()
@@ -478,9 +481,6 @@ class TestVideo_MoviePy(_image_series, unittest.TestCase):
         self.v = self.klass(self.filename, **self.kwargs)
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
-
-    def tearDown(self):
-        self.v.close()
 
 
 class _tiff_image_series(_image_series):
@@ -579,7 +579,7 @@ class TestOpenFiles(unittest.TestCase):
         self.filenames = ['dummy_png.png']
         shape = (10, 11)
         save_dummy_png(path, self.filenames, shape)
-        pims.open(os.path.join(path, 'dummy_png.png'))
+        pims.open(os.path.join(path, 'dummy_png.png')).close()
         clean_dummy_png(path, self.filenames)
 
     def test_open_pngs(self):
@@ -590,16 +590,16 @@ class TestOpenFiles(unittest.TestCase):
                           'T76S3F00005.png']
         shape = (10, 11)
         save_dummy_png(self.filepath, self.filenames, shape)
-        pims.open(os.path.join(path, 'image_sequence', '*.png'))
+        pims.open(os.path.join(path, 'image_sequence', '*.png')).close()
         clean_dummy_png(self.filepath, self.filenames)
 
     def test_open_mov(self):
         _skip_if_no_PyAV()
-        pims.open(os.path.join(path, 'bulk-water.mov'))
+        pims.open(os.path.join(path, 'bulk-water.mov')).close()
 
     def test_open_tiff(self):
         _skip_if_no_tifffile()
-        pims.open(os.path.join(path, 'stuck.tif'))
+        pims.open(os.path.join(path, 'stuck.tif')).close()
 
 if __name__ == '__main__':
     unittest.main()

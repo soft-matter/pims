@@ -4,7 +4,6 @@ from __future__ import (absolute_import, division, print_function,
 import six
 
 from pims.base_frames import FramesSequenceND
-from distutils.version import LooseVersion
 from pims.frame import Frame
 
 try:
@@ -66,6 +65,13 @@ class ImageIOReader(FramesSequenceND):
         self.reader = imageio.get_reader(filename, **kwargs)
         self.filename = filename
         self._len = self.reader.get_length()
+        try:
+            int(self._len)
+        except OverflowError:
+            self.reader.close()
+            raise NotImplementedError(
+                "Do not know how to deal with infinite readers"
+                )
 
         # fallback to count_frames, for newer imageio versions
         if self._len == float("inf"):
@@ -148,3 +154,4 @@ class ImageIOReader(FramesSequenceND):
 
     def close(self):
         self.reader.close()
+        super().close()

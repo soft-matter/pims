@@ -15,7 +15,8 @@ class _common_norpix_sample_tests(object):
         self.seq = pims.open(self.sample_filename, **self.options)
 
     def tearDown(self):
-        self.seq.close()
+        if hasattr(self, 'seq'):
+            self.seq.close()
 
     def test_type(self):
         assert isinstance(self.seq, pims.norpix_reader.NorpixSeq)
@@ -108,7 +109,7 @@ class test_defaults(_norpix6_sample_tests, unittest.TestCase):
     def setUp(self):
         self.options = {}
         super(test_defaults, self).setUp()
-        
+
     def test_specific_file_dtype(self):
         """Based on the specific file in the repo."""
         assert self.seq[0].dtype == np.uint8
@@ -147,4 +148,3 @@ class test_as_raw(_norpix6_sample_tests, unittest.TestCase):
     #     testbyte = self.seq[0][0,0]
     #     self.seq.set_process_func(lambda x: 255 - x)
     #     assert self.seq[0][0,0] == 255 - testbyte
-

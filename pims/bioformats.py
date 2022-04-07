@@ -1,7 +1,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from distutils.version import LooseVersion
 import numpy as np
 
 from pims.base_frames import FramesSequence, FramesSequenceND
@@ -334,6 +333,8 @@ class BioformatsReader(FramesSequenceND):
 
         # Start java VM and initialize logger (globally)
         if not jpype.isJVMStarted():
+            from distutils.version import LooseVersion
+
             loci_path = _find_jar()
             # If we can turn off string auto-conversion, do so,
             # since this is the recommended practice.

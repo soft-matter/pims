@@ -154,9 +154,6 @@ class TestBioformatsTiff(_image_series, unittest.TestCase):
         assert_image_equal(self.v[0], self.frame0)
         assert_image_equal(self.v[1], self.frame1)
 
-    def tearDown(self):
-        self.v.close()
-
 
 class TestBioformatsND2(_image_series, _image_multichannel, unittest.TestCase):
     # Nikon NIS-Elements ND2
@@ -174,9 +171,6 @@ class TestBioformatsND2(_image_series, _image_multichannel, unittest.TestCase):
         self.expected_len = 3
         self.expected_Z = 10
         self.expected_C = 2
-
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsMOV(_image_series, unittest.TestCase):
@@ -197,9 +191,6 @@ class TestBioformatsMOV(_image_series, unittest.TestCase):
         self.expected_shape = (240, 320)
         self.expected_len = 108
         self.expected_C = 3
-
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel,
@@ -224,9 +215,6 @@ class TestBioformatsIPW(_image_series, _image_stack, _image_multichannel,
         self.expected_C = 2
         self.expected_Z = 24
 
-    def tearDown(self):
-        self.v.close()
-
 
 class TestBioformatsDM3(_image_single, unittest.TestCase):
     # Image-Pro workspace format, 4096 x 4096 pixels, 16 bits per sample
@@ -246,8 +234,6 @@ class TestBioformatsDM3(_image_single, unittest.TestCase):
         self.expected_shape = (4096, 4096)
         self.expected_len = 1
 
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel,
@@ -271,8 +257,6 @@ class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel,
         self.expected_C = 2
         self.expected_Z = 21
 
-    def tearDown(self):
-        self.v.close()
 
 class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel,
                               unittest.TestCase):
@@ -296,9 +280,6 @@ class TestBioformatsAndorTiff(_image_series, _image_stack, _image_multichannel,
         self.expected_C = 2
         self.expected_Z = 4
 
-    def tearDown(self):
-        self.v.close()
-
 
 class TestBioformatsOlympusTiff(_image_series, _image_stack, unittest.TestCase):
     # Olympus Fluoview TIFF format, 512 x 512 pixels, 16 bits per sample
@@ -320,8 +301,6 @@ class TestBioformatsOlympusTiff(_image_series, _image_stack, unittest.TestCase):
         self.expected_len = 16
         self.expected_Z = 21
 
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
@@ -356,8 +335,6 @@ class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
         self.v.series = 1
         assert_equal(self.v.sizes['z'], 46)
 
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
@@ -379,8 +356,6 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
         self.expected_C = 4
         self.expected_Z = 46
 
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsIPL(_image_single, unittest.TestCase):
@@ -400,9 +375,6 @@ class TestBioformatsIPL(_image_single, unittest.TestCase):
         self.expected_shape = (515, 650)
         self.expected_len = 1
 
-    def tearDown(self):
-        self.v.close()
-
 
 class TestBioformatsSEQ(_image_single, _image_stack, unittest.TestCase):
     # Image-Pro sequence format
@@ -421,9 +393,6 @@ class TestBioformatsSEQ(_image_single, _image_stack, unittest.TestCase):
         self.expected_shape = (30, 512, 512)
         self.expected_len = 1
         self.expected_Z = 30
-
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsLEI(_image_single, _image_stack, unittest.TestCase):
@@ -446,9 +415,6 @@ class TestBioformatsLEI(_image_single, _image_stack, unittest.TestCase):
         self.expected_len = 1
         self.expected_Z = 3
 
-    def tearDown(self):
-        self.v.close()
-
 
 class TestBioformatsICS(_image_single, unittest.TestCase):
     # Image Cytometry Standard format
@@ -470,8 +436,6 @@ class TestBioformatsICS(_image_single, unittest.TestCase):
         self.expected_shape = (256, 256)
         self.expected_len = 1
 
-    def tearDown(self):
-        self.v.close()
 
 
 class TestBioformatsZPO(_image_stack, _image_multichannel, unittest.TestCase):
@@ -494,9 +458,6 @@ class TestBioformatsZPO(_image_stack, _image_multichannel, unittest.TestCase):
         self.expected_C = 3
         self.expected_Z = 29
 
-    def tearDown(self):
-        self.v.close()
-
 
 class TestBioformatsMetadataND2(unittest.TestCase):
     def check_skip(self):
@@ -508,7 +469,8 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         self.klass = pims.Bioformats
 
     def tearDown(self):
-        self.v.close()
+        if hasattr(self, 'v'):
+            self.v.close()
 
     def test_metadataretrieve(self):
         # tests using the metadata object are combined in one, to reduce the
