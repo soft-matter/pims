@@ -4,5 +4,8 @@ jinja2>3
 matplotlib
 mpl-sphinx-theme
 numpydoc
+pytest
+scikit-image
 sphinx
 sphinx-copybutton
+sphinx-rtd-theme
