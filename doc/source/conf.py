@@ -51,7 +51,7 @@ html_context = {
   'display_github': True,
   'github_user': 'soft-matter',
   'github_repo': 'pims',
-  'github_version': 'master/doc/source/',
+  'github_version': 'main/doc/source/',
 }
 
 # Add any paths that contain templates here, relative to this directory.
