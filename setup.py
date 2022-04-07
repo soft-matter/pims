@@ -19,9 +19,15 @@ setup_parameters = dict(
     install_requires=['slicerator>=0.9.8', 'six>=1.8', 'numpy>=1.19'],
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",
-    packages=['pims',
-              'pims.utils',
-              'pims.tests'],
+    packages=["pims", "pims.utils", "pims.tests"],
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+    ],
     long_description=descr,
     long_description_content_type='text/markdown',
 )
