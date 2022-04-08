@@ -1,4 +1,3 @@
-from __future__ import print_function
 import os
 from setuptools import setup
 import versioneer
@@ -16,10 +15,10 @@ setup_parameters = dict(
     cmdclass=versioneer.get_cmdclass(),
     description="Python Image Sequence",
     author="PIMS Contributors",
+    python_requires=">=3.7",
     install_requires=[
         'imageio',
         'numpy>=1.19',
-        'six>=1.8',
         'slicerator>=0.9.8',
     ],
     author_email="dallan@pha.jhu.edu",

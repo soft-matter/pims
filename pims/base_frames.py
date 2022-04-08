@@ -1,16 +1,12 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-import six
-from six import with_metaclass
 import numpy as np
 import itertools
 from slicerator import Slicerator, propagate_attr, index_attr
 from .frame import Frame
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod, abstractproperty
 from warnings import warn
 
 
-class FramesStream(with_metaclass(ABCMeta, object)):
+class FramesStream(ABC):
     """
     A base class for wrapping input data which knows how to
     advance to the next frame, but does not have random access.
@@ -377,7 +373,7 @@ class DefaultCoordsDict(dict):
 
     def update(self, *args, **kwargs):
         # So that update does the check too
-        for k, v in six.iteritems(dict(*args, **kwargs)):
+        for k, v in dict(*args, **kwargs).items():
             self[k] = v
 
 

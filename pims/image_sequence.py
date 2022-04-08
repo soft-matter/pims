@@ -1,8 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-from six.moves import map
 import os
 import glob
 import fnmatch
@@ -91,7 +86,7 @@ class ImageSequence(FramesSequence):
 
     def _get_files(self, path_spec):
         # deal with if input is _not_ a string
-        if not isinstance(path_spec, six.string_types):
+        if not isinstance(path_spec, str):
             # assume it is iterable and off we go!
             self._filepaths = list(path_spec)
             self._count = len(self._filepaths)
@@ -285,7 +280,7 @@ class ReaderSequence(FramesSequenceND):
 
     def _get_files(self, path_spec):
         # deal with if input is _not_ a string
-        if not isinstance(path_spec, six.string_types):
+        if not isinstance(path_spec, str):
             # assume it is iterable and off we go!
             self._filepaths = sorted(list(path_spec), key=natural_keys)
             self._count = len(path_spec)

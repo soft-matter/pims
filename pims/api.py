@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from slicerator import pipeline
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
@@ -8,7 +5,6 @@ from pims.display import (export, play, scrollable_stack, to_rgb, normalize,
                           plot_to_frame, plots_to_frame)
 from itertools import chain
 
-import six
 import glob
 import os
 from warnings import warn

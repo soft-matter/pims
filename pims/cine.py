@@ -9,10 +9,6 @@
 
 # Modified by B. Neel
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
 
 from pims.frame import Frame
 from pims.base_frames import FramesSequence, index_attr
@@ -24,7 +20,6 @@ from numpy import array, frombuffer, where
 from threading import Lock
 import datetime
 import hashlib
-import sys
 import warnings
 from collections.abc import Iterable
 
@@ -350,7 +345,6 @@ class Cine(FramesSequence):
                        'get_fps', 'compression', 'cfa', 'off_set']
 
     def __init__(self, filename):
-        py_ver = sys.version_info
         super(Cine, self).__init__()
         self.f = open(filename, 'rb')
         self._filename = filename

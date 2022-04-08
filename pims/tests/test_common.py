@@ -1,10 +1,4 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-
 import os
-import sys
 import random
 import types
 import unittest
@@ -96,9 +90,9 @@ class _image_single(object):
     def test_integer_attributes(self):
         self.check_skip()
         assert_equal(len(self.v.frame_shape), len(self.expected_shape))
-        self.assertTrue(isinstance(self.v.frame_shape[0], six.integer_types))
-        self.assertTrue(isinstance(self.v.frame_shape[1], six.integer_types))
-        self.assertTrue(isinstance(len(self.v), six.integer_types))
+        self.assertTrue(isinstance(self.v.frame_shape[0], int))
+        self.assertTrue(isinstance(self.v.frame_shape[1], int))
+        self.assertTrue(isinstance(len(self.v), int))
 
     def test_shape(self):
         self.check_skip()
@@ -470,10 +464,7 @@ class TestVideo_MoviePy(_image_series, unittest.TestCase):
 class _tiff_image_series(_image_series):
     def test_metadata(self):
         m = self.v[0].metadata
-        if sys.version_info.major < 3:
-            pkl_path = os.path.join(path, 'stuck_metadata_py2.pkl')
-        else:
-            pkl_path = os.path.join(path, 'stuck_metadata_py3.pkl')
+        pkl_path = os.path.join(path, 'stuck_metadata_py3.pkl')
         with open(pkl_path, 'rb') as p:
             d = pickle.load(p)
         assert_equal(m, d)
@@ -543,12 +534,9 @@ class TestSpeStack(_image_series, unittest.TestCase):
     def test_metadata(self):
         m = self.v.metadata
         with open(os.path.join(path, 'spestack_test_metadata.pkl'), 'rb') as p:
-            if sys.version_info.major < 3:
-                d = pickle.load(p)
-            else:
-                d = pickle.load(p, encoding="latin1")
-                #spare4 is actually a byte array
-                d["spare4"] = d["spare4"].encode("latin1")
+            d = pickle.load(p, encoding="latin1")
+            #spare4 is actually a byte array
+            d["spare4"] = d["spare4"].encode("latin1")
 
         assert_equal(m, d)
 

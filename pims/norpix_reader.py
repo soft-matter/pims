@@ -3,11 +3,6 @@
 Author: Nathan C. Keim
 Based heavily on cine.py by Kleckner and Caswell
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-from six.moves import range
 
 from pims.frame import Frame
 from pims.base_frames import FramesSequence, index_attr
