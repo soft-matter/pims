@@ -25,6 +25,12 @@ class FramesStream(ABC):
         """Returns a numpy.dtype for the data type of the pixel values"""
         pass
 
+    @property
+    def dtype(self):
+        # The choice of using the separate name `pixel_type` was historical
+        # and needlessly made PIMS objects look less like numpy arrays.
+        return np.dtype(self.pixel_type)
+
     @abstractproperty
     def frame_shape(self):
         """Returns the shape of a single frame as a tuple ex (10, 12)"""
@@ -95,6 +101,10 @@ class FramesSequence(FramesStream):
 
     def __iter__(self):
         return iter(self[:])
+
+    @property
+    def shape(self):
+        return (len(self), *self.frame_shape)
 
     @abstractmethod
     def __len__(self):
