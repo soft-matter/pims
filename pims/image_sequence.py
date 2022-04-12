@@ -17,19 +17,8 @@ import numpy as np
 import pims
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
+from pims.image_reader import imread
 from pims.utils.sort import natural_keys
-
-# skimage.io.plugin_order() gives a nice hierarchy of implementations of imread.
-# If skimage is not available, go down our own hard-coded hierarchy.
-has_skimage = False
-try:
-    from skimage.io import imread
-    has_skimage = True
-except ImportError:
-    try:
-        from matplotlib.pyplot import imread
-    except ImportError:
-        imread = None
 
 
 class ImageSequence(FramesSequence):
@@ -68,11 +57,11 @@ class ImageSequence(FramesSequence):
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
     def __init__(self, path_spec, plugin=None):
-        if not has_skimage:
+        if not imread.__module__.startswith("skimage"):
             if plugin is not None:
                 warn("A plugin was specified but ignored. Plugins can only "
                      "be specified if scikit-image is available. Instead, "
-                     "ImageSequence will try using matplotlib")
+                     "ImageSequence will use imageio")
             self.kwargs = dict()
         else:
             self.kwargs = dict(plugin=plugin)
@@ -94,10 +83,6 @@ class ImageSequence(FramesSequence):
         self.close()
 
     def imread(self, filename, **kwargs):
-        if imread is None:
-            raise ImportError("One of the following packages are required for "
-                              "using the ImageSequence reader: "
-                              "scikit-image or matplotlib.")
         if self._is_zipfile:
             file_handle = BytesIO(self._zipfile.read(filename))
             return imread(file_handle, **kwargs)

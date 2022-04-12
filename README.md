@@ -23,7 +23,6 @@ Formats readable by pims include:
 
 PIMS is based on readers by:
 * [scikit-image](http://scikit-image.org/)
-* [matplotlib](http://matplotlib.org/)
 * [ffmpeg](https://www.ffmpeg.org/) and [PyAV](http://mikeboers.github.io/PyAV/) (video formats such as AVI, MOV)
 * [jpype](http://jpype.readthedocs.org/en/latest/) (interface with Bio-formats)
 * [Pillow](http://pillow.readthedocs.org/en/latest/) (improved TIFF support)

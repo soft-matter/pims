@@ -48,23 +48,11 @@ def _skip_if_no_tifffile():
         raise unittest.SkipTest('tifffile not installed. Skipping.')
 
 
-def _skip_if_no_imread():
-    if pims.image_sequence.imread is None:
-        raise unittest.SkipTest('ImageSequence requires either matplotlib or'
-                                ' scikit-image. Skipping.')
-
-
 def _skip_if_no_skimage():
     try:
         import skimage
     except ImportError:
         raise unittest.SkipTest('skimage not installed. Skipping.')
-
-
-def _skip_if_no_PIL():
-    import pims.tiff_stack
-    if not pims.tiff_stack.PIL_available():
-        raise unittest.SkipTest('PIL/Pillow not installed. Skipping.')
 
 
 def assert_image_equal(actual, expected):
@@ -183,7 +171,6 @@ def compare_slice_to_list(actual, expected):
 class TestRecursiveSlicing(unittest.TestCase):
 
     def setUp(self):
-        _skip_if_no_imread()
         class DemoReader(pims.ImageSequence):
             def imread(self, filename, **kwargs):
                 return np.array([[filename]])
@@ -382,7 +369,6 @@ class _image_series(_image_single):
 
 class TestImageReaderTIFF(_image_single, unittest.TestCase):
     def setUp(self):
-        _skip_if_no_imread()
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
@@ -395,7 +381,6 @@ class TestImageReaderTIFF(_image_single, unittest.TestCase):
 
 class TestImageReaderPNG(_image_single, unittest.TestCase):
     def setUp(self):
-        _skip_if_no_imread()
         self.klass = pims.ImageReader
         self.kwargs = dict()
         self.expected_shape = (10, 11)
@@ -408,7 +393,6 @@ class TestImageReaderPNG(_image_single, unittest.TestCase):
 
 class TestImageReaderND(_image_single, unittest.TestCase):
     def setUp(self):
-        _skip_if_no_imread()
         self.klass = pims.ImageReaderND
         self.kwargs = dict()
         self.expected_shape = (10, 11, 3)
@@ -516,7 +500,6 @@ class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
         pass
 
     def setUp(self):
-        _skip_if_no_PIL()
         self.filename = os.path.join(path, 'stuck.tif')
         self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
         self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
@@ -572,9 +555,6 @@ class TestSpeStack(_image_series, unittest.TestCase):
 
 
 class TestOpenFiles(unittest.TestCase):
-    def setUp(self):
-        _skip_if_no_PIL()
-
     def test_open_png(self):
         self.filenames = ['dummy_png.png']
         shape = (10, 11)
@@ -583,7 +563,6 @@ class TestOpenFiles(unittest.TestCase):
         clean_dummy_png(path, self.filenames)
 
     def test_open_pngs(self):
-        _skip_if_no_imread()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
