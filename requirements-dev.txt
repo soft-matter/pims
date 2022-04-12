@@ -3,6 +3,7 @@
 codecov
 coverage
 flake8
+imageio <2.16.2   # to avoid warnings
 pytest
 sphinx
 scikit-image
