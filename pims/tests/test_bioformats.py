@@ -1,15 +1,11 @@
 """These tests are mostly based on files from http://loci.wisc.edu/software/sample-data
 Please download and extract them to pims/tests/data/bioformats, or use the
 provided python script in download_bioformats_test.py."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
 
 import os
 import unittest
 import numpy as np
-from numpy.testing import (assert_equal, assert_almost_equal, assert_allclose)
+from numpy.testing import assert_equal, assert_almost_equal, assert_allclose
 
 import pims
 
@@ -46,9 +42,9 @@ class _image_single(object):
     def test_integer_attributes(self):
         self.check_skip()
         assert_equal(len(self.v.frame_shape), len(self.expected_shape))
-        self.assertTrue(isinstance(self.v.frame_shape[0], six.integer_types))
-        self.assertTrue(isinstance(self.v.frame_shape[1], six.integer_types))
-        self.assertTrue(isinstance(len(self.v), six.integer_types))
+        self.assertTrue(isinstance(self.v.frame_shape[0], int))
+        self.assertTrue(isinstance(self.v.frame_shape[1], int))
+        self.assertTrue(isinstance(len(self.v), int))
 
     def test_shape(self):
         self.check_skip()

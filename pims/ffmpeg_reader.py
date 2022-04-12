@@ -32,10 +32,6 @@
 #
 # Files heavily edited by PIMS contributors
 # January 2014
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
 
 import re
 import subprocess as sp

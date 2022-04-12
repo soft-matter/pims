@@ -7,7 +7,7 @@ def download_bioformats_tstfiles():
         import jpype
     except ImportError:
         raise ImportError("JPype is required for running tests on these files.")
-    from six.moves.urllib.request import urlretrieve
+    from urllib.request import urlretrieve
     from zipfile import ZipFile
 
     path, _ = os.path.split(os.path.abspath(__file__))

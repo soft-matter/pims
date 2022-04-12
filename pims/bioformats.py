@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import numpy as np
 
 from pims.base_frames import FramesSequence, FramesSequenceND
@@ -56,7 +53,7 @@ def _find_jar():
 
 def download_jar(version='6'):
     """ Downloads the bioformats distribution of given version. """
-    from six.moves.urllib.request import urlopen
+    from urllib.request import urlopen
     import hashlib
 
     for loc in _gen_jar_locations():
