@@ -37,7 +37,7 @@ class FramesStream(with_metaclass(ABCMeta, object)):
     def dtype(self):
         # The choice of using the separate name `pixel_type` was historical
         # and needlessly made PIMS objects look less like numpy arrays.
-        return self.pixel_type
+        return np.dtype(self.pixel_type)
 
     @abstractproperty
     def frame_shape(self):
