@@ -1,6 +1,23 @@
 Release notes
 =============
 
+v0.6
+----
+This is a major release recommended for all users.
+
+- Added direct dependence on imageio (PR 392); imageio-ffmpeg is optional (PR 358)
+- Added compatibility with Python 3.10 and 3.11 (PR 383, PR 399)
+- Ended support for Python 2 (PR 408)
+- PIMS reader objects now support the ``dtype`` and ``shape`` attributes from the
+  standard numpy array interface (PR 254)
+- Fixed frame numbering bug for PyAV (PR 370)
+- Fixed handling of nonstandard datetime tags in TIFFs (PR 375)
+- Updated documentation (PR 376, PR 390)
+- Fixed and improved automated testing and development (PR 380, PR 383,
+  PR 399, PR 391, PR 407, PR 410)
+- Removed use of deprecated skimage.external.tifffile (PR 362)
+
+
 v0.5
 ----
 This is a major release recommended for all users. Your existing code to
