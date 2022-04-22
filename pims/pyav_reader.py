@@ -226,7 +226,7 @@ class PyAVReaderTimed(FramesSequence):
         # the ffmpeg decode cache is flushed automatically
 
         timestamp = int(i / (self._frame_rate * self._stream.time_base))
-        self._stream.seek(timestamp + self._first_pts)
+        self._stream.container.seek(timestamp + self._first_pts)
 
         # check the first frame
         try:

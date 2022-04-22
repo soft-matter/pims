@@ -429,7 +429,6 @@ class TestVideo_PyAV_indexed(_image_series, unittest.TestCase):
         self.expected_len = 480
 
 
-@pytest.mark.xfail
 class TestVideo_ImageIO(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_ImageIO_ffmpeg()
