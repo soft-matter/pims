@@ -352,6 +352,7 @@ class BioformatsReader(FramesSequenceND):
             jpype.attachThreadToJVM()
 
         loci = jpype.JPackage('loci')
+        loci.common.DebugTools.enableLogging('ERROR')
 
         # Initialize reader and metadata
         self.filename = str(filename)
