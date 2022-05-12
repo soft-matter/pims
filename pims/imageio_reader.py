@@ -60,6 +60,9 @@ class ImageIOReader(FramesSequenceND):
         self.reader = imageio.get_reader(filename, **kwargs)
         self.filename = filename
         self._len = self.reader.get_length()
+        # fallback to count_frames, for newer imageio versions
+        if self._len == float("inf"):
+            self._len = self.reader.count_frames()
         try:
             int(self._len)
         except OverflowError:
@@ -67,10 +70,6 @@ class ImageIOReader(FramesSequenceND):
             raise NotImplementedError(
                 "Do not know how to deal with infinite readers"
                 )
-
-        # fallback to count_frames, for newer imageio versions
-        if self._len == float("inf"):
-            self._len = self.reader.count_frames()
 
         first_frame = self.get_frame_2D(t=0)
         self._shape = first_frame.shape
