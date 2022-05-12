@@ -331,12 +331,14 @@ class BioformatsReader(FramesSequenceND):
 
         # Start java VM and initialize logger (globally)
         if not jpype.isJVMStarted():
-            from distutils.version import LooseVersion
+            from packaging.specifiers import SpecifierSet
+            from packaging.version import Version
 
             bioformats_package_path = _find_jar()
             # If we can turn off string auto-conversion, do so,
             # since this is the recommended practice.
-            if LooseVersion(jpype.__version__) >= LooseVersion('0.7.0'):
+            version_spec = SpecifierSet(">=0.7.0")
+            if Version(jpype.__version__) in version_spec:
                 startJVM_kwargs = {'convertStrings': False}
             else:
                 startJVM_kwargs = {}  # convertStrings kwarg not supported for earlier jpype versions
@@ -348,8 +350,8 @@ class BioformatsReader(FramesSequenceND):
             logback.BasicConfigurator().setContext(logger_context)
             logback.BasicConfigurator().configure(logger_context)
 
-        if not jpype.isThreadAttachedToJVM():
-            jpype.attachThreadToJVM()
+        if not jpype.java.lang.Thread.isAttached():
+            jpype.java.lang.Thread.attach()
 
         loci = jpype.JPackage('loci')
         loci.common.DebugTools.enableLogging('ERROR')
@@ -409,8 +411,8 @@ class BioformatsReader(FramesSequenceND):
             if isinstance(Jarr[:], np.ndarray):
                 read_mode = 'jpype'
             else:
-                warn('Due to an issue with JPype 0.6.0, reading is slower. '
-                     'Please consider upgrading JPype to 0.6.1 or later.')
+                # warn('Due to an issue with JPype 0.6.0, reading is slower. '
+                #      'Please consider upgrading JPype to 0.6.1 or later.')
                 try:
                     im = self._jbytearr_stringbuffer(Jarr)
                     im.reshape(self._sizeRGB, self._sizeX, self._sizeY)
