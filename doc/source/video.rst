@@ -43,6 +43,14 @@ something that video formats natively support:
 
 ImageIO and MoviePy
 -------------------
+`imageio-ffmpeg <https://github.com/imageio/imageio-ffmpeg>`_ and `moviepy <https://github.com/Zulko/moviepy>`_ 
+can be installed via Anaconda, as follows:
+
+.. code-block:: bash
+
+    conda install imageio-ffmpeg -c conda-forge
+    conda install moviepy -c conda-forge
+
 Both `ImageIO <https://imageio.github.io>`_ and `MoviePy <http://zulko.github.io/moviepy>`_
 implement interfaces with ffmpeg through a Pipe. These are implemented through
 :class:`ImageIOReader <pims.ImageIOReader>` and :class:`MoviePyReader <pims.MoviePyReader>`, respectively.
