@@ -1,6 +1,14 @@
 Release notes
 =============
 
+v0.6.1
+------
+This is a bugfix release recommended for all users.
+
+- Fixed imageio "infinite reader" bug (PR 415)
+- Added installation instructions for imageio-ffmpeg and moviepy (PR 417)
+
+
 v0.6
 ----
 This is a major release recommended for all users.
