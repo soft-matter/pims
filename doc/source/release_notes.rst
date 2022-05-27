@@ -16,6 +16,7 @@ This is a major release recommended for all users.
 - Fixed and improved automated testing and development (PR 380, PR 383,
   PR 399, PR 391, PR 407, PR 410)
 - Removed use of deprecated skimage.external.tifffile (PR 362)
+- Fixed imageio video API support (PR 406)
 
 
 v0.5
