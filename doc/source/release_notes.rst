@@ -1,6 +1,14 @@
 Release notes
 =============
 
+v0.6.1
+------
+This is a bugfix release recommended for all users.
+
+- Fixed imageio "infinite reader" bug (PR 415)
+- Added installation instructions for imageio-ffmpeg and moviepy (PR 417)
+
+
 v0.6
 ----
 This is a major release recommended for all users.
@@ -16,6 +24,7 @@ This is a major release recommended for all users.
 - Fixed and improved automated testing and development (PR 380, PR 383,
   PR 399, PR 391, PR 407, PR 410)
 - Removed use of deprecated skimage.external.tifffile (PR 362)
+- Fixed imageio video API support (PR 406)
 
 
 v0.5
