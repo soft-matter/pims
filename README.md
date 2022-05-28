@@ -1,8 +1,6 @@
 pims: Python Image Sequence
 =========================
 
-[![build status](https://travis-ci.org/soft-matter/pims.png?branch=master)](https://travis-ci.org/soft-matter/pims)
-
 What Problem Does PIMS Solve?
 -----------------------------
 
