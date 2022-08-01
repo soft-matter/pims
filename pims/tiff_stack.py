@@ -43,9 +43,34 @@ _dtype_map = {4: np.uint8,
 
 def _tiff_datetime(dt_str):
     """Convert the DateTime string of TIFF files to a datetime object"""
-    return datetime(year=int(dt_str[0:4]), month=int(dt_str[5:7]),
-                    day=int(dt_str[8:10]), hour=int(dt_str[11:13]),
-                    minute=int(dt_str[14:16]), second=int(dt_str[17:19]))
+    # BioFormats' BaseTiffReader tries the following Joda formats:
+    #   "yyyy:MM:dd HH:mm:ss"  (format defined by the TIFF standard)
+    #   "dd/MM/yyyy HH:mm:ss"
+    #   "MM/dd/yyyy hh:mm:ss aa"
+    #   "yyyyMMdd HH:mm:ss"
+    #   "yyyy/MM/dd HH:mm:ss"
+    #   "yyyy-MM-dd'T'HH:mm:ssZ"
+    # each of which may be followed by "dot milliseconds".
+    for fmt in [
+            "%Y:%m:%d %H:%M:%S",
+            "%Y:%m:%d %H:%M:%S.%f",
+            "%d/%m/%Y %H:%M:%S",
+            "%d/%m/%Y %H:%M:%S.%f",
+            "%m/%d/%Y %I:%M:%S %p",
+            "%m/%d/%Y %I:%M:%S.%f %p",
+            "%Y%m%d %H:%M:%S",
+            "%Y%m%d %H:%M:%S.%f",
+            "%Y/%m/%d %H:%M:%S",
+            "%Y/%m/%d %H:%M:%S.%f",
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%dT%H:%M:%S.%f%z",
+    ]:
+        try:
+            return datetime.strptime(dt_str, fmt)
+        except ValueError:
+            pass
+    raise ValueError(
+        f"Cannot parse {dt_str} with any of the supported formats")
 
 
 class TiffStack_tifffile(FramesSequence):
