@@ -36,7 +36,7 @@ PIMS is based on readers by:
 Examples & Documentation
 ------------------------
 
-Everything is demonstrated in [this IPython notebook](http://nbviewer.ipython.org/github/soft-matter/pims/blob/master/examples/loading%20video%20frames.ipynb).
+Everything is demonstrated in [this IPython notebook](http://nbviewer.ipython.org/github/soft-matter/pims/blob/main/examples/loading%20video%20frames.ipynb).
 
 [**Read the documentation**](http://soft-matter.github.io/pims/) for
 installation instructions, examples, and further reference.
