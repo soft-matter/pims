@@ -9,7 +9,7 @@ dist/*
 pims.egg-info/*
 PIMS.egg-info/*
 pims/version.py
-pims/loci_tools.jar
+pims/bioformats_package.jar
 examples/.ipynb_checkpoints
 pims/tests/data/bulk-water.mov.pims_buffer
 pims/tests/data/bulk-water.mov.pims_meta

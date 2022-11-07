@@ -1,3 +1,4 @@
+from turtle import pd
 import numpy as np
 
 from pims.base_frames import FramesSequence, FramesSequenceND
@@ -17,15 +18,15 @@ def available():
 
 def _gen_jar_locations():
     """
-    Generator that yields optional locations of loci_tools.jar.
+    Generator that yields optional locations of bioformats_package.jar.
     The precedence order is (highest priority first):
 
     1. pims package location
-    2. PROGRAMDATA/pims/loci_tools.jar
-    3. LOCALAPPDATA/pims/loci_tools.jar
-    4. APPDATA/pims/loci_tools.jar
-    5. /etc/loci_tools.jar
-    6. ~/.config/pims/loci_tools.jar
+    2. PROGRAMDATA/pims/bioformats_package.jar
+    3. LOCALAPPDATA/pims/bioformats_package.jar
+    4. APPDATA/pims/bioformats_package.jar
+    5. /etc/bioformats_package.jar
+    6. ~/.config/pims/bioformats_package.jar
     """
     yield os.path.dirname(__file__)
     if 'PROGRAMDATA' in os.environ:
@@ -40,18 +41,18 @@ def _gen_jar_locations():
 
 def _find_jar():
     """
-    Finds the location of loci_tools.jar, if necessary download it to a
+    Finds the location of bioformats_package.jar, if necessary download it to a
     writeable location.
     """
     for loc in _gen_jar_locations():
-        if os.path.isfile(os.path.join(loc, 'loci_tools.jar')):
-            return os.path.join(loc, 'loci_tools.jar')
+        if os.path.isfile(os.path.join(loc, 'bioformats_package.jar')):
+            return os.path.join(loc, 'bioformats_package.jar')
 
-    warn('loci_tools.jar not found, downloading')
+    warn('bioformats_package.jar not found, downloading')
     return download_jar()
 
 
-def download_jar(version='6'):
+def download_jar(version='latest'):
     """ Downloads the bioformats distribution of given version. """
     from urllib.request import urlopen
     import hashlib
@@ -68,23 +69,23 @@ def download_jar(version='6'):
     else:
         raise IOError('No writeable location found. In order to use the '
                       'Bioformats reader, please download '
-                      'loci_tools.jar to the pims program folder or one of '
+                      'bioformats_package.jar to the pims program folder or one of '
                       'the locations provided by _gen_jar_locations().')
 
-    url = ('http://downloads.openmicroscopy.org/bio-formats/' + version +
-           '/artifacts/loci_tools.jar')
+    url = ('https://downloads.openmicroscopy.org/bio-formats/' + version +
+           '/artifacts/bioformats_package.jar')
 
-    path = os.path.join(loc, 'loci_tools.jar')
-    loci_tools = urlopen(url).read()
+    path = os.path.join(loc, 'bioformats_package.jar')
+    bioformats_package = urlopen(url).read()
     sha1_checksum = urlopen(url + '.sha1').read().split(b' ')[0].decode()
 
-    downloaded = hashlib.sha1(loci_tools).hexdigest()
+    downloaded = hashlib.sha1(bioformats_package).hexdigest()
     if downloaded != sha1_checksum:
-        raise IOError("Downloaded loci_tools.jar has invalid checksum. "
+        raise IOError("Downloaded bioformats_package.jar has invalid checksum. "
                       "Please try again.")
 
     with open(path, 'wb') as output:
-        output.write(loci_tools)
+        output.write(bioformats_package)
 
     return path
 
@@ -330,27 +331,30 @@ class BioformatsReader(FramesSequenceND):
 
         # Start java VM and initialize logger (globally)
         if not jpype.isJVMStarted():
-            from distutils.version import LooseVersion
+            from packaging.specifiers import SpecifierSet
+            from packaging.version import Version
 
-            loci_path = _find_jar()
+            bioformats_package_path = _find_jar()
             # If we can turn off string auto-conversion, do so,
             # since this is the recommended practice.
-            if LooseVersion(jpype.__version__) >= LooseVersion('0.7.0'):
+            version_spec = SpecifierSet(">=0.7.0")
+            if Version(jpype.__version__) in version_spec:
                 startJVM_kwargs = {'convertStrings': False}
             else:
                 startJVM_kwargs = {}  # convertStrings kwarg not supported for earlier jpype versions
             jpype.startJVM(jpype.getDefaultJVMPath(), '-ea',
-                           '-Djava.class.path=' + loci_path,
+                           '-Djava.class.path=' + bioformats_package_path,
                            '-Xmx' + java_memory, **startJVM_kwargs)
-            log4j = jpype.JPackage('org.apache.log4j')
-            log4j.BasicConfigurator.configure()
-            log4j_logger = log4j.Logger.getRootLogger()
-            log4j_logger.setLevel(log4j.Level.ERROR)
+            logback = jpype.JPackage('ch.qos.logback.classic')
+            logger_context = logback.LoggerContext()
+            logback.BasicConfigurator().setContext(logger_context)
+            logback.BasicConfigurator().configure(logger_context)
 
-        if not jpype.isThreadAttachedToJVM():
-            jpype.attachThreadToJVM()
+        if not jpype.java.lang.Thread.isAttached():
+            jpype.java.lang.Thread.attach()
 
         loci = jpype.JPackage('loci')
+        loci.common.DebugTools.enableLogging('ERROR')
 
         # Initialize reader and metadata
         self.filename = str(filename)
@@ -407,8 +411,8 @@ class BioformatsReader(FramesSequenceND):
             if isinstance(Jarr[:], np.ndarray):
                 read_mode = 'jpype'
             else:
-                warn('Due to an issue with JPype 0.6.0, reading is slower. '
-                     'Please consider upgrading JPype to 0.6.1 or later.')
+                # warn('Due to an issue with JPype 0.6.0, reading is slower. '
+                #      'Please consider upgrading JPype to 0.6.1 or later.')
                 try:
                     im = self._jbytearr_stringbuffer(Jarr)
                     im.reshape(self._sizeRGB, self._sizeX, self._sizeY)

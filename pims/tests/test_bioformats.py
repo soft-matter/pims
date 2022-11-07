@@ -504,5 +504,4 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         assert 'PixelsPhysicalSizeX' in fields
 
 if __name__ == '__main__':
-    unittest.runmodule(argv=[__file__, '-vvs'],
-                   exit=False)
+    unittest.main(verbosity=2)
