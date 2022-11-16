@@ -75,7 +75,10 @@ class ImageIOReader(FramesSequenceND):
         self._dtype = first_frame.dtype
 
         self._setup_axes(first_frame.shape)
-        self._register_get_frame(self.get_frame_2D, 'yx')
+        if len(first_frame.shape) == 2:
+            self._register_get_frame(self.get_frame_2D, 'yx')
+       else:
+            self._register_get_frame(self.get_frame_2D, 'yxc')
 
     def _setup_axes(self, frame_shape):
         """Setup the xyctz axes, iterate over t axis by default
