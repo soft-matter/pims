@@ -34,7 +34,7 @@ class TestPlotToFrame(unittest.TestCase):
         self.figures = []
         self.axes = []
         for line in y:
-            fig = plt.figure(figsize=(8, 6), tight_layout=False)
+            fig = plt.figure(figsize=(8, 6))
             ax = fig.gca()
             ax.plot(x, line)
             self.figures.append(fig)
@@ -71,13 +71,16 @@ class TestPlotToFrame(unittest.TestCase):
 
     def test_plot_tight(self):
         fig = self.figures[0]
-        fig.set_tight_layout(False)  # default to standard
         self.assertEqual(plot_to_frame(fig).shape[:2], (384, 512))
         self.assertLess(
             plot_to_frame(fig, bbox_inches='tight').shape[:2], (384, 512))
         self.assertEqual(plot_to_frame(fig).shape[:2], (384, 512))
 
-        fig.set_tight_layout(True)  # default to tight
+        # default to tight
+        if hasattr(fig, "set_layout_engine"):
+            fig.set_layout_engine("tight")
+        else:
+            fig.set_tight_layout(True)
         self.assertLess(plot_to_frame(fig).shape[:2], (384, 512))
         self.assertEqual(
             plot_to_frame(fig, bbox_inches='standard').shape[:2], (384, 512))

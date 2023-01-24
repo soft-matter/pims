@@ -7,14 +7,18 @@ jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+
+      - uses: actions/checkout@v3
+
       - name: Install Python dependencies
-        run: pip install -r requirements-doc.txt
+        run: pip install ipython numpydoc pytest scikit-image sphinx sphinx-copybutton sphinx-rtd-theme
 
       - name: Install pims
         run: python -m pip install -v .
+
       - name: Build
         run: make -Cdoc html
+
       - name: Publish
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: peaceiris/actions-gh-pages@v3

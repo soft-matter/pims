@@ -39,6 +39,10 @@ class _image_single(object):
         self.v.close()
         self.v = pims.open(self.filename)
 
+    def tearDown(self):
+        if hasattr(self, 'v'):
+            self.v.close()
+
     def test_integer_attributes(self):
         self.check_skip()
         assert_equal(len(self.v.frame_shape), len(self.expected_shape))
@@ -231,7 +235,6 @@ class TestBioformatsDM3(_image_single, unittest.TestCase):
         self.expected_len = 1
 
 
-
 class TestBioformatsLSM(_image_series, _image_stack, _image_multichannel,
                         unittest.TestCase):
     # Zeiss Laser Scanning Microscopy format, 400 x 300 pixels, 8 bits per sample
@@ -298,7 +301,6 @@ class TestBioformatsOlympusTiff(_image_series, _image_stack, unittest.TestCase):
         self.expected_Z = 21
 
 
-
 class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
                                unittest.TestCase):
     # Leica LIF format, 512 x 512 pixels, 16 bits per sample
@@ -332,7 +334,6 @@ class TestBioformatsLIFseries1(_image_single, _image_stack, _image_multichannel,
         assert_equal(self.v.sizes['z'], 46)
 
 
-
 class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
                                unittest.TestCase):
     # Series 2: XZY, 46 focal planes, 4 channels
@@ -351,7 +352,6 @@ class TestBioformatsLIFseries2(_image_single, _image_stack, _image_multichannel,
         self.expected_len = 1
         self.expected_C = 4
         self.expected_Z = 46
-
 
 
 class TestBioformatsIPL(_image_single, unittest.TestCase):
@@ -433,7 +433,6 @@ class TestBioformatsICS(_image_single, unittest.TestCase):
         self.expected_len = 1
 
 
-
 class TestBioformatsZPO(_image_stack, _image_multichannel, unittest.TestCase):
     # PerkinElmer format, 672 x 512 pixels
     # 1 time point, 29 focal planes, 3 channels
@@ -502,6 +501,7 @@ class TestBioformatsMetadataND2(unittest.TestCase):
         self.v = self.klass(self.filename, meta=True)
         fields = self.v.metadata.fields
         assert 'PixelsPhysicalSizeX' in fields
+
 
 if __name__ == '__main__':
     unittest.runmodule(argv=[__file__, '-vvs'],

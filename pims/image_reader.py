@@ -6,10 +6,13 @@ from pims.frame import Frame
 try:
     from skimage.io import imread
 except ImportError:
-    import imageio
+    try:
+        from imageio import v2 as iio
+    except ImportError:
+        import imageio as iio
 
     def imread(*args, **kwargs):  # Strip metadata for consistency.
-        return np.asarray(imageio.imread(*args, **kwargs))
+        return np.asarray(iio.imread(*args, **kwargs))
 
 
 class ImageReader(FramesSequence):

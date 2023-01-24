@@ -1,4 +1,5 @@
 import numpy as np
+import packaging.version
 
 from pims.base_frames import FramesSequence, FramesSequenceND
 from pims.frame import Frame
@@ -51,7 +52,7 @@ def _find_jar():
     return download_jar()
 
 
-def download_jar(version='6'):
+def download_jar(version='6.7.0'):
     """ Downloads the bioformats distribution of given version. """
     from urllib.request import urlopen
     import hashlib
@@ -330,12 +331,11 @@ class BioformatsReader(FramesSequenceND):
 
         # Start java VM and initialize logger (globally)
         if not jpype.isJVMStarted():
-            from distutils.version import LooseVersion
-
             loci_path = _find_jar()
             # If we can turn off string auto-conversion, do so,
             # since this is the recommended practice.
-            if LooseVersion(jpype.__version__) >= LooseVersion('0.7.0'):
+            if (packaging.version.parse(jpype.__version__)
+                    >= packaging.version.parse('0.7.0')):
                 startJVM_kwargs = {'convertStrings': False}
             else:
                 startJVM_kwargs = {}  # convertStrings kwarg not supported for earlier jpype versions
@@ -347,8 +347,12 @@ class BioformatsReader(FramesSequenceND):
             log4j_logger = log4j.Logger.getRootLogger()
             log4j_logger.setLevel(log4j.Level.ERROR)
 
-        if not jpype.isThreadAttachedToJVM():
-            jpype.attachThreadToJVM()
+        if hasattr(jpype.java.lang, 'Thread'):
+            if not jpype.java.lang.Thread.isAttached():
+                jpype.java.lang.Thread.attach()
+        else:
+            if not jpype.isThreadAttachedToJVM():
+                jpype.attachThreadToJVM()
 
         loci = jpype.JPackage('loci')
 
@@ -404,9 +408,9 @@ class BioformatsReader(FramesSequenceND):
         # Set read mode. When auto, tryout fast and check the image size.
         if read_mode == 'auto':
             Jarr = self.rdr.openBytes(0)
-            if isinstance(Jarr[:], np.ndarray):
-                read_mode = 'jpype'
-            else:
+            try:
+                memoryview(Jarr)
+            except TypeError:
                 warn('Due to an issue with JPype 0.6.0, reading is slower. '
                      'Please consider upgrading JPype to 0.6.1 or later.')
                 try:
@@ -416,6 +420,8 @@ class BioformatsReader(FramesSequenceND):
                     read_mode = 'javacasting'
                 else:
                     read_mode = 'stringbuffer'
+            else:
+                read_mode = 'jpype'
         self.read_mode = read_mode
 
         # Define the names of the standard per frame metadata.
@@ -525,7 +531,8 @@ class BioformatsReader(FramesSequenceND):
         j = self.rdr.getIndex(int(_coords['z']), int(_coords['c']),
                               int(_coords['t']))
         if self.read_mode == 'jpype':
-            im = np.frombuffer(self.rdr.openBytes(j)[:],
+            # The explicit memoryview cast avoids leaving a dangling buffer.
+            im = np.frombuffer(memoryview(self.rdr.openBytes(j)),
                                dtype=self._pixel_type)
         elif self.read_mode == 'stringbuffer':
             im = self._jbytearr_stringbuffer(self.rdr.openBytes(j))

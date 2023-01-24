@@ -10,10 +10,9 @@ from pims.tests.test_common import (_image_series,
                                     clean_dummy_png, save_dummy_png,
                                     _skip_if_no_skimage)
 
+
 path, _ = os.path.split(os.path.abspath(__file__))
 path = os.path.join(path, 'data')
-
-
 
 
 class TestImageSequenceWithPIL(_image_series, unittest.TestCase):
@@ -78,6 +77,7 @@ class TestImageSequenceWithMPL(_image_series, unittest.TestCase):
 
 class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F00001.png', 'T76S3F00002.png',
                           'T76S3F00003.png', 'T76S3F00004.png',
@@ -101,6 +101,7 @@ class TestImageSequenceAcceptsList(_image_series, unittest.TestCase):
 
 class TestImageSequenceNaturalSorting(_image_series, unittest.TestCase):
     def setUp(self):
+        _skip_if_no_skimage()
         self.filepath = os.path.join(path, 'image_sequence')
         self.filenames = ['T76S3F1.png', 'T76S3F20.png',
                           'T76S3F3.png', 'T76S3F4.png',

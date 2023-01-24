@@ -1,10 +1,12 @@
+import gc
 import os
 import random
+import pickle
 import types
 import unittest
-import pickle
+
 import numpy as np
-from numpy.testing import (assert_equal, assert_allclose)
+from numpy.testing import assert_equal, assert_allclose
 import pims
 import pytest
 
@@ -111,6 +113,8 @@ class _image_single(object):
     def tearDown(self):
         if hasattr(self, 'v'):
             self.v.close()
+            # This helps avoiding a ResourceWarning in imageio-ffmpeg teardown.
+            gc.collect()
 
 
 def box(letter):
@@ -122,6 +126,7 @@ def assert_letters_equal(actual, expected):
         # This contrived reader has weird shape behavior,
         # but that's not what I'm testing here.
         assert_equal(actual_.reshape((1, 1)), box(expected_).reshape((1, 1)))
+
 
 def compare_slice_to_list(actual, expected):
     assert_letters_equal(actual, expected)
@@ -241,8 +246,10 @@ class TestRecursiveSlicing(unittest.TestCase):
         assert_letters_equal(slice2, list('def'))
         self.assertTrue(isinstance(slice2, types.GeneratorType))
 
+
 def _rescale(img):
     return (img - img.min()) / img.ptp()
+
 
 def _color_channel(img, channel):
     if img.ndim == 3:
@@ -444,6 +451,7 @@ class TestVideo_ImageIO(_image_series, unittest.TestCase):
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
 
+
 class TestVideo_MoviePy(_image_series, unittest.TestCase):
     def check_skip(self):
         _skip_if_no_MoviePy()
@@ -540,7 +548,6 @@ class TestSpeStack(_image_series, unittest.TestCase):
         assert_equal(m, d)
 
 
-
 class TestOpenFiles(unittest.TestCase):
     def test_open_png(self):
         self.filenames = ['dummy_png.png']
@@ -566,6 +573,7 @@ class TestOpenFiles(unittest.TestCase):
     def test_open_tiff(self):
         _skip_if_no_tifffile()
         pims.open(os.path.join(path, 'stuck.tif')).close()
+
 
 if __name__ == '__main__':
     unittest.main()
