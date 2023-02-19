@@ -19,7 +19,9 @@ setup_parameters = dict(
     install_requires=[
         'imageio',
         'numpy>=1.19',
+        'packaging',
         'slicerator>=0.9.8',
+        'tifffile',
     ],
     author_email="dallan@pha.jhu.edu",
     url="https://github.com/soft-matter/pims",

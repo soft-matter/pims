@@ -264,7 +264,7 @@ Frame rate: {frame_rate:.3f} fps
 Length: {count} frames
 Frame Shape: {frame_shape!r}
 """.format(frame_shape=self.frame_shape,
-           format=self._stream.long_name,
+           format=self._stream.container.format.long_name,
            duration=self.duration,
            frame_rate=self.frame_rate,
            count=len(self),

@@ -4,7 +4,7 @@ import numpy as np
 import tempfile
 from io import BytesIO
 from base64 import b64encode
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from fractions import Fraction
 import warnings
 
@@ -630,34 +630,39 @@ def to_rgb(image, colors=None, normed=True):
 
 
 @contextmanager
-def _fig_size_cntx(fig, fig_size_inches, tight_layout):
+def _fig_size_cntx(fig, fig_props):
     """Resize a figure in a context
 
     Parameters
     ----------
     fig : matplotlib.figure.Figure
         The figure to resize
-    fig_size_inches : tuple
-        The (height, width) to use in the context. If None, the size
-        is not changed
-    tight_layout : boolean
-        When True, tight layout is used.
+    fig_props : dict
+        Figure properties that are temporarily set.  The 'layout_engine' key is
+        special-cased to provide back-compatibility with versions of Matplotlib
+        that did not provide it, and further also controls the 'savefig.bbox'
+        rcParam.
     """
-    orig_size = fig.get_size_inches()
-    orig_layout = fig.get_tight_layout()
-    if fig_size_inches is not None:
-        fig.set_size_inches(*fig_size_inches)
-    fig.set_tight_layout(tight_layout)
-    if tight_layout:
-        rc_params = {'savefig.bbox': 'tight'}
-    else:
-        rc_params = {'savefig.bbox': 'standard'}
-    try:
-        with plt.rc_context(rc_params):
-            yield fig
-    finally:
-        fig.set_size_inches(*orig_size)
-        fig.set_tight_layout(orig_layout)
+    with ExitStack() as stack:
+        if hasattr(fig, 'set_layout_engine'):
+            # No matter what, explicitly restore the original layout engine at
+            # exit, to work around a bug in matplotlib 3.6 where
+            # savefig(..., bbox_inches="tight") would modify the engine.
+            stack.callback(fig.set_layout_engine, fig.get_layout_engine())
+        for k, v in fig_props.items():
+            if k == 'layout_engine' and not hasattr(fig, 'set_layout_engine'):
+                k, v = ('tight_layout', v != 'none')
+            stack.callback(fig.set, **{k: getattr(fig, f'get_{k}')()})
+            fig.set(**{k: v})
+        if hasattr(fig, 'get_layout_engine'):
+            sb = ('standard'
+                  if type(fig.get_layout_engine()).__name__ in [
+                      'NoneType', 'PlaceHolderLayoutEngine']
+                  else 'tight')
+        else:
+            sb = 'tight' if fig.get_tight_layout() else 'standard'
+        stack.enter_context(plt.rc_context({'savefig.bbox': sb}))
+        yield fig
 
 
 def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
@@ -686,23 +691,25 @@ def plot_to_frame(fig, width=512, close_fig=False, fig_size_inches=None,
     from pims import Frame
     if isinstance(fig, mpl.axes.Axes):
         fig = fig.figure
+    fig_props = {}
     if fig_size_inches is not None:
         if fig_size_inches[0] == 0 or fig_size_inches[1] == 0:
             raise ValueError('Figure size cannot be zero.')
+        fig_props['size_inches'] = fig_size_inches
     if bbox_inches is None:
-        tight_layout = fig.get_tight_layout()
+        pass
     elif str(bbox_inches) == 'standard':
-        tight_layout = False
+        fig_props['layout_engine'] = 'none'
     elif str(bbox_inches) == 'tight':
-        tight_layout = True
+        fig_props['layout_engine'] = 'tight'
     else:
         raise ValueError("bbox_inches must be in {None, 'standard', 'tight'}")
 
     buf = BytesIO()
-    with _fig_size_cntx(fig, fig_size_inches, tight_layout) as fig:
+    with _fig_size_cntx(fig, fig_props) as fig:
         width_in, height_in = fig.get_size_inches()
         dpi = width / width_in
-        if tight_layout:
+        if plt.rcParams['savefig.bbox'] == 'tight':  # set by _fig_size_cntx
             # slower, but allows tight layout
             fig.savefig(buf, format='png', dpi=dpi)
             buf.seek(0)
