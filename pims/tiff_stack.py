@@ -13,18 +13,9 @@ except ImportError:
     Image = None
 
 try:
-    from libtiff import TIFF
-except ImportError:
-    TIFF = None
-
-try:
     import tifffile
 except ImportError:
     tifffile = None
-
-
-def libtiff_available():
-    return TIFF is not None
 
 
 def PIL_available():
@@ -115,7 +106,7 @@ class TiffStack_tifffile(FramesSequence):
 
     See Also
     --------
-    TiffStack_pil, TiffStack_libtiff, ImageSequence
+    TiffStack_pil, ImageSequence
     """
     @classmethod
     def class_exts(cls):
@@ -204,126 +195,6 @@ Pixel Datatype: {dtype}""".format(frame_shape=self.frame_shape,
                                   dtype=self.pixel_type)
 
 
-class TiffStack_libtiff(FramesSequence):
-    """Read TIFF stacks (single files containing many images) into an
-    iterable object that returns images as numpy arrays.
-
-    This reader, based on libtiff, should read standard TIFF files.
-
-    Parameters
-    ----------
-    filename : string
-
-    Examples
-    --------
-    >>> video = TiffStack('many_images.tif')  # or .tiff
-    >>> imshow(video[0]) # Show the first frame.
-    >>> imshow(video[-1]) # Show the last frame.
-    >>> imshow(video[1][0:10, 0:10]) # Show one corner of the second frame.
-
-    >>> for frame in video[:]:
-    ...    # Do something with every frame.
-
-    >>> for frame in video[10:20]:
-    ...    # Do something with frames 10-20.
-
-    >>> for frame in video[[5, 7, 13]]:
-    ...    # Do something with frames 5, 7, and 13.
-
-    >>> frame_count = len(video) # Number of frames in video
-    >>> frame_shape = video.frame_shape # Pixel dimensions of video
-
-    See Also
-    --------
-    TiffStack_pil, TiffStack_tiffile, ImageSequence
-    """
-    def __init__(self, filename):
-        self._filename = filename
-        self._tiff = TIFF.open(filename)
-
-        self._count = 1
-        while not self._tiff.LastDirectory():
-            self._count += 1
-            self._tiff.ReadDirectory()
-
-        # reset to 0
-        self._tiff.SetDirectory(0)
-
-        tmp = self._tiff.read_image()
-        self._dtype = tmp.dtype
-
-        self._im_sz = tmp.shape
-
-        self._byte_swap = bool(self._tiff.IsByteSwapped())
-
-    def get_frame(self, j):
-        if j > self._count:
-            raise ValueError("File does not contain this many frames")
-        self._tiff.SetDirectory(j)
-        res = self._tiff.read_image()
-        if self._byte_swap:
-            res = res.newbyteorder()
-        return Frame(res, frame_no=j, metadata=self._read_metadata())
-
-    def _read_metadata(self):
-        """Read metadata for current frame and return as dict"""
-        md = {}
-        #explicit str() is needed for python2, otherwise the type would be
-        #unicode and then it won't work anymore
-        dt = self._tiff.GetField(str("ImageDescription"))
-        if dt is not None:
-            try:
-                md["ImageDescription"] = dt.decode()
-            except:
-                pass
-        dt = self._tiff.GetField(str("DateTime"))
-        if dt is not None:
-            try:
-                md["DateTime"] = _tiff_datetime(dt.decode())
-            except:
-                pass
-        dt = self._tiff.GetField(str("Software"))
-        if dt is not None:
-            try:
-                md["Software"] = dt.decode()
-            except:
-                pass
-        dt = self._tiff.GetField(str("DocumentName"))
-        if dt is not None:
-            try:
-                md["DocumentName"] = dt.decode()
-            except:
-                pass
-        return md
-
-    @property
-    def pixel_type(self):
-        return self._dtype
-
-    @property
-    def frame_shape(self):
-        return self._im_sz
-
-    def __len__(self):
-        return self._count
-
-    def __repr__(self):
-        # May be overwritten by subclasses
-        return """<Frames>
-Source: {filename}
-Length: {count} frames
-Frame Shape: {w} x {h}
-Pixel Datatype: {dtype}""".format(w=self.frame_shape[0],
-                                  h=self.frame_shape[1],
-                                  count=len(self),
-                                  filename=self._filename,
-                                  dtype=self.pixel_type)
-
-    def close(self):
-        self._tiff.close()
-        super().close()
-
-
 class TiffStack_pil(FramesSequence):
     """Read TIFF stacks (single files containing many images) into an
     iterable object that returns images as numpy arrays.
@@ -355,7 +226,7 @@ class TiffStack_pil(FramesSequence):
 
     See Also
     --------
-    TiffStack_libtiff, TiffStack_tiffile, ImageSequence
+    TiffStack_tiffile, ImageSequence
     """
     def __init__(self, fname):
 

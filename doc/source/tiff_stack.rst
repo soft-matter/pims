@@ -18,15 +18,14 @@ Dependencies
 There are several Python packages for reading TIFFs. Our default reader, built
 around `Christoph Gohlke's tifffile.py <http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html>`__,
 handles all the formats we have personally encountered. But we have
-alternative TIFF readers built around Pillow (see above) and libtiff.
+an alternative TIFF reader built around Pillow (see above).
 To use a specific reader, use
-``TiffStack_tifffile``, ``TiffStack_libtiff``, or ``TiffStack_pil``, which
+``TiffStack_tifffile`` or ``TiffStack_pil``, which
 depend, respectively, on the packages below. The "default" reader,
 ``TiffStack`` is an alias. At import time, it is pointed to the first
 reader for which the required package is installed.
 
 * `tifffile <https://pypi.python.org/pypi/tifffile>`_
-* `pylibtiff <https://pypi.python.org/pypi/libtiff>`_
 * `Pillow <https://pillow.readthedocs.org/>`_ or `PIL <http://www.pythonware.com/products/pil/>`_
 
 Tifffile is installed with the PIMS conda package.

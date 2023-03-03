@@ -29,8 +29,6 @@ Depending on what file formats you want to read, you will also need:
    microscopy formats)
 -  `Pillow <http://pillow.readthedocs.org/en/latest/>`__ (improved TIFF
    support)
--  `libtiff <https://code.google.com/p/pylibtiff/>`__ (alternative TIFF
-   support)
 -  `tifffile <http://www.lfd.uci.edu/~gohlke/code/tifffile.py.html>`__
    (alterative TIFF support)
 -  `imageio <https://imageio.github.io/>`__ (a multi-purpose reader package that

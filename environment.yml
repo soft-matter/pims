@@ -11,7 +11,6 @@ dependencies:
 - jinja2
 - av
 - tifffile
-- libtiff
 - jpype1
 - ipython
 - sphinx
