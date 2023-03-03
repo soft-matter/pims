@@ -195,15 +195,14 @@ def open(sequence, **kwargs):
                 return 10
         return sorted(handlers, key=priority, reverse=True)
 
-    exceptions = ''
+    messages = []
     for handler in sort_on_priority(eligible_handlers):
         try:
             return handler(sequence, **kwargs)
         except Exception as e:
-            message = '{0} errored: {1}'.format(str(handler), str(e))
-            warn(message)
-            exceptions += message + '\n'
-    raise UnknownFormatError("All handlers returned exceptions:\n" + exceptions)
+            messages.append('{} errored: {}'.format(str(handler), str(e)))
+    raise UnknownFormatError(
+        "All handlers returned exceptions:\n" + "\n".join(messages))
 
 
 class UnknownFormatError(Exception):
