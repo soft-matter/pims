@@ -256,6 +256,10 @@ class NorpixSeq(FramesSequence):
     def close(self):
         self._file.close()
 
+    def __del__(self):
+        if hasattr(self, '_file'):
+            self._file.close()
+
     def __repr__(self):
         return """<Frames>
 Source: {filename}
