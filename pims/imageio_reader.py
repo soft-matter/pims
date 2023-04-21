@@ -149,3 +149,7 @@ class ImageIOReader(FramesSequenceND):
     def close(self):
         self.reader.close()
         super().close()
+
+    def __del__(self):
+        if hasattr(self, 'reader'):
+            self.reader.close()

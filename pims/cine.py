@@ -336,7 +336,6 @@ class Cine(FramesSequence):
     For a .chd file, this class only reads the header, not the images.
     
     """
-    # TODO: Unit tests using a small sample cine file.
     @classmethod
     def class_exts(cls):
         return {'cine'} | super(Cine, cls).class_exts()
@@ -742,6 +741,10 @@ class Cine(FramesSequence):
 
     def close(self):
         self.f.close()
+
+    def __del__(self):
+        if hasattr(self, 'f'):
+            self.f.close()
 
     def __unicode__(self):
         return self.filename
