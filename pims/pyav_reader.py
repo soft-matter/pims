@@ -143,6 +143,12 @@ class PyAVReaderTimed(FramesSequence):
 
         self._reset_demuxer()
 
+        self._is_container_closed = False
+
+    def __del__(self):
+        if not self._is_container_closed:
+            self._container.close()
+
     def __len__(self):
         return int(self._duration * self._frame_rate)
 
@@ -150,6 +156,10 @@ class PyAVReaderTimed(FramesSequence):
         demuxer = self._container.demux(self._stream)
         self._frame_generator = _gen_frames(demuxer, self._stream.time_base,
                                             self._frame_rate, self._first_pts)
+
+    def close(self):
+        self._container.close()
+        self._is_container_closed = True
 
     @property
     def duration(self):
@@ -174,6 +184,10 @@ class PyAVReaderTimed(FramesSequence):
         # return directly if the frame is in cache
         if cached_i == i:
             return cached_frame.to_frame()
+
+        # Stop before seeking to frame, to avoid crashing
+        if self._is_container_closed:
+            raise ValueError("Cannot read uncached frame from closed file. Try other frame index or re-open file.")
 
         # check if we will have to seek to the frame
         if self._last_frame >= i or \
