@@ -32,12 +32,6 @@ def _skip_if_no_ImageIO_ffmpeg():
         raise unittest.SkipTest('ImageIO and ffmpeg not found. Skipping.')
 
 
-def _skip_if_no_libtiff():
-    import pims.tiff_stack
-    if not pims.tiff_stack.libtiff_available():
-        raise unittest.SkipTest('libtiff not installed. Skipping.')
-
-
 def _skip_if_no_tifffile():
     import pims.tiff_stack
     if not pims.tiff_stack.tifffile_available():
@@ -475,22 +469,6 @@ class _tiff_image_series(_image_series):
         with open(pkl_path, 'rb') as p:
             d = pickle.load(p)
         assert_equal(m, d)
-
-
-class TestTiffStack_libtiff(_tiff_image_series, unittest.TestCase):
-    def check_skip(self):
-        _skip_if_no_libtiff()
-
-    def setUp(self):
-        _skip_if_no_libtiff()
-        self.filename = os.path.join(path, 'stuck.tif')
-        self.frame0 = np.load(os.path.join(path, 'stuck_frame0.npy'))
-        self.frame1 = np.load(os.path.join(path, 'stuck_frame1.npy'))
-        self.klass = pims.TiffStack_libtiff
-        self.kwargs = dict()
-        self.v = self.klass(self.filename, **self.kwargs)
-        self.expected_shape = (512, 512)
-        self.expected_len = 5
 
 
 class TestTiffStack_pil(_tiff_image_series, unittest.TestCase):
