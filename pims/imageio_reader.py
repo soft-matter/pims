@@ -72,20 +72,24 @@ class ImageIOReader(FramesSequenceND):
                 )
 
         first_frame = self.get_frame_2D(t=0)
-        self._shape = first_frame.shape
         self._dtype = first_frame.dtype
 
-        self._setup_axes()
-        self._register_get_frame(self.get_frame_2D, 'yx')
+        self._setup_axes(first_frame.shape)
+        if len(first_frame.shape) == 2:
+            self._register_get_frame(self.get_frame_2D, 'yx')
+       else:
+            self._register_get_frame(self.get_frame_2D, 'yxc')
 
-    def _setup_axes(self):
+    def _setup_axes(self, frame_shape):
         """Setup the xyctz axes, iterate over t axis by default
 
         """
-        if self._shape[1] > 0:
-            self._init_axis('x', self._shape[1])
-        if self._shape[0] > 0:
-            self._init_axis('y', self._shape[0])
+        if frame_shape[1] > 0:
+            self._init_axis('x', frame_shape[1])
+        if frame_shape[0] > 0:
+            self._init_axis('y', frame_shape[0])
+        if len(frame_shape) > 2:
+            self._init_axis('c', frame_shape[3])
         if self._len > 0:
             self._init_axis('t', self._len)
 
@@ -137,10 +141,6 @@ class ImageIOReader(FramesSequenceND):
     @property
     def frame_rate(self):
         return self.get_metadata()['fps']
-
-    @property
-    def frame_shape(self):
-        return self._shape
 
     @property
     def pixel_type(self):
