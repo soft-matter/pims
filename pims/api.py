@@ -122,6 +122,11 @@ try:
 except ImportError:
     ND2Reader = not_available("nd2reader")
 
+def get_all_handlers():
+    # list all readers derived from the pims baseclasses
+    return chain(_recursive_subclasses(FramesSequence),
+                         _recursive_subclasses(FramesSequenceND))
+
 def open(sequence, **kwargs):
     """Read a filename, list of filenames, or directory of image files into an
     iterable that returns images as numpy arrays.
@@ -168,9 +173,8 @@ def open(sequence, **kwargs):
             "Video({0})".format(sequence))
     ext = ext.lower()[1:]
 
-    # list all readers derived from the pims baseclasses
-    all_handlers = chain(_recursive_subclasses(FramesSequence),
-                         _recursive_subclasses(FramesSequenceND))
+    all_handlers = get_all_handlers()
+
     # keep handlers that support the file ext. use set to avoid duplicates.
     eligible_handlers = set(h for h in all_handlers
                             if ext and ext in map(_drop_dot, h.class_exts()))
