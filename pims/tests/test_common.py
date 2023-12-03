@@ -413,6 +413,28 @@ class TestVideo_PyAV_timed(_image_series, unittest.TestCase):
         self.expected_shape = (424, 640, 3)
         self.expected_len = 480
 
+    def test_close(self):
+        vid = self.klass(self.filename)
+
+        assert vid[10].shape == self.expected_shape
+
+        vid.close()
+
+        assert vid[9].shape == self.expected_shape
+
+        with self.assertRaises(ValueError):
+            vid[11].shape
+
+    def test_context_manager(self):
+
+        with self.klass(self.filename) as vid:
+            assert vid[10].shape == self.expected_shape
+
+        assert vid[9].shape == self.expected_shape
+
+        with self.assertRaises(ValueError):
+            vid[11].shape
+
 
 class TestVideo_PyAV_indexed(_image_series, unittest.TestCase):
     def check_skip(self):
