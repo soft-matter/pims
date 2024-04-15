@@ -242,7 +242,7 @@ class TestRecursiveSlicing(unittest.TestCase):
 
 
 def _rescale(img):
-    return (img - img.min()) / img.ptp()
+    return (img - img.min()) / np.ptp(img)
 
 
 def _color_channel(img, channel):
