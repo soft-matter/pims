@@ -25,10 +25,110 @@ as_gray = as_grey
 # Source of this patch: https://github.com/scikit-image/scikit-image/pull/3556
 # See also: https://github.com/numpy/numpy/pull/11966
 
-from numpy.lib.arraypad import _as_pairs
+
+# Vendored from numpy @7649fe2e
+# This function is
+#
+#  Copyright (c) 2005-2024, NumPy Developers.
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions are
+#  met:
+#
+#      * Redistributions of source code must retain the above copyright
+#         notice, this list of conditions and the following disclaimer.
+#
+#      * Redistributions in binary form must reproduce the above
+#         copyright notice, this list of conditions and the following
+#         disclaimer in the documentation and/or other materials provided
+#         with the distribution.
+#
+#      * Neither the name of the NumPy Developers nor the names of any
+#         contributors may be used to endorse or promote products derived
+#         from this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+#  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+#  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+def _as_pairs(x, ndim, as_index=False):
+    """
+    Broadcast `x` to an array with the shape (`ndim`, 2).
+
+    A helper function for `pad` that prepares and validates arguments like
+    `pad_width` for iteration in pairs.
+
+    Parameters
+    ----------
+    x : {None, scalar, array-like}
+        The object to broadcast to the shape (`ndim`, 2).
+    ndim : int
+        Number of pairs the broadcasted `x` will have.
+    as_index : bool, optional
+        If `x` is not None, try to round each element of `x` to an integer
+        (dtype `np.intp`) and ensure every element is positive.
+
+    Returns
+    -------
+    pairs : nested iterables, shape (`ndim`, 2)
+        The broadcasted version of `x`.
+
+    Raises
+    ------
+    ValueError
+        If `as_index` is True and `x` contains negative elements.
+        Or if `x` is not broadcastable to the shape (`ndim`, 2).
+    """
+    if x is None:
+        # Pass through None as a special case, otherwise np.round(x) fails
+        # with an AttributeError
+        return ((None, None),) * ndim
+
+    x = np.array(x)
+    if as_index:
+        x = np.round(x).astype(np.intp, copy=False)
+
+    if x.ndim < 3:
+        # Optimization: Possibly use faster paths for cases where `x` has
+        # only 1 or 2 elements. `np.broadcast_to` could handle these as well
+        # but is currently slower
+
+        if x.size == 1:
+            # x was supplied as a single value
+            x = x.ravel()  # Ensure x[0] works for x.ndim == 0, 1, 2
+            if as_index and x < 0:
+                raise ValueError("index can't contain negative values")
+            return ((x[0], x[0]),) * ndim
+
+        if x.size == 2 and x.shape != (2, 1):
+            # x was supplied with a single value for each side
+            # but except case when each dimension has a single value
+            # which should be broadcasted to a pair,
+            # e.g. [[1], [2]] -> [[1, 1], [2, 2]] not [[1, 2], [1, 2]]
+            x = x.ravel()  # Ensure x[0], x[1] works
+            if as_index and (x[0] < 0 or x[1] < 0):
+                raise ValueError("index can't contain negative values")
+            return ((x[0], x[1]),) * ndim
+
+    if as_index and x.min() < 0:
+        raise ValueError("index can't contain negative values")
+
+    # Converting the array with `tolist` seems to improve performance
+    # when iterating and indexing the result (see usage in `pad`)
+    return np.broadcast_to(x, (ndim, 2)).tolist()
+
 
 def validate_lengths(ar, crop_width):
     return _as_pairs(crop_width, ar.ndim, as_index=True)
+
 
 def _crop(frame, bbox):
     return frame[bbox[0]:bbox[2], bbox[1]:bbox[3]]
