@@ -1,6 +1,38 @@
 Release notes
 =============
 
+v0.7
+------
+This is a major release that includes compatibility with numpy 2.0, the
+end of libtiff support, and some bug fixes.
+
+-  MNT: numpy2 compatibility by @tacaswell in
+   https://github.com/soft-matter/pims/pull/457
+-  MNT: Drop support for libtiff by @nkeim in
+   https://github.com/soft-matter/pims/pull/441
+-  FIX: Be more lenient when parsing the TIFF DateTime metadata tag. by
+   @anntzer in https://github.com/soft-matter/pims/pull/424
+-  FIX: Don’t emit warnings that duplicate exceptions on opening
+   failure. by @anntzer in https://github.com/soft-matter/pims/pull/434
+-  FIX: Close files in case of reader failure by @nkeim in
+   https://github.com/soft-matter/pims/pull/445
+-  MNT: Update/fix CI setup. by @anntzer in
+   https://github.com/soft-matter/pims/pull/437
+-  DOC: Update imageio link by @dstansby in
+   https://github.com/soft-matter/pims/pull/450
+-  DOC: branch name in link to example nb by @dmarx in
+   https://github.com/soft-matter/pims/pull/428
+-  DOC: Clarify sorting rule in ImageSequence docs by @anntzer in
+   https://github.com/soft-matter/pims/pull/423
+
+New Contributors:
+
+-  @dmarx made their first contribution in
+   https://github.com/soft-matter/pims/pull/428
+-  @dstansby made their first contribution in
+   https://github.com/soft-matter/pims/pull/450
+
+
 v0.6.1
 ------
 This is a bugfix release recommended for all users.
