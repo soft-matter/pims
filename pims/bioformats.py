@@ -306,8 +306,12 @@ class BioformatsReader(FramesSequenceND):
     """
     @classmethod
     def class_exts(cls):
-        return {'lsm', 'ipl', 'dm3', 'seq', 'nd2', 'ics', 'ids',
-                'ipw', 'tif', 'tiff', 'jpg', 'bmp', 'lif', 'lei'}
+        # List of supported bioformats filetypes is in bioformats_filetypes.txt
+        # https://docs.openmicroscopy.org/bio-formats/5.7.1/supported-formats.html
+        with open('bioformats_filetypes.txt') as f:
+            extensions = f.read().split('\n')
+        extensions = set([ext[1:] for ext in extensions if ext])
+        return extensions
 
     class_priority = 2
     propagate_attrs = ['frame_shape', 'pixel_type', 'metadata',
