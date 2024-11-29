@@ -154,13 +154,19 @@ def open(sequence, **kwargs):
     >>> frame_count = len(video) # Number of frames in video
     >>> frame_shape = video.frame_shape # Pixel dimensions of video
     """
-    files = glob.glob(sequence)
+    if not isinstance(sequence, list):
+        sequence = [sequence]
+
+    files = []
+    for each_seq in sequence:
+        files.extend(glob.glob(each_seq))
+
     if len(files) > 1:
         # todo: test if ImageSequence can read the image type,
         #       delegate to subclasses as needed
-        return ImageSequence(sequence, **kwargs)
+        return ImageSequence(files, **kwargs)
 
-    _, ext = os.path.splitext(sequence)
+    _, ext = os.path.splitext(files[0])
     if ext is None or len(ext) < 2:
         raise UnknownFormatError(
             "Could not detect your file type because it did not have an "
@@ -193,7 +199,7 @@ def open(sequence, **kwargs):
     messages = []
     for handler in sort_on_priority(eligible_handlers):
         try:
-            return handler(sequence, **kwargs)
+            return handler(files[0], **kwargs)
         except Exception as e:
             messages.append('{} errored: {}'.format(str(handler), str(e)))
     raise UnknownFormatError(
