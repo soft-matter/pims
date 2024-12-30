@@ -166,10 +166,14 @@ def export_pyav(sequence, filename, rate=30, bitrate=None,
             output.mux(packet)
 
     # Finish encoding the stream
+    try:
+        from av import FFmpegError as AVError
+    except ImportError:
+        from av import AVError
     while True:
         try:
             packet = stream.encode()
-        except av.AVError:  # End of file raises AVError since after av 0.4
+        except AVError:  # End of file raises AVError since after av 0.4
             break
         if packet is None:
             break
@@ -499,7 +503,7 @@ def _to_rgb_uint8(image, autoscale):
         color_axis = shape.index(3)
         image = np.rollaxis(image, color_axis, 3)
     elif image.ndim == 3 and shape.count(4) == 1:
-        # This is an RGBA image. Ensure that the color axis is axis 2, and 
+        # This is an RGBA image. Ensure that the color axis is axis 2, and
         # drop the A values.
         color_axis = shape.index(4)
         image = np.rollaxis(image, color_axis, 3)[:, :, :3]
